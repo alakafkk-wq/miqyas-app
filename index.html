@@ -59,7 +59,8 @@
   <div class="apphead"><div><span class="eyebrow">لوحة التحكم</span><h1 id="orgTitle">منشأتي</h1><p class="muted">متابعة مؤشرات الجودة وأداء الفروع</p></div><button id="addBranchBtn" class="primary">＋ إضافة فرع</button></div>
   <div class="stats">
     <article class="stat"><span>الفروع</span><strong id="branchCount">0</strong><small>إجمالي الفروع</small></article>
-    <article class="stat"><span>التقييمات</span><strong id="evalCount">0</strong><small>إجمالي السجلات</small></article>
+    <article class="stat"><span>سجلات التقييم</span><strong id="evalCount">0</strong><small>عدد النماذج والسجلات</small></article>
+    <article class="stat"><span>أصوات العملاء</span><strong id="voiceCount">0</strong><small>عدد المشاركات الفردية</small></article>
     <article class="stat"><span>متوسط الجودة</span><strong id="avgScore">—</strong><small>من 100</small></article>
     <article class="stat"><span>رضا العملاء</span><strong id="vocScore">—</strong><small>نسبة الإيجابي من VOC</small></article>
   </div>
@@ -75,7 +76,20 @@
       </form>
     </section>
   </div>
-  <section class="panel history"><div class="panelhead"><div><h2>آخر التقييمات</h2><p>السجلات المحفوظة في قاعدة البيانات</p></div><button id="refresh" class="outline">تحديث</button></div><div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الفرع</th><th>النوع</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>النتيجة</th></tr></thead><tbody id="evalRows"><tr><td colspan="7">لا توجد سجلات</td></tr></tbody></table></div></section>
+  <section class="panel report-panel">
+    <div class="panelhead"><div><h2>تحليل النتائج والتقارير</h2><p>تصفية المؤشرات ثم تصدير تقرير Excel</p></div><button id="exportExcel" class="primary">تحميل تقرير Excel</button></div>
+    <div class="report-filters">
+      <label>المنطقة / الحي<select id="filterArea"><option value="">كل المناطق</option></select></label>
+      <label>الفرع<select id="filterBranch"><option value="">كل الفروع</option></select></label>
+      <button id="clearFilters" class="outline" type="button">مسح التصفية</button>
+    </div>
+    <div class="sentiment-summary">
+      <div class="sentiment-heading"><h3>توزيع أصوات العملاء</h3><span id="voiceTotalLabel">0 صوت</span></div>
+      <div class="sentiment-bars" id="sentimentChart" role="img" aria-label="رسم يوضح توزيع أصوات العملاء"></div>
+      <div class="sentiment-legend" id="sentimentLegend"></div>
+    </div>
+  </section>
+  <section class="panel history"><div class="panelhead"><div><h2>آخر التقييمات</h2><p>السجلات المحفوظة في قاعدة البيانات حسب التصفية</p></div><button id="refresh" class="outline">تحديث</button></div><div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الفرع</th><th>النوع</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>النتيجة</th></tr></thead><tbody id="evalRows"><tr><td colspan="7">لا توجد سجلات</td></tr></tbody></table></div></section>
 </section>
 </main>
 
@@ -87,6 +101,7 @@
 <dialog id="qrDialog"><div class="dialog-head"><h2>رمز تقييم الفرع</h2><button type="button" class="x" id="closeQr">×</button></div><p id="qrBranchTitle" class="muted"></p><div id="qrCanvas" class="qr-canvas"></div><p id="qrUrlText" class="fine"></p><button type="button" class="outline wide" id="copyFeedbackLink">نسخ رابط التقييم</button><p class="fine">اطبع الرمز وضعه في الفرع ليتمكن العملاء من تقييم تجربتهم.</p></dialog>
 <div id="toast" class="toast" role="status"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="config.js"></script>
 <script type="module" src="app.js"></script>
 </body></html>

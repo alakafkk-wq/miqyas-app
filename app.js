@@ -130,38 +130,79 @@ async function refreshData() {
   branches=b.data||[]; assessments=e.data||[]; customerFeedback=f.data||[];
   render();
 }
+function getFilteredData() {
+  const area=$("#filterArea")?.value||"";
+  const branchId=$("#filterBranch")?.value||"";
+  const selectedBranches=branches.filter(b=>(!area||String(b.area||"")===area)&&(!branchId||b.id===branchId));
+  const ids=new Set(selectedBranches.map(b=>b.id));
+  const filteredAssessments=assessments.filter(x=>ids.has(x.branch_id));
+  const filteredFeedback=customerFeedback.filter(x=>ids.has(x.branch_id));
+  return {selectedBranches,filteredAssessments,filteredFeedback};
+}
+function updateFilterOptions() {
+  const areaEl=$("#filterArea"), branchEl=$("#filterBranch");
+  if(!areaEl||!branchEl) return;
+  const oldArea=areaEl.value, oldBranch=branchEl.value;
+  const areas=[...new Set(branches.map(b=>String(b.area||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ar"));
+  areaEl.innerHTML='<option value="">كل المناطق</option>'+areas.map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join("");
+  if(areas.includes(oldArea)) areaEl.value=oldArea;
+  const visible=branches.filter(b=>!areaEl.value||String(b.area||"")===areaEl.value);
+  branchEl.innerHTML='<option value="">كل الفروع</option>'+visible.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
+  if(visible.some(b=>b.id===oldBranch)) branchEl.value=oldBranch;
+}
+function renderSentiment(pos,neu,neg) {
+  const total=pos+neu+neg;
+  $("#voiceTotalLabel").textContent=`${total} صوت`;
+  const items=[
+    {label:"إيجابي",value:pos,cls:"positive"},
+    {label:"محايد",value:neu,cls:"neutral"},
+    {label:"سلبي",value:neg,cls:"negative"}
+  ];
+  $("#sentimentChart").innerHTML=items.map(x=>{
+    const pct=total?Math.round(x.value/total*100):0;
+    return `<div class="sentiment-row"><div class="sentiment-label"><span>${x.label}</span><b>${x.value}</b></div><div class="sentiment-track"><span class="${x.cls}" style="width:${pct}%"></span></div><small>${pct}%</small></div>`;
+  }).join("");
+  $("#sentimentLegend").innerHTML=items.map(x=>`<span><i class="${x.cls}"></i>${x.label}: ${x.value}</span>`).join("");
+}
 function render() {
-  const totalEvaluations=assessments.length+customerFeedback.length;
-  $("#branchCount").textContent=branches.length;
+  updateFilterOptions();
+  const {selectedBranches,filteredAssessments,filteredFeedback}=getFilteredData();
+  const totalEvaluations=filteredAssessments.length+filteredFeedback.length;
+  $("#branchCount").textContent=selectedBranches.length;
   $("#evalCount").textContent=totalEvaluations;
-  // Average quality remains based on formal quality assessments only.
-  const scores=assessments.map(x=>Number(x.score));
+  // Average quality is based on formal quality assessments, not individual QR responses.
+  const scores=filteredAssessments.map(x=>Number(x.score)).filter(Number.isFinite);
   $("#avgScore").textContent=avg(scores)===null?"—":avg(scores)+"%";
-  // Customer satisfaction combines manual VOC entries and individual QR feedback.
-  const voc=assessments.filter(x=>x.assessment_type==="voc");
-  const pos=voc.reduce((s,x)=>s+Number(x.positive_count||0),0)+customerFeedback.filter(x=>x.rating==="positive").length;
-  const neu=voc.reduce((s,x)=>s+Number(x.neutral_count||0),0)+customerFeedback.filter(x=>x.rating==="neutral").length;
-  const neg=voc.reduce((s,x)=>s+Number(x.negative_count||0),0)+customerFeedback.filter(x=>x.rating==="negative").length;
-  $("#vocScore").textContent=(pos+neu+neg)?Math.round(pos/(pos+neu+neg)*100)+"%":"—";
-  $("#branchList").classList.toggle("empty",!branches.length);
-  $("#branchList").innerHTML=branches.length?branches.map(b=>{
-    const es=assessments.filter(x=>x.branch_id===b.id).length+customerFeedback.filter(x=>x.branch_id===b.id).length;
-    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${es} تقييم</span><button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
-  }).join(""):"لا توجد فروع بعد";
-  $("#evalBranch").innerHTML=branches.map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join("");
+  // VOC counts combine manually entered VOC assessments and individual QR feedback.
+  const voc=filteredAssessments.filter(x=>x.assessment_type==="voc");
+  const pos=voc.reduce((s,x)=>s+Number(x.positive_count||0),0)+filteredFeedback.filter(x=>x.rating==="positive").length;
+  const neu=voc.reduce((s,x)=>s+Number(x.neutral_count||0),0)+filteredFeedback.filter(x=>x.rating==="neutral").length;
+  const neg=voc.reduce((s,x)=>s+Number(x.negative_count||0),0)+filteredFeedback.filter(x=>x.rating==="negative").length;
+  const voiceTotal=pos+neu+neg;
+  $("#voiceCount").textContent=voiceTotal;
+  $("#vocScore").textContent=voiceTotal?Math.round(pos/voiceTotal*100)+"%":"—";
+  renderSentiment(pos,neu,neg);
+
+  $("#branchList").classList.toggle("empty",!selectedBranches.length);
+  $("#branchList").innerHTML=selectedBranches.length?selectedBranches.map(b=>{
+    const count=filteredAssessments.filter(x=>x.branch_id===b.id).length+filteredFeedback.filter(x=>x.branch_id===b.id).length;
+    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} تقييم</span><button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
+  }).join(""):"لا توجد فروع مطابقة للتصفية";
+  $("#evalBranch").innerHTML=branches.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
   $("#saveEval").disabled=!branches.length;
-  const assessmentRows=assessments.map(x=>{
+
+  const assessmentRows=filteredAssessments.map(x=>{
     const b=branches.find(z=>z.id===x.branch_id);
     const types={voc:"صوت العميل",mystery_shopper:"المتسوق السري",internal:"تقييم داخلي"};
-    return {created_at:x.created_at,html:`<tr><td>${new Date(x.created_at).toLocaleDateString("ar-SA")}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>${types[x.assessment_type]||escapeHtml(x.assessment_type)}</td><td>${x.positive_count}</td><td>${x.neutral_count}</td><td>${x.negative_count}</td><td>${Math.round(Number(x.score))}%</td></tr>`};
+    return {created_at:x.created_at,html:`<tr><td>${new Date(x.created_at).toLocaleDateString("ar-SA")}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>${types[x.assessment_type]||escapeHtml(x.assessment_type)}</td><td>${Number(x.positive_count||0)}</td><td>${Number(x.neutral_count||0)}</td><td>${Number(x.negative_count||0)}</td><td>${Math.round(Number(x.score)||0)}%</td></tr>`};
   });
-  const feedbackRows=customerFeedback.map(x=>{
+  const feedbackRows=filteredFeedback.map(x=>{
     const b=branches.find(z=>z.id===x.branch_id);
     const ratingLabel={positive:"إيجابي",neutral:"محايد",negative:"سلبي"};
     return {created_at:x.created_at,html:`<tr><td>${new Date(x.created_at).toLocaleDateString("ar-SA")}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>صوت العميل (QR)</td><td>${x.rating==="positive"?1:0}</td><td>${x.rating==="neutral"?1:0}</td><td>${x.rating==="negative"?1:0}</td><td>${ratingLabel[x.rating]||"—"}</td></tr>`};
   });
   const rows=[...assessmentRows,...feedbackRows].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-  $("#evalRows").innerHTML=rows.length?rows.map(x=>x.html).join(""):'<tr><td colspan="7" class="muted">لا توجد سجلات بعد</td></tr>';
+  $("#evalRows").innerHTML=rows.length?rows.map(x=>x.html).join(""):'<tr><td colspan="7" class="muted">لا توجد سجلات مطابقة للتصفية</td></tr>';
 }
 $("#branchList").addEventListener("click",e=>{
   const btn=e.target.closest("[data-qr]"); if(!btn) return;
@@ -205,6 +246,86 @@ $("#evalForm").addEventListener("submit",async e=>{
   }catch(err){toast(err.message||"تعذر حفظ التقييم");}
   finally{setBusy(btn,false);}
 });
+
+function exportExcelReport() {
+  if(!window.XLSX){toast("تعذر تحميل أداة Excel. تحقق من الاتصال بالإنترنت ثم أعد المحاولة.");return;}
+  const {selectedBranches,filteredAssessments,filteredFeedback}=getFilteredData();
+  const voc=filteredAssessments.filter(x=>x.assessment_type==="voc");
+  const positive=voc.reduce((s,x)=>s+Number(x.positive_count||0),0)+filteredFeedback.filter(x=>x.rating==="positive").length;
+  const neutral=voc.reduce((s,x)=>s+Number(x.neutral_count||0),0)+filteredFeedback.filter(x=>x.rating==="neutral").length;
+  const negative=voc.reduce((s,x)=>s+Number(x.negative_count||0),0)+filteredFeedback.filter(x=>x.rating==="negative").length;
+  const voiceTotal=positive+neutral+negative;
+  const qualityScores=filteredAssessments.map(x=>Number(x.score)).filter(Number.isFinite);
+  const selectedArea=$("#filterArea").value||"كل المناطق";
+  const selectedBranch=$("#filterBranch").value?selectedBranches[0]?.name||"فرع محدد":"كل الفروع";
+  const summary=[
+    ["تقرير منصة مقياس - مؤشرات الجودة وصوت العميل"],
+    ["تاريخ استخراج التقرير",new Date()],
+    ["التصفية - المنطقة",selectedArea],
+    ["التصفية - الفرع",selectedBranch],
+    ["عدد الفروع",selectedBranches.length],
+    ["عدد سجلات التقييم",filteredAssessments.length+filteredFeedback.length],
+    ["عدد أصوات العملاء",voiceTotal],
+    ["الأصوات الإيجابية",positive],
+    ["الأصوات المحايدة",neutral],
+    ["الأصوات السلبية",negative],
+    ["رضا العملاء",voiceTotal?positive/voiceTotal:0],
+    ["متوسط الجودة",qualityScores.length?qualityScores.reduce((a,b)=>a+b,0)/qualityScores.length/100:0]
+  ];
+  const branchRows=[["الفرع","المنطقة / الحي","المدينة","سجلات التقييم","أصوات العملاء","إيجابي","محايد","سلبي","رضا العملاء","متوسط الجودة"]];
+  selectedBranches.forEach(b=>{
+    const ba=filteredAssessments.filter(x=>x.branch_id===b.id);
+    const bf=filteredFeedback.filter(x=>x.branch_id===b.id);
+    const bv=ba.filter(x=>x.assessment_type==="voc");
+    const p=bv.reduce((s,x)=>s+Number(x.positive_count||0),0)+bf.filter(x=>x.rating==="positive").length;
+    const n=bv.reduce((s,x)=>s+Number(x.neutral_count||0),0)+bf.filter(x=>x.rating==="neutral").length;
+    const ng=bv.reduce((s,x)=>s+Number(x.negative_count||0),0)+bf.filter(x=>x.rating==="negative").length;
+    const t=p+n+ng, qs=ba.map(x=>Number(x.score)).filter(Number.isFinite);
+    branchRows.push([b.name,b.area||"",b.city||"",ba.length+bf.length,t,p,n,ng,t?p/t:0,qs.length?qs.reduce((a,c)=>a+c,0)/qs.length/100:0]);
+  });
+  const voiceRows=[["التاريخ","الفرع","المنطقة / الحي","نوع المصدر","التقييم","الملاحظات"]];
+  filteredFeedback.forEach(x=>{
+    const b=branches.find(y=>y.id===x.branch_id);
+    voiceRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"","QR",({positive:"إيجابي",neutral:"محايد",negative:"سلبي"})[x.rating]||x.rating,x.comment||""]);
+  });
+  filteredAssessments.filter(x=>x.assessment_type==="voc").forEach(x=>{
+    const b=branches.find(y=>y.id===x.branch_id);
+    voiceRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"","يدوي - VOC","ملخص أصوات",`إيجابي: ${x.positive_count||0}، محايد: ${x.neutral_count||0}، سلبي: ${x.negative_count||0} ${x.notes||""}`]);
+  });
+  const recordRows=[["التاريخ","الفرع","المنطقة / الحي","نوع التقييم","إيجابي","محايد","سلبي","النتيجة / التصنيف","الملاحظات"]];
+  filteredAssessments.forEach(x=>{
+    const b=branches.find(y=>y.id===x.branch_id);
+    recordRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"",({voc:"صوت العميل VOC",mystery_shopper:"المتسوق السري",internal:"تقييم داخلي"})[x.assessment_type]||x.assessment_type,Number(x.positive_count||0),Number(x.neutral_count||0),Number(x.negative_count||0),`${Number(x.score||0)}%`,x.notes||""]);
+  });
+  filteredFeedback.forEach(x=>{
+    const b=branches.find(y=>y.id===x.branch_id);
+    recordRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"","صوت العميل (QR)",x.rating==="positive"?1:0,x.rating==="neutral"?1:0,x.rating==="negative"?1:0,({positive:"إيجابي",neutral:"محايد",negative:"سلبي"})[x.rating]||x.rating,x.comment||""]);
+  });
+  const wb=XLSX.utils.book_new();
+  const addSheet=(rows,name)=>{const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=rows[0].map((_,i)=>({wch:Math.min(38,Math.max(14,...rows.slice(0,80).map(r=>String(r[i]??"").length+2)))}));XLSX.utils.book_append_sheet(wb,ws,name);};
+  addSheet(summary,"الملخص");
+  if(wb.Sheets["الملخص"]["B11"]) wb.Sheets["الملخص"]["B11"].z="0.0%";
+  if(wb.Sheets["الملخص"]["B12"]) wb.Sheets["الملخص"]["B12"].z="0.0%";
+  addSheet(branchRows,"أداء الفروع");
+  const branchSheet=wb.Sheets["أداء الفروع"];
+  for(let r=2;r<=branchRows.length;r++){if(branchSheet[`I${r}`])branchSheet[`I${r}`].z="0.0%";if(branchSheet[`J${r}`])branchSheet[`J${r}`].z="0.0%";}
+  addSheet(voiceRows,"صوت العميل");
+  addSheet(recordRows,"سجل التقييمات");
+  const safeDate=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,`MIQYAS_Report_${safeDate}.xlsx`);
+  toast("تم تجهيز تقرير Excel");
+}
+$("#filterArea").addEventListener("change",()=>{
+  const currentBranch=$("#filterBranch").value;
+  const allowed=branches.filter(b=>!$("#filterArea").value||String(b.area||"")===$("#filterArea").value);
+  $("#filterBranch").innerHTML='<option value="">كل الفروع</option>'+allowed.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
+  if(allowed.some(b=>b.id===currentBranch)) $("#filterBranch").value=currentBranch;
+  render();
+});
+$("#filterBranch").addEventListener("change",render);
+$("#clearFilters").addEventListener("click",()=>{$("#filterArea").value="";$("#filterBranch").value="";render();});
+$("#exportExcel").addEventListener("click",exportExcelReport);
+
 $("#refresh").addEventListener("click",async()=>{try{await refreshData();toast("تم تحديث البيانات");}catch(e){toast(e.message);}});
 $("#signOut").addEventListener("click",async()=>{
   const {error}=await supabase.auth.signOut();
