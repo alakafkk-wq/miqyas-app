@@ -8,6 +8,7 @@ let currentUser = null;
 let currentOrg = null;
 let branches = [];
 let assessments = [];
+let customerFeedback = [];
 let activeFeedbackToken = null;
 let activeFeedbackUrl = "";
 
@@ -118,34 +119,49 @@ async function loadWorkspace() {
   await refreshData();
 }
 async function refreshData() {
-  const [b,e]=await Promise.all([
+  const [b,e,f]=await Promise.all([
     supabase.from("branches").select("id,name,city,area,public_token,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}),
-    supabase.from("quality_assessments").select("id,branch_id,assessment_type,positive_count,neutral_count,negative_count,score,notes,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(100)
+    supabase.from("quality_assessments").select("id,branch_id,assessment_type,positive_count,neutral_count,negative_count,score,notes,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(100),
+    supabase.from("customer_feedback").select("id,branch_id,rating,comment,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(500)
   ]);
-  if(b.error) throw b.error; if(e.error) throw e.error;
-  branches=b.data||[]; assessments=e.data||[];
+  if(b.error) throw b.error;
+  if(e.error) throw e.error;
+  if(f.error) throw f.error;
+  branches=b.data||[]; assessments=e.data||[]; customerFeedback=f.data||[];
   render();
 }
 function render() {
+  const totalEvaluations=assessments.length+customerFeedback.length;
   $("#branchCount").textContent=branches.length;
-  $("#evalCount").textContent=assessments.length;
+  $("#evalCount").textContent=totalEvaluations;
+  // Average quality remains based on formal quality assessments only.
   const scores=assessments.map(x=>Number(x.score));
   $("#avgScore").textContent=avg(scores)===null?"—":avg(scores)+"%";
+  // Customer satisfaction combines manual VOC entries and individual QR feedback.
   const voc=assessments.filter(x=>x.assessment_type==="voc");
-  const pos=voc.reduce((s,x)=>s+x.positive_count,0), neu=voc.reduce((s,x)=>s+x.neutral_count,0), neg=voc.reduce((s,x)=>s+x.negative_count,0);
+  const pos=voc.reduce((s,x)=>s+Number(x.positive_count||0),0)+customerFeedback.filter(x=>x.rating==="positive").length;
+  const neu=voc.reduce((s,x)=>s+Number(x.neutral_count||0),0)+customerFeedback.filter(x=>x.rating==="neutral").length;
+  const neg=voc.reduce((s,x)=>s+Number(x.negative_count||0),0)+customerFeedback.filter(x=>x.rating==="negative").length;
   $("#vocScore").textContent=(pos+neu+neg)?Math.round(pos/(pos+neu+neg)*100)+"%":"—";
   $("#branchList").classList.toggle("empty",!branches.length);
   $("#branchList").innerHTML=branches.length?branches.map(b=>{
-    const es=assessments.filter(x=>x.branch_id===b.id);
-    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${es.length} تقييم</span><button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
+    const es=assessments.filter(x=>x.branch_id===b.id).length+customerFeedback.filter(x=>x.branch_id===b.id).length;
+    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${es} تقييم</span><button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
   }).join(""):"لا توجد فروع بعد";
   $("#evalBranch").innerHTML=branches.map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join("");
   $("#saveEval").disabled=!branches.length;
-  $("#evalRows").innerHTML=assessments.length?assessments.map(x=>{
+  const assessmentRows=assessments.map(x=>{
     const b=branches.find(z=>z.id===x.branch_id);
     const types={voc:"صوت العميل",mystery_shopper:"المتسوق السري",internal:"تقييم داخلي"};
-    return `<tr><td>${new Date(x.created_at).toLocaleDateString("ar-SA")}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>${types[x.assessment_type]||x.assessment_type}</td><td>${x.positive_count}</td><td>${x.neutral_count}</td><td>${x.negative_count}</td><td>${Math.round(Number(x.score))}%</td></tr>`;
-  }).join(""):'<tr><td colspan="7" class="muted">لا توجد سجلات بعد</td></tr>';
+    return {created_at:x.created_at,html:`<tr><td>${new Date(x.created_at).toLocaleDateString("ar-SA")}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>${types[x.assessment_type]||escapeHtml(x.assessment_type)}</td><td>${x.positive_count}</td><td>${x.neutral_count}</td><td>${x.negative_count}</td><td>${Math.round(Number(x.score))}%</td></tr>`};
+  });
+  const feedbackRows=customerFeedback.map(x=>{
+    const b=branches.find(z=>z.id===x.branch_id);
+    const ratingLabel={positive:"إيجابي",neutral:"محايد",negative:"سلبي"};
+    return {created_at:x.created_at,html:`<tr><td>${new Date(x.created_at).toLocaleDateString("ar-SA")}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>صوت العميل (QR)</td><td>${x.rating==="positive"?1:0}</td><td>${x.rating==="neutral"?1:0}</td><td>${x.rating==="negative"?1:0}</td><td>${ratingLabel[x.rating]||"—"}</td></tr>`};
+  });
+  const rows=[...assessmentRows,...feedbackRows].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  $("#evalRows").innerHTML=rows.length?rows.map(x=>x.html).join(""):'<tr><td colspan="7" class="muted">لا توجد سجلات بعد</td></tr>';
 }
 $("#branchList").addEventListener("click",e=>{
   const btn=e.target.closest("[data-qr]"); if(!btn) return;
