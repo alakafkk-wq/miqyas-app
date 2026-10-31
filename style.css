@@ -47,3 +47,37 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
  .panelhead:has(#exportExcel){align-items:stretch;flex-direction:column}
  .panelhead:has(#exportExcel) #exportExcel{width:100%}
 }
+
+/* Subscription module */
+.subscription-panel{margin:20px 0}
+.sub-status{display:inline-flex;align-items:center;border-radius:99px;padding:7px 13px;background:#fff1df;color:#9a6410;font-size:.85rem;white-space:nowrap}
+.sub-status.active{background:#e6f5ee;color:#087a55}
+.current-subscription{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:18px;border:1px solid var(--line,#dce7e0);border-radius:16px;background:#f7fbf8;margin:15px 0}
+.current-subscription div:first-child{display:grid;gap:5px}
+.current-subscription small,.current-subscription span{color:var(--muted,#74827b)}
+.current-subscription strong{font-size:1.12rem}
+.sub-expiry{font-size:.9rem;color:var(--muted,#74827b);text-align:left}
+.plan-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+.plan-card{border:1px solid var(--line,#dce7e0);border-radius:15px;padding:16px;background:#fff}
+.plan-card.featured{border:2px solid #087a55;background:#f7fcf9}
+.plan-card h3{margin:0 0 10px}
+.plan-card strong{font-size:1.1rem;color:#087a55;display:block}
+.plan-card strong small{font-size:.72rem;color:var(--muted,#74827b);font-weight:400}
+.plan-card p{margin:9px 0;color:var(--muted,#74827b)}
+.plan-card>small{color:var(--muted,#74827b);line-height:1.7}
+.subscription-form{border-top:1px solid var(--line,#dce7e0);padding-top:17px;margin-top:16px}
+.subscription-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.subscription-fields label,.bank-instructions label{display:flex;flex-direction:column;gap:7px}
+.subscription-fields select,.bank-instructions input{width:100%;min-height:46px;border:1px solid var(--line,#dce7e0);border-radius:12px;padding:10px;background:#fff;font:inherit}
+.bank-instructions{background:#f7fbf8;border:1px solid var(--line,#dce7e0);border-radius:14px;padding:15px;margin:15px 0}
+.bank-instructions h3{margin:0 0 8px}
+.bank-instructions p{color:var(--muted,#74827b);line-height:1.7}
+.subscription-history{margin-top:22px}
+.subscription-history h3{margin-bottom:12px}
+.platform-admin{border-top:1px solid var(--line,#dce7e0);padding-top:20px;margin-top:22px}
+@media(max-width:680px){
+ .plan-grid{grid-template-columns:1fr}
+ .subscription-fields{grid-template-columns:1fr}
+ .current-subscription{align-items:flex-start;flex-direction:column}
+ .sub-expiry{text-align:right}
+}

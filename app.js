@@ -11,6 +11,11 @@ let assessments = [];
 let customerFeedback = [];
 let activeFeedbackToken = null;
 let activeFeedbackUrl = "";
+let subscriptionPlans = [];
+let currentSubscription = null;
+let subscriptionRequests = [];
+let isPlatformAdmin = false;
+let subscriptionBankSettings = null;
 
 function toast(msg) {
   const el = $("#toast"); el.textContent = msg; el.classList.add("show");
@@ -117,6 +122,7 @@ async function loadWorkspace() {
   $("#orgTitle").textContent=currentOrg.name;
   show("#appView");
   await refreshData();
+  await loadSubscriptionData();
 }
 async function refreshData() {
   const [b,e,f]=await Promise.all([
@@ -130,6 +136,92 @@ async function refreshData() {
   branches=b.data||[]; assessments=e.data||[]; customerFeedback=f.data||[];
   render();
 }
+
+const planLabels={basic:"الأساسية",professional:"الاحترافية",enterprise:"المؤسسات"};
+const requestStatusLabels={pending:"بانتظار المراجعة",awaiting_gateway:"بانتظار الدفع الإلكتروني",approved:"معتمد",rejected:"مرفوض",cancelled:"ملغي"};
+function showSubscriptionSetupError(err){
+  $("#subscriptionStatus").textContent="يتطلب إعداد قاعدة البيانات";
+  $("#currentPlanName").textContent="لم يتم إعداد الاشتراكات بعد";
+  $("#currentPlanDates").textContent="نفّذ ملف MIQYAS_SUBSCRIPTIONS.sql في Supabase لتفعيل هذه الميزة.";
+  $("#subscriptionMessage").textContent=err?.message||"ميزة الاشتراكات غير مفعلة بعد.";
+  $("#subscriptionMessage").className="message error";
+}
+async function loadSubscriptionData(){
+  try{
+    const [plansRes,subRes,reqRes,adminRes,bankRes]=await Promise.all([
+      supabase.from("subscription_plans").select("code,name,price_sar,billing_period_months,branch_limit,features").eq("is_active",true).order("price_sar"),
+      supabase.from("organization_subscriptions").select("id,plan_code,status,starts_at,ends_at,payment_method").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(1),
+      supabase.from("subscription_payment_requests").select("id,plan_code,amount_sar,payment_method,status,transfer_reference,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(20),
+      supabase.rpc("is_platform_admin"),
+      supabase.from("subscription_bank_settings").select("bank_name,beneficiary_name,iban,instructions").eq("id",true).maybeSingle()
+    ]);
+    if(plansRes.error) throw plansRes.error;
+    if(subRes.error) throw subRes.error;
+    if(reqRes.error) throw reqRes.error;
+    if(adminRes.error) throw adminRes.error;
+    if(bankRes.error) throw bankRes.error;
+    subscriptionBankSettings=bankRes.data||null;
+    subscriptionPlans=plansRes.data||[];
+    currentSubscription=subRes.data?.[0]||null;
+    subscriptionRequests=reqRes.data||[];
+    isPlatformAdmin=adminRes.data===true;
+    renderSubscription();
+    if(isPlatformAdmin) await loadAdminSubscriptionRequests();
+  }catch(err){showSubscriptionSetupError(err);}
+}
+function renderSubscription(){
+  const active=currentSubscription&&currentSubscription.status==="active"&&(!currentSubscription.ends_at||new Date(currentSubscription.ends_at)>new Date());
+  $("#subscriptionStatus").textContent=active?"اشتراك نشط":"لا يوجد اشتراك نشط";
+  $("#subscriptionStatus").classList.toggle("active",!!active);
+  $("#currentPlanName").textContent=active?`باقة ${planLabels[currentSubscription.plan_code]||currentSubscription.plan_code}`:"لا يوجد اشتراك نشط";
+  $("#currentPlanDates").textContent=active?`بدأ في ${new Date(currentSubscription.starts_at).toLocaleDateString("ar-SA")}`:"اختر الباقة المناسبة للبدء";
+  $("#subscriptionExpiry").textContent=active&&currentSubscription.ends_at?`ينتهي ${new Date(currentSubscription.ends_at).toLocaleDateString("ar-SA")}`:"—";
+  const bank=subscriptionBankSettings;
+  $("#bankDetailsText").innerHTML=bank?.iban&&bank?.beneficiary_name
+    ? `<b>البنك:</b> ${escapeHtml(bank.bank_name||"—")}<br><b>اسم المستفيد:</b> ${escapeHtml(bank.beneficiary_name)}<br><b>الآيبان:</b> <span dir="ltr">${escapeHtml(bank.iban)}</span><br>${escapeHtml(bank.instructions||"حوّل قيمة الباقة ثم أدخل رقم مرجع التحويل.")}`
+    : "بيانات الحساب البنكي لم تعتمد بعد. لا تحوّل أي مبلغ قبل ظهور اسم المستفيد والآيبان الرسميين.";
+  $("#subscriptionPlans").innerHTML=subscriptionPlans.map(p=>`<article class="plan-card ${p.code==="professional"?"featured":""}"><h3>${escapeHtml(p.name)}</h3><strong>${Number(p.price_sar)>0?`${Number(p.price_sar).toLocaleString("ar-SA")} ر.س <small>/ شهرياً</small>`:"حسب الاتفاق"}</strong><p>${p.branch_limit?`حتى ${p.branch_limit} فروع`:"عدد فروع مخصص"}</p><small>${escapeHtml(Array.isArray(p.features)?p.features.join(" • "):"")}</small></article>`).join("");
+  $("#subscriptionRequestRows").innerHTML=subscriptionRequests.length?subscriptionRequests.map(r=>`<tr><td>${new Date(r.created_at).toLocaleDateString("ar-SA")}</td><td>${planLabels[r.plan_code]||escapeHtml(r.plan_code)}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA")} ر.س</td><td>${r.payment_method==="bank_transfer"?"تحويل بنكي":"إلكتروني"}</td><td>${requestStatusLabels[r.status]||escapeHtml(r.status)}</td></tr>`).join(""):'<tr><td colspan="5" class="muted">لا توجد طلبات بعد</td></tr>';
+  $("#platformAdminPanel").classList.toggle("hidden",!isPlatformAdmin);
+}
+$("#subscriptionRequestForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const btn=$("#submitSubscriptionRequest");setBusy(btn,true,"جارٍ إرسال الطلب...");
+  try{
+    const planCode=$("#subscriptionPlan").value;
+    const paymentMethod=$("#subscriptionPaymentMethod").value;
+    if(paymentMethod==="online") throw new Error("الدفع الإلكتروني غير متاح حتى يتم ربط بوابة الدفع واعتماد مفاتيحها.");
+    const reference=$("#transferReference").value.trim();
+    if(!reference) throw new Error("أدخل رقم مرجع التحويل بعد إتمام التحويل البنكي.");
+    if(!subscriptionBankSettings?.iban||!subscriptionBankSettings?.beneficiary_name) throw new Error("بيانات التحويل البنكي لم تعتمد بعد. تواصل مع إدارة مقياس قبل التحويل.");
+    const {data,error}=await supabase.rpc("create_subscription_payment_request",{
+      p_organization_id:currentOrg.id,p_plan_code:planCode,p_payment_method:paymentMethod,p_transfer_reference:reference
+    });
+    if(error) throw error;
+    $("#transferReference").value="";
+    message("#subscriptionMessage","تم إرسال طلب الاشتراك بنجاح. سيظهر الاشتراك بعد مراجعة التحويل واعتماده.");
+    await loadSubscriptionData();
+  }catch(err){message("#subscriptionMessage",err.message||"تعذر إرسال طلب الاشتراك.",true);}
+  finally{setBusy(btn,false);}
+});
+$("#refreshSubscriptionRequests").addEventListener("click",async()=>{await loadAdminSubscriptionRequests();toast("تم تحديث الطلبات");});
+async function loadAdminSubscriptionRequests(){
+  if(!isPlatformAdmin)return;
+  const {data,error}=await supabase.from("subscription_payment_requests").select("id,organization_id,plan_code,amount_sar,transfer_reference,created_at,organizations(name)").eq("status","pending").order("created_at",{ascending:true});
+  if(error){$("#adminSubscriptionRows").innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
+  $("#adminSubscriptionRows").innerHTML=(data||[]).length?data.map(r=>`<tr><td>${escapeHtml(r.organizations?.name||"منشأة")}</td><td>${planLabels[r.plan_code]||r.plan_code}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA")} ر.س</td><td>${escapeHtml(r.transfer_reference||"—")}</td><td><button class="primary" data-approve-sub="${r.id}">اعتماد</button> <button class="outline" data-reject-sub="${r.id}">رفض</button></td></tr>`).join(""):'<tr><td colspan="5">لا توجد طلبات معلقة</td></tr>';
+}
+$("#platformAdminPanel").addEventListener("click",async e=>{
+  const approve=e.target.closest("[data-approve-sub]"),reject=e.target.closest("[data-reject-sub]");
+  if(!approve&&!reject)return;
+  const id=(approve||reject).dataset.approveSub||(approve||reject).dataset.rejectSub;
+  const rpc=approve?"approve_subscription_payment_request":"reject_subscription_payment_request";
+  const {error}=await supabase.rpc(rpc,{p_request_id:id});
+  if(error){toast(error.message);return;}
+  toast(approve?"تم اعتماد الاشتراك":"تم رفض الطلب");
+  await loadAdminSubscriptionRequests();
+  await loadSubscriptionData();
+});
 function getFilteredData() {
   const area=$("#filterArea")?.value||"";
   const branchId=$("#filterBranch")?.value||"";

@@ -64,6 +64,41 @@
     <article class="stat"><span>متوسط الجودة</span><strong id="avgScore">—</strong><small>من 100</small></article>
     <article class="stat"><span>رضا العملاء</span><strong id="vocScore">—</strong><small>نسبة الإيجابي من VOC</small></article>
   </div>
+
+  <section class="panel subscription-panel" id="subscriptionPanel">
+    <div class="panelhead"><div><h2>الاشتراك والباقات</h2><p>اختر الباقة المناسبة لمنشأتك وأرسل طلب الاشتراك</p></div><span id="subscriptionStatus" class="sub-status">جارٍ التحقق...</span></div>
+    <div class="current-subscription" id="currentSubscription">
+      <div><small>اشتراك المنشأة الحالي</small><strong id="currentPlanName">لا يوجد اشتراك نشط</strong><span id="currentPlanDates">يمكنك اختيار إحدى الباقات أدناه</span></div>
+      <div class="sub-expiry" id="subscriptionExpiry">—</div>
+    </div>
+    <div class="plan-grid" id="subscriptionPlans">
+      <article class="plan-card"><h3>الأساسية</h3><strong>199 ر.س <small>/ شهرياً</small></strong><p>حتى 5 فروع</p></article>
+      <article class="plan-card featured"><h3>الاحترافية</h3><strong>399 ر.س <small>/ شهرياً</small></strong><p>حتى 20 فرعاً</p></article>
+      <article class="plan-card"><h3>المؤسسات</h3><strong>حسب الاتفاق</strong><p>عدد فروع مخصص</p></article>
+    </div>
+    <form id="subscriptionRequestForm" class="subscription-form">
+      <div class="subscription-fields">
+        <label>الباقة المطلوبة<select id="subscriptionPlan" required><option value="basic">الأساسية – 199 ريال / شهر</option><option value="professional">الاحترافية – 399 ريال / شهر</option><option value="enterprise">المؤسسات – حسب الاتفاق</option></select></label>
+        <label>طريقة الدفع<select id="subscriptionPaymentMethod" required><option value="bank_transfer">تحويل بنكي</option><option value="online" disabled>دفع إلكتروني – بانتظار ربط بوابة الدفع</option></select></label>
+      </div>
+      <div id="bankTransferInstructions" class="bank-instructions">
+        <h3>الدفع بالتحويل البنكي</h3>
+        <p id="bankDetailsText">ستظهر بيانات الحساب البنكي بعد اعتمادها في إعدادات المنصة. لا تحوّل أي مبلغ قبل ظهور بيانات المستفيد الرسمية.</p>
+        <label>رقم مرجع التحويل (بعد إتمام التحويل)<input id="transferReference" maxlength="100" placeholder="أدخل رقم العملية أو مرجع التحويل"></label>
+      </div>
+      <button class="primary wide" id="submitSubscriptionRequest">إرسال طلب الاشتراك</button>
+      <p id="subscriptionMessage" class="message" aria-live="polite"></p>
+      <p class="fine">لا يتم تفعيل الاشتراك بمجرد إرسال الطلب؛ يتم التفعيل بعد مراجعة التحويل واعتماده من إدارة مقياس.</p>
+    </form>
+    <div class="subscription-history">
+      <h3>طلبات الاشتراك السابقة</h3>
+      <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الباقة</th><th>المبلغ</th><th>طريقة الدفع</th><th>الحالة</th></tr></thead><tbody id="subscriptionRequestRows"><tr><td colspan="5">لا توجد طلبات بعد</td></tr></tbody></table></div>
+    </div>
+    <div id="platformAdminPanel" class="platform-admin hidden">
+      <div class="panelhead"><div><h2>إدارة طلبات الاشتراك</h2><p>مراجعة طلبات المنشآت وتفعيل الاشتراكات</p></div><button type="button" class="outline" id="refreshSubscriptionRequests">تحديث الطلبات</button></div>
+      <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>مرجع التحويل</th><th>الإجراء</th></tr></thead><tbody id="adminSubscriptionRows"><tr><td colspan="5">لا توجد طلبات معلقة</td></tr></tbody></table></div>
+    </div>
+  </section>
   <div class="columns">
     <section class="panel"><div class="panelhead"><div><h2>الفروع</h2><p>الفروع التابعة لمنشأتك</p></div></div><div id="branchList" class="list empty">لا توجد فروع بعد</div></section>
     <section class="panel"><div class="panelhead"><div><h2>إضافة تقييم</h2><p>سجل صوت العميل أو المتسوق السري</p></div></div>
