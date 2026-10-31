@@ -7,7 +7,9 @@ let authMode = "login";
 let currentUser = null;
 let currentOrg = null;
 let branches = [];
-let assessments = [];\nlet activeFeedbackToken = null;\nlet activeFeedbackUrl = "";
+let assessments = [];
+let activeFeedbackToken = null;
+let activeFeedbackUrl = "";
 
 function toast(msg) {
   const el = $("#toast"); el.textContent = msg; el.classList.add("show");
