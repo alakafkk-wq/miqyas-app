@@ -17,6 +17,21 @@
 </header>
 
 <main class="wrap">
+<section id="publicFeedbackView" class="auth-card hidden">
+  <div class="auth-intro"><span class="eyebrow">MIQYAS CUSTOMER VOICE</span><h1>شاركنا رأيك</h1><p id="publicBranchName">رأيك يساعدنا على تحسين الخدمة.</p></div>
+  <form id="publicFeedbackForm">
+    <label>كيف كانت تجربتك؟</label>
+    <div class="rating-options">
+      <label><input type="radio" name="publicRating" value="positive" required><span>😍 راضٍ</span></label>
+      <label><input type="radio" name="publicRating" value="neutral"><span>😐 محايد</span></label>
+      <label><input type="radio" name="publicRating" value="negative"><span>😞 غير راضٍ</span></label>
+    </div>
+    <label>ملاحظتك (اختياري)<textarea id="publicComment" rows="3" maxlength="500" placeholder="أخبرنا عن تجربتك..."></textarea></label>
+    <button class="primary wide" id="publicFeedbackSubmit">إرسال التقييم</button>
+  </form>
+  <p id="publicFeedbackMessage" class="message" aria-live="polite"></p>
+  <p class="fine">لا تحتاج إلى إنشاء حساب لإرسال رأيك.</p>
+</section>
 <section id="authView" class="auth-card">
   <div class="auth-intro"><span class="eyebrow">MIQYAS CLOUD</span><h1>مرحباً بك في مؤشر</h1><p>سجّل الدخول أو أنشئ حساب منشأتك لبدء متابعة الجودة وأداء الفروع.</p></div>
   <div class="tabs"><button class="tab active" data-auth="login">تسجيل الدخول</button><button class="tab" data-auth="signup">إنشاء حساب</button></div>
@@ -69,7 +84,8 @@
 <label>المدينة<input id="branchCity" placeholder="الرياض"></label>
 <label>المنطقة / الحي<input id="branchArea" placeholder="شمال الرياض"></label>
 <button class="primary wide">حفظ الفرع</button><p id="branchMessage" class="message"></p></form></dialog>
+<dialog id="qrDialog"><div class="dialog-head"><h2>رمز تقييم الفرع</h2><button type="button" class="x" id="closeQr">×</button></div><p id="qrBranchTitle" class="muted"></p><div id="qrCanvas" class="qr-canvas"></div><p id="qrUrlText" class="fine"></p><button type="button" class="outline wide" id="copyFeedbackLink">نسخ رابط التقييم</button><p class="fine">اطبع الرمز وضعه في الفرع ليتمكن العملاء من تقييم تجربتهم.</p></dialog>
 <div id="toast" class="toast" role="status"></div>
-<script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>\n<script src="config.js"></script>
 <script type="module" src="app.js"></script>
 </body></html>

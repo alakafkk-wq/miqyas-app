@@ -7,7 +7,7 @@ let authMode = "login";
 let currentUser = null;
 let currentOrg = null;
 let branches = [];
-let assessments = [];
+let assessments = [];\nlet activeFeedbackToken = null;\nlet activeFeedbackUrl = "";
 
 function toast(msg) {
   const el = $("#toast"); el.textContent = msg; el.classList.add("show");
@@ -33,6 +33,32 @@ function score(row) {
 }
 function avg(a) { return a.length ? Math.round(a.reduce((s,x)=>s+x,0)/a.length) : null; }
 
+async function initPublicFeedback(){
+  const token=new URLSearchParams(location.search).get("feedback");
+  if(!token) return false;
+  activeFeedbackToken=token;
+  show("#publicFeedbackView");
+  $("#publicFeedbackForm").addEventListener("submit",async e=>{
+    e.preventDefault();
+    const btn=$("#publicFeedbackSubmit"); setBusy(btn,true,"جارٍ إرسال رأيك...");
+    try{
+      const rating=document.querySelector('input[name="publicRating"]:checked')?.value;
+      if(!rating) throw new Error("اختر تقييمك أولاً.");
+      const {error}=await supabase.rpc("submit_public_feedback",{
+        p_token:activeFeedbackToken,p_rating:rating,p_comment:$("#publicComment").value.trim()||null
+      });
+      if(error) throw error;
+      $("#publicFeedbackForm").classList.add("hidden");
+      message("#publicFeedbackMessage","شكراً لك! تم استلام تقييمك بنجاح.");
+    }catch(err){message("#publicFeedbackMessage",err.message||"تعذر إرسال التقييم. حاول مرة أخرى.",true);}
+    finally{setBusy(btn,false);}
+  });
+  try{
+    const {data,error}=await supabase.rpc("get_public_branch_name",{p_token:token});
+    if(!error && data) $("#publicBranchName").textContent=`قيّم تجربتك في ${data}`;
+  }catch(e){}
+  return true;
+}
 document.querySelectorAll("[data-auth]").forEach(btn=>btn.addEventListener("click",()=>{
   authMode=btn.dataset.auth;
   document.querySelectorAll("[data-auth]").forEach(b=>b.classList.toggle("active",b===btn));
@@ -91,7 +117,7 @@ async function loadWorkspace() {
 }
 async function refreshData() {
   const [b,e]=await Promise.all([
-    supabase.from("branches").select("id,name,city,area,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}),
+    supabase.from("branches").select("id,name,city,area,public_token,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}),
     supabase.from("quality_assessments").select("id,branch_id,assessment_type,positive_count,neutral_count,negative_count,score,notes,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(100)
   ]);
   if(b.error) throw b.error; if(e.error) throw e.error;
@@ -109,7 +135,7 @@ function render() {
   $("#branchList").classList.toggle("empty",!branches.length);
   $("#branchList").innerHTML=branches.length?branches.map(b=>{
     const es=assessments.filter(x=>x.branch_id===b.id);
-    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><span class="count">${es.length} تقييم</span></div>`;
+    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${es.length} تقييم</span><button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
   }).join(""):"لا توجد فروع بعد";
   $("#evalBranch").innerHTML=branches.map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join("");
   $("#saveEval").disabled=!branches.length;
@@ -119,6 +145,20 @@ function render() {
     return `<tr><td>${new Date(x.created_at).toLocaleDateString("ar-SA")}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>${types[x.assessment_type]||x.assessment_type}</td><td>${x.positive_count}</td><td>${x.neutral_count}</td><td>${x.negative_count}</td><td>${Math.round(Number(x.score))}%</td></tr>`;
   }).join(""):'<tr><td colspan="7" class="muted">لا توجد سجلات بعد</td></tr>';
 }
+$("#branchList").addEventListener("click",e=>{
+  const btn=e.target.closest("[data-qr]"); if(!btn) return;
+  const branch=branches.find(x=>x.id===btn.dataset.qr); if(!branch?.public_token){toast("رمز الفرع غير متاح. نفّذ تحديث قاعدة البيانات أولاً.");return;}
+  const url=new URL(window.location.href); url.search=""; url.searchParams.set("feedback",branch.public_token);
+  activeFeedbackUrl=url.toString();
+  $("#qrBranchTitle").textContent=branch.name;
+  $("#qrUrlText").textContent=activeFeedbackUrl;
+  $("#qrCanvas").innerHTML="";
+  if(window.QRCode) new QRCode($("#qrCanvas"),{text:activeFeedbackUrl,width:210,height:210});
+  else $("#qrCanvas").textContent="تعذر تحميل مولّد QR؛ استخدم رابط التقييم أدناه.";
+  $("#qrDialog").showModal();
+});
+$("#closeQr").addEventListener("click",()=>$("#qrDialog").close());
+$("#copyFeedbackLink").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(activeFeedbackUrl);toast("تم نسخ رابط التقييم");}catch(e){toast("انسخ الرابط يدوياً من النص الظاهر");}});
 $("#addBranchBtn").addEventListener("click",()=>$("#branchDialog").showModal());
 $("#closeBranch").addEventListener("click",()=>$("#branchDialog").close());
 $("#branchForm").addEventListener("submit",async e=>{
@@ -163,6 +203,7 @@ supabase.auth.onAuthStateChange(async(event,session)=>{
   if(!cfg.SUPABASE_URL||!cfg.SUPABASE_PUBLISHABLE_KEY||cfg.SUPABASE_PUBLISHABLE_KEY.includes("PASTE_")){
     message("#authMessage","أكمل إعداد config.js بإضافة Publishable Key الخاص بمشروعك.",true);return;
   }
+  if(await initPublicFeedback()) return;
   const {data:{session}}=await supabase.auth.getSession();
   if(session){try{await handleSession(session);}catch(e){message("#authMessage",e.message,true);}}
 })();
