@@ -59,8 +59,8 @@
   <div class="apphead"><div><span class="eyebrow">لوحة التحكم</span><h1 id="orgTitle">منشأتي</h1><p class="muted">متابعة مؤشرات الجودة وأداء الفروع</p></div><button id="addBranchBtn" class="primary">＋ إضافة فرع</button></div>
   <div class="stats">
     <article class="stat"><span>الفروع</span><strong id="branchCount">0</strong><small>إجمالي الفروع</small></article>
-    <article class="stat"><span>سجلات التقييم</span><strong id="evalCount">0</strong><small>عدد النماذج والسجلات</small></article>
-    <article class="stat"><span>أصوات العملاء</span><strong id="voiceCount">0</strong><small>عدد المشاركات الفردية</small></article>
+    <article class="stat"><span>سجلات الجودة</span><strong id="evalCount">0</strong><small>التقييمات الداخلية وسجلات الجودة</small></article>
+    <article class="stat"><span>تقييمات العملاء</span><strong id="voiceCount">0</strong><small>عدد تقييمات QR المستلمة</small></article>
     <article class="stat"><span>متوسط الجودة</span><strong id="avgScore">—</strong><small>من 100</small></article>
     <article class="stat"><span>رضا العملاء</span><strong id="vocScore">—</strong><small>نسبة الإيجابي من VOC</small></article>
   </div>
@@ -127,6 +127,8 @@
     <div class="report-filters">
       <label>المنطقة / الحي<select id="filterArea"><option value="">كل المناطق</option></select></label>
       <label>الفرع<select id="filterBranch"><option value="">كل الفروع</option></select></label>
+      <label>من تاريخ<input id="filterStartDate" type="date"></label>
+      <label>إلى تاريخ<input id="filterEndDate" type="date"></label>
       <button id="clearFilters" class="outline" type="button">مسح التصفية</button>
     </div>
     <div class="sentiment-summary">
@@ -135,7 +137,7 @@
       <div class="sentiment-legend" id="sentimentLegend"></div>
     </div>
   </section>
-  <section class="panel history"><div class="panelhead"><div><h2>آخر التقييمات</h2><p>السجلات المحفوظة في قاعدة البيانات حسب التصفية</p></div><button id="refresh" class="outline">تحديث</button></div><div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الفرع</th><th>النوع</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>النتيجة</th></tr></thead><tbody id="evalRows"><tr><td colspan="7">لا توجد سجلات</td></tr></tbody></table></div></section>
+  <section class="panel history"><div class="panelhead"><div><h2>تفاصيل تقييمات العملاء وسجلات الجودة</h2><p>تقييمات QR هي المصدر المعتمد لمؤشرات صوت العميل، مع عرض ملاحظات العملاء وتاريخ كل مشاركة.</p></div><button id="refresh" class="outline">تحديث</button></div><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الفرع</th><th>النوع</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>النتيجة</th><th>ملاحظة العميل / السجل</th></tr></thead><tbody id="evalRows"><tr><td colspan="8">لا توجد سجلات</td></tr></tbody></table></div></section>
 </section>
 </main>
 

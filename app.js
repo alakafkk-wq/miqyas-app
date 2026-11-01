@@ -265,10 +265,19 @@ $("#platformAdminPanel").addEventListener("click",async e=>{
 function getFilteredData() {
   const area=$("#filterArea")?.value||"";
   const branchId=$("#filterBranch")?.value||"";
+  const startDate=$("#filterStartDate")?.value||"";
+  const endDate=$("#filterEndDate")?.value||"";
+  const inDateRange=(row)=>{
+    if(!row.created_at) return !startDate&&!endDate;
+    const d=new Date(row.created_at);
+    if(Number.isNaN(d.getTime())) return false;
+    const day=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    return (!startDate||day>=startDate)&&(!endDate||day<=endDate);
+  };
   const selectedBranches=branches.filter(b=>(!area||String(b.area||"")===area)&&(!branchId||b.id===branchId));
   const ids=new Set(selectedBranches.map(b=>b.id));
-  const filteredAssessments=assessments.filter(x=>ids.has(x.branch_id));
-  const filteredFeedback=customerFeedback.filter(x=>ids.has(x.branch_id));
+  const filteredAssessments=assessments.filter(x=>ids.has(x.branch_id)&&inDateRange(x));
+  const filteredFeedback=customerFeedback.filter(x=>ids.has(x.branch_id)&&inDateRange(x));
   return {selectedBranches,filteredAssessments,filteredFeedback};
 }
 function updateFilterOptions() {
@@ -299,26 +308,25 @@ function renderSentiment(pos,neu,neg) {
 function render() {
   updateFilterOptions();
   const {selectedBranches,filteredAssessments,filteredFeedback}=getFilteredData();
-  const totalEvaluations=filteredAssessments.length+filteredFeedback.length;
   $("#branchCount").textContent=selectedBranches.length;
-  $("#evalCount").textContent=totalEvaluations;
+  // Quality records are kept separate from customer QR feedback.
+  $("#evalCount").textContent=filteredAssessments.length;
   // Average quality is based on formal quality assessments, not individual QR responses.
   const scores=filteredAssessments.map(x=>Number(x.score)).filter(Number.isFinite);
   $("#avgScore").textContent=avg(scores)===null?"—":avg(scores)+"%";
-  // VOC counts combine manually entered VOC assessments and individual QR feedback.
-  const voc=filteredAssessments.filter(x=>x.assessment_type==="voc");
-  const pos=voc.reduce((s,x)=>s+Number(x.positive_count||0),0)+filteredFeedback.filter(x=>x.rating==="positive").length;
-  const neu=voc.reduce((s,x)=>s+Number(x.neutral_count||0),0)+filteredFeedback.filter(x=>x.rating==="neutral").length;
-  const neg=voc.reduce((s,x)=>s+Number(x.negative_count||0),0)+filteredFeedback.filter(x=>x.rating==="negative").length;
-  const voiceTotal=pos+neu+neg;
+  // Customer voice is based ONLY on individual QR feedback records.
+  const pos=filteredFeedback.filter(x=>x.rating==="positive").length;
+  const neu=filteredFeedback.filter(x=>x.rating==="neutral").length;
+  const neg=filteredFeedback.filter(x=>x.rating==="negative").length;
+  const voiceTotal=filteredFeedback.length;
   $("#voiceCount").textContent=voiceTotal;
   $("#vocScore").textContent=voiceTotal?Math.round(pos/voiceTotal*100)+"%":"—";
   renderSentiment(pos,neu,neg);
 
   $("#branchList").classList.toggle("empty",!selectedBranches.length);
   $("#branchList").innerHTML=selectedBranches.length?selectedBranches.map(b=>{
-    const count=filteredAssessments.filter(x=>x.branch_id===b.id).length+filteredFeedback.filter(x=>x.branch_id===b.id).length;
-    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} تقييم</span>${validGoogleMapsUrl(b.google_maps_url)?(b.google_maps_url?`<a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح موقع الفرع على Google Maps ↗</a>`:""):""}<button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
+    const count=filteredFeedback.filter(x=>x.branch_id===b.id).length;
+    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} صوت عميل</span>${validGoogleMapsUrl(b.google_maps_url)?(b.google_maps_url?`<a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح موقع الفرع على Google Maps ↗</a>`:""):""}<button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
   }).join(""):"لا توجد فروع مطابقة للتصفية";
   $("#evalBranch").innerHTML=branches.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
   $("#saveEval").disabled=!branches.length;
@@ -326,15 +334,15 @@ function render() {
   const assessmentRows=filteredAssessments.map(x=>{
     const b=branches.find(z=>z.id===x.branch_id);
     const types={voc:"صوت العميل",mystery_shopper:"المتسوق السري",internal:"تقييم داخلي"};
-    return {created_at:x.created_at,html:`<tr><td>${new Date(x.created_at).toLocaleDateString("ar-SA")}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>${types[x.assessment_type]||escapeHtml(x.assessment_type)}</td><td>${Number(x.positive_count||0)}</td><td>${Number(x.neutral_count||0)}</td><td>${Number(x.negative_count||0)}</td><td>${Math.round(Number(x.score)||0)}%</td></tr>`};
+    return {created_at:x.created_at,html:`<tr><td>${x.created_at?new Date(x.created_at).toLocaleString("ar-SA"):"—"}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>${types[x.assessment_type]||escapeHtml(x.assessment_type)}</td><td>${Number(x.positive_count||0)}</td><td>${Number(x.neutral_count||0)}</td><td>${Number(x.negative_count||0)}</td><td>${Math.round(Number(x.score)||0)}%</td><td>${escapeHtml(x.notes||"—")}</td></tr>`};
   });
   const feedbackRows=filteredFeedback.map(x=>{
     const b=branches.find(z=>z.id===x.branch_id);
     const ratingLabel={positive:"إيجابي",neutral:"محايد",negative:"سلبي"};
-    return {created_at:x.created_at,html:`<tr><td>${new Date(x.created_at).toLocaleDateString("ar-SA")}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>صوت العميل (QR)</td><td>${x.rating==="positive"?1:0}</td><td>${x.rating==="neutral"?1:0}</td><td>${x.rating==="negative"?1:0}</td><td>${ratingLabel[x.rating]||"—"}</td></tr>`};
+    return {created_at:x.created_at,html:`<tr><td>${x.created_at?new Date(x.created_at).toLocaleString("ar-SA"):"—"}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>صوت العميل (QR)</td><td>${x.rating==="positive"?1:0}</td><td>${x.rating==="neutral"?1:0}</td><td>${x.rating==="negative"?1:0}</td><td>${ratingLabel[x.rating]||"—"}</td><td>${escapeHtml(x.comment||"—")}</td></tr>`};
   });
   const rows=[...assessmentRows,...feedbackRows].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-  $("#evalRows").innerHTML=rows.length?rows.map(x=>x.html).join(""):'<tr><td colspan="7" class="muted">لا توجد سجلات مطابقة للتصفية</td></tr>';
+  $("#evalRows").innerHTML=rows.length?rows.map(x=>x.html).join(""):'<tr><td colspan="8" class="muted">لا توجد سجلات مطابقة للتصفية</td></tr>';
 }
 $("#branchList").addEventListener("click",e=>{
   const btn=e.target.closest("[data-qr]"); if(!btn) return;
@@ -384,11 +392,10 @@ $("#evalForm").addEventListener("submit",async e=>{
 function exportExcelReport() {
   if(!window.XLSX){toast("تعذر تحميل أداة Excel. تحقق من الاتصال بالإنترنت ثم أعد المحاولة.");return;}
   const {selectedBranches,filteredAssessments,filteredFeedback}=getFilteredData();
-  const voc=filteredAssessments.filter(x=>x.assessment_type==="voc");
-  const positive=voc.reduce((s,x)=>s+Number(x.positive_count||0),0)+filteredFeedback.filter(x=>x.rating==="positive").length;
-  const neutral=voc.reduce((s,x)=>s+Number(x.neutral_count||0),0)+filteredFeedback.filter(x=>x.rating==="neutral").length;
-  const negative=voc.reduce((s,x)=>s+Number(x.negative_count||0),0)+filteredFeedback.filter(x=>x.rating==="negative").length;
-  const voiceTotal=positive+neutral+negative;
+  const positive=filteredFeedback.filter(x=>x.rating==="positive").length;
+  const neutral=filteredFeedback.filter(x=>x.rating==="neutral").length;
+  const negative=filteredFeedback.filter(x=>x.rating==="negative").length;
+  const voiceTotal=filteredFeedback.length;
   const qualityScores=filteredAssessments.map(x=>Number(x.score)).filter(Number.isFinite);
   const selectedArea=$("#filterArea").value||"كل المناطق";
   const selectedBranch=$("#filterBranch").value?selectedBranches[0]?.name||"فرع محدد":"كل الفروع";
@@ -398,33 +405,30 @@ function exportExcelReport() {
     ["التصفية - المنطقة",selectedArea],
     ["التصفية - الفرع",selectedBranch],
     ["عدد الفروع",selectedBranches.length],
-    ["عدد سجلات التقييم",filteredAssessments.length+filteredFeedback.length],
-    ["عدد أصوات العملاء",voiceTotal],
+    ["عدد سجلات الجودة",filteredAssessments.length],
+    ["عدد تقييمات العملاء عبر QR",voiceTotal],
     ["الأصوات الإيجابية",positive],
     ["الأصوات المحايدة",neutral],
     ["الأصوات السلبية",negative],
     ["رضا العملاء",voiceTotal?positive/voiceTotal:0],
-    ["متوسط الجودة",qualityScores.length?qualityScores.reduce((a,b)=>a+b,0)/qualityScores.length/100:0]
+    ["متوسط الجودة",qualityScores.length?qualityScores.reduce((a,b)=>a+b,0)/qualityScores.length/100:0],
+    ["الفترة - من",$("#filterStartDate").value||"كل الفترات"],
+    ["الفترة - إلى",$("#filterEndDate").value||"حتى تاريخ استخراج التقرير"]
   ];
-  const branchRows=[["الفرع","المنطقة / الحي","المدينة","سجلات التقييم","أصوات العملاء","إيجابي","محايد","سلبي","رضا العملاء","متوسط الجودة"]];
+  const branchRows=[["الفرع","المنطقة / الحي","المدينة","سجلات الجودة","تقييمات QR","إيجابي","محايد","سلبي","رضا العملاء","متوسط الجودة"]];
   selectedBranches.forEach(b=>{
     const ba=filteredAssessments.filter(x=>x.branch_id===b.id);
     const bf=filteredFeedback.filter(x=>x.branch_id===b.id);
-    const bv=ba.filter(x=>x.assessment_type==="voc");
-    const p=bv.reduce((s,x)=>s+Number(x.positive_count||0),0)+bf.filter(x=>x.rating==="positive").length;
-    const n=bv.reduce((s,x)=>s+Number(x.neutral_count||0),0)+bf.filter(x=>x.rating==="neutral").length;
-    const ng=bv.reduce((s,x)=>s+Number(x.negative_count||0),0)+bf.filter(x=>x.rating==="negative").length;
-    const t=p+n+ng, qs=ba.map(x=>Number(x.score)).filter(Number.isFinite);
-    branchRows.push([b.name,b.area||"",b.city||"",ba.length+bf.length,t,p,n,ng,t?p/t:0,qs.length?qs.reduce((a,c)=>a+c,0)/qs.length/100:0]);
+    const p=bf.filter(x=>x.rating==="positive").length;
+    const n=bf.filter(x=>x.rating==="neutral").length;
+    const ng=bf.filter(x=>x.rating==="negative").length;
+    const t=bf.length, qs=ba.map(x=>Number(x.score)).filter(Number.isFinite);
+    branchRows.push([b.name,b.area||"",b.city||"",ba.length,t,p,n,ng,t?p/t:0,qs.length?qs.reduce((a,c)=>a+c,0)/qs.length/100:0]);
   });
   const voiceRows=[["التاريخ","الفرع","المنطقة / الحي","نوع المصدر","التقييم","الملاحظات"]];
   filteredFeedback.forEach(x=>{
     const b=branches.find(y=>y.id===x.branch_id);
     voiceRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"","QR",({positive:"إيجابي",neutral:"محايد",negative:"سلبي"})[x.rating]||x.rating,x.comment||""]);
-  });
-  filteredAssessments.filter(x=>x.assessment_type==="voc").forEach(x=>{
-    const b=branches.find(y=>y.id===x.branch_id);
-    voiceRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"","يدوي - VOC","ملخص أصوات",`إيجابي: ${x.positive_count||0}، محايد: ${x.neutral_count||0}، سلبي: ${x.negative_count||0} ${x.notes||""}`]);
   });
   const recordRows=[["التاريخ","الفرع","المنطقة / الحي","نوع التقييم","إيجابي","محايد","سلبي","النتيجة / التصنيف","الملاحظات"]];
   filteredAssessments.forEach(x=>{
@@ -457,7 +461,9 @@ $("#filterArea").addEventListener("change",()=>{
   render();
 });
 $("#filterBranch").addEventListener("change",render);
-$("#clearFilters").addEventListener("click",()=>{$("#filterArea").value="";$("#filterBranch").value="";render();});
+$("#filterStartDate").addEventListener("change",()=>{if($("#filterEndDate").value&&$("#filterStartDate").value>$("#filterEndDate").value){toast("تاريخ البداية يجب أن يسبق تاريخ النهاية");$("#filterStartDate").value="";return;}render();});
+$("#filterEndDate").addEventListener("change",()=>{if($("#filterStartDate").value&&$("#filterEndDate").value<$("#filterStartDate").value){toast("تاريخ النهاية يجب أن يلي تاريخ البداية");$("#filterEndDate").value="";return;}render();});
+$("#clearFilters").addEventListener("click",()=>{$("#filterArea").value="";$("#filterBranch").value="";$("#filterStartDate").value="";$("#filterEndDate").value="";render();});
 $("#exportExcel").addEventListener("click",exportExcelReport);
 
 $("#refresh").addEventListener("click",async()=>{try{await refreshData();toast("تم تحديث البيانات");}catch(e){toast(e.message);}});
