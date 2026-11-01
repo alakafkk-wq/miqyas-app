@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="28" fill="#08734f"/><text x="64" y="87" text-anchor="middle" font-size="78" font-family="Arial" font-weight="bold" fill="white">م</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="مقياس MIQYAS">
+<rect width="128" height="128" rx="28" fill="#08734f"/>
+<path d="M28 92V36h13l23 27 23-27h13v56H86V57L64 82 42 57v35z" fill="#fff"/>
+<path d="M26 105h76" stroke="#bde7cf" stroke-width="6" stroke-linecap="round"/>
+</svg>

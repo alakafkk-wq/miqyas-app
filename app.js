@@ -118,15 +118,26 @@ $("#orgForm").addEventListener("submit",async e=>{
   } catch(err){message("#orgMessage",err.message||"تعذر إنشاء المنشأة.",true);}
   finally{setBusy(btn,false);}
 });
+function renderRegisteredAccount(){
+  const user=currentUser||{};
+  const meta=user.user_metadata||{};
+  $("#registeredUserName").textContent=meta.full_name||meta.name||"غير محدد";
+  $("#registeredUserEmail").textContent=user.email||"—";
+  $("#registeredUserId").textContent=user.id||"—";
+  $("#registeredOrgName").textContent=currentOrg?.name||"—";
+  $("#registeredAt").textContent=user.created_at?new Date(user.created_at).toLocaleDateString("ar-SA"):"—";
+  $("#registeredBranchCount").textContent=String(branches.length);
+}
 async function loadWorkspace() {
   $("#orgTitle").textContent=currentOrg.name;
+  renderRegisteredAccount();
   show("#appView");
   await refreshData();
   await loadSubscriptionData();
 }
 async function refreshData() {
   const [b,e,f]=await Promise.all([
-    supabase.from("branches").select("id,name,city,area,public_token,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}),
+    supabase.from("branches").select("id,name,city,area,google_maps_url,public_token,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}),
     supabase.from("quality_assessments").select("id,branch_id,assessment_type,positive_count,neutral_count,negative_count,score,notes,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(100),
     supabase.from("customer_feedback").select("id,branch_id,rating,comment,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(500)
   ]);
@@ -135,6 +146,7 @@ async function refreshData() {
   if(f.error) throw f.error;
   branches=b.data||[]; assessments=e.data||[]; customerFeedback=f.data||[];
   render();
+  if(currentUser&&currentOrg) renderRegisteredAccount();
 }
 
 const planLabels={basic:"الأساسية",professional:"الاحترافية",enterprise:"المؤسسات"};
@@ -278,7 +290,7 @@ function render() {
   $("#branchList").classList.toggle("empty",!selectedBranches.length);
   $("#branchList").innerHTML=selectedBranches.length?selectedBranches.map(b=>{
     const count=filteredAssessments.filter(x=>x.branch_id===b.id).length+filteredFeedback.filter(x=>x.branch_id===b.id).length;
-    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} تقييم</span><button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
+    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} تقييم</span>${b.google_maps_url?`<a href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener">تقييم Google Maps</a>`:""}<button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
   }).join(""):"لا توجد فروع مطابقة للتصفية";
   $("#evalBranch").innerHTML=branches.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
   $("#saveEval").disabled=!branches.length;
@@ -315,7 +327,7 @@ $("#closeBranch").addEventListener("click",()=>$("#branchDialog").close());
 $("#branchForm").addEventListener("submit",async e=>{
   e.preventDefault(); const btn=e.submitter; setBusy(btn,true);
   try{
-    const {error}=await supabase.from("branches").insert({organization_id:currentOrg.id,name:$("#branchName").value.trim(),city:$("#branchCity").value.trim()||null,area:$("#branchArea").value.trim()||null});
+    const {error}=await supabase.from("branches").insert({organization_id:currentOrg.id,name:$("#branchName").value.trim(),city:$("#branchCity").value.trim()||null,area:$("#branchArea").value.trim()||null,google_maps_url:$("#branchGoogleMaps").value.trim()||null});
     if(error) throw error;
     e.target.reset(); $("#branchDialog").close(); await refreshData(); toast("تم حفظ الفرع في قاعدة البيانات");
   }catch(err){message("#branchMessage",err.message||"تعذر حفظ الفرع.",true);}

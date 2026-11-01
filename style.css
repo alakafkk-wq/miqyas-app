@@ -81,3 +81,11 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
  .current-subscription{align-items:flex-start;flex-direction:column}
  .sub-expiry{text-align:right}
 }
+
+.brand-en{font-size:.72em;direction:ltr;display:inline-block;color:#08734f;margin-right:4px}
+.account-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.account-grid>div{background:#f4f8f5;border:1px solid #e1ebe4;border-radius:12px;padding:13px;min-width:0}
+.account-grid small{display:block;color:#66736b;margin-bottom:6px}
+.account-grid strong{display:block;color:#18352b;overflow-wrap:anywhere;font-size:.95rem}
+.branch-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.branch-tools a{font-size:.85rem;text-decoration:none;color:#08734f;border:1px solid #b8d9c6;padding:7px 10px;border-radius:9px;font-weight:700}
