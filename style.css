@@ -89,3 +89,13 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
 .account-grid strong{display:block;color:#18352b;overflow-wrap:anywhere;font-size:.95rem}
 .branch-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .branch-tools a{font-size:.85rem;text-decoration:none;color:#08734f;border:1px solid #b8d9c6;padding:7px 10px;border-radius:9px;font-weight:700}
+
+.logo-img{width:46px;height:46px;object-fit:contain;border-radius:13px;background:#fff}
+.branch-tools{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.maps-link{display:inline-flex;align-items:center;color:var(--green);font-size:13px;font-weight:700;text-decoration:none;padding:7px 10px;background:#eaf6ef;border-radius:10px}
+.maps-link:hover{text-decoration:underline}
+.contact-strip{max-width:1140px;margin:12px auto 28px;padding:18px 22px;background:#fff;border:1px solid var(--line);border-radius:18px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:var(--shadow)}
+.contact-strip strong,.contact-strip small{display:block}.contact-strip small{color:var(--muted);margin-top:4px;font-size:12px}
+.contact-links{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.contact-links a{text-decoration:none;display:inline-block}
+@media(max-width:760px){.contact-strip{margin:12px 13px 24px;align-items:flex-start;flex-direction:column}.branchitem{align-items:flex-start;gap:10px;flex-direction:column}.branch-tools{width:100%}}

@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const cfg = window.MIQYAS_CONFIG || {};
 const $ = (s) => document.querySelector(s);
 const supabase = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_PUBLISHABLE_KEY);
+
 let authMode = "login";
 let currentUser = null;
 let currentOrg = null;
@@ -40,6 +41,33 @@ function score(row) {
   return total ? Math.round(row.positive_count/total*100) : 0;
 }
 function avg(a) { return a.length ? Math.round(a.reduce((s,x)=>s+x,0)/a.length) : null; }
+
+function renderContactInfo(){
+  const email=String(cfg.CONTACT_EMAIL||"").trim();
+  const whatsapp=String(cfg.WHATSAPP_NUMBER||"").replace(/[^0-9]/g,"");
+  const emailLink=$("#contactEmailLink"), waLink=$("#contactWhatsAppLink");
+  if(email && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)){
+    emailLink.href=`mailto:${email}`; emailLink.classList.remove("hidden");
+  } else emailLink.classList.add("hidden");
+  if(whatsapp.length>=8){
+    waLink.href=`https://wa.me/${whatsapp}`; waLink.classList.remove("hidden");
+  } else waLink.classList.add("hidden");
+  $("#contactInfoPending").classList.toggle("hidden",Boolean(email||whatsapp));
+  $("#contactStrip").classList.toggle("hidden",!email&&!whatsapp);
+}
+function validGoogleMapsUrl(value){
+  if(!value) return true;
+  try{
+    const u=new URL(value);
+    return u.protocol==="https:" && (
+      u.hostname==="maps.google.com" ||
+      u.hostname==="www.google.com" ||
+      u.hostname==="google.com" ||
+      u.hostname==="maps.app.goo.gl" ||
+      u.hostname==="goo.gl"
+    );
+  }catch(e){return false;}
+}
 
 async function initPublicFeedback(){
   const token=new URLSearchParams(location.search).get("feedback");
@@ -290,7 +318,7 @@ function render() {
   $("#branchList").classList.toggle("empty",!selectedBranches.length);
   $("#branchList").innerHTML=selectedBranches.length?selectedBranches.map(b=>{
     const count=filteredAssessments.filter(x=>x.branch_id===b.id).length+filteredFeedback.filter(x=>x.branch_id===b.id).length;
-    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} تقييم</span>${b.google_maps_url?`<a href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener">تقييم Google Maps</a>`:""}<button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
+    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} تقييم</span>${validGoogleMapsUrl(b.google_maps_url)?(b.google_maps_url?`<a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح موقع الفرع على Google Maps ↗</a>`:""):""}<button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
   }).join(""):"لا توجد فروع مطابقة للتصفية";
   $("#evalBranch").innerHTML=branches.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
   $("#saveEval").disabled=!branches.length;
@@ -327,7 +355,9 @@ $("#closeBranch").addEventListener("click",()=>$("#branchDialog").close());
 $("#branchForm").addEventListener("submit",async e=>{
   e.preventDefault(); const btn=e.submitter; setBusy(btn,true);
   try{
-    const {error}=await supabase.from("branches").insert({organization_id:currentOrg.id,name:$("#branchName").value.trim(),city:$("#branchCity").value.trim()||null,area:$("#branchArea").value.trim()||null,google_maps_url:$("#branchGoogleMaps").value.trim()||null});
+    const mapsUrl=$("#branchGoogleMaps").value.trim();
+    if(!validGoogleMapsUrl(mapsUrl)) throw new Error("أدخل رابط Google Maps صحيحاً يبدأ بـ https://");
+    const {error}=await supabase.from("branches").insert({organization_id:currentOrg.id,name:$("#branchName").value.trim(),city:$("#branchCity").value.trim()||null,area:$("#branchArea").value.trim()||null,google_maps_url:mapsUrl||null});
     if(error) throw error;
     e.target.reset(); $("#branchDialog").close(); await refreshData(); toast("تم حفظ الفرع في قاعدة البيانات");
   }catch(err){message("#branchMessage",err.message||"تعذر حفظ الفرع.",true);}
@@ -442,6 +472,7 @@ supabase.auth.onAuthStateChange(async(event,session)=>{
   if(event==="SIGNED_IN" && session && !currentUser){try{await handleSession(session);}catch(e){toast(e.message);}}
   if(event==="SIGNED_OUT"){currentUser=null;show("#authView");}
 });
+renderContactInfo();
 (async()=>{
   if(!cfg.SUPABASE_URL||!cfg.SUPABASE_PUBLISHABLE_KEY||cfg.SUPABASE_PUBLISHABLE_KEY.includes("PASTE_")){
     message("#authMessage","أكمل إعداد config.js بإضافة Publishable Key الخاص بمشروعك.",true);return;

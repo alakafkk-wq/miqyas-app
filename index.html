@@ -12,7 +12,7 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand"><div class="logo">م</div><div><b>مقياس <span class="brand-en">MIQYAS</span></b><small>منصة قياس الجودة وتجربة العميل</small></div></div>
+  <div class="brand"><img class="logo-img" src="icon.svg" alt="شعار مقياس"><div><b>مقياس <span class="brand-en">MIQYAS</span></b><small>منصة قياس الجودة وتجربة العميل</small></div></div>
   <div class="top-actions"><span id="connection" class="status">غير متصل</span><button id="signOut" class="ghost hidden">تسجيل الخروج</button></div>
 </header>
 
@@ -139,6 +139,14 @@
 </section>
 </main>
 
+<section class="contact-strip" id="contactStrip" aria-label="التواصل مع مقياس">
+  <div><strong>تواصل مع مقياس</strong><small>يسعدنا استقبال استفساراتكم</small></div>
+  <div class="contact-links">
+    <a id="contactEmailLink" class="outline hidden" href="#">البريد الإلكتروني</a>
+    <a id="contactWhatsAppLink" class="primary hidden" href="#" target="_blank" rel="noopener">واتساب</a>
+    <span id="contactInfoPending" class="fine">أضف بيانات التواصل في config.js لإظهار وسائل التواصل.</span>
+  </div>
+</section>
 <dialog id="branchDialog"><form id="branchForm"><div class="dialog-head"><h2>إضافة فرع</h2><button type="button" class="x" id="closeBranch">×</button></div>
 <label>اسم الفرع<input id="branchName" required placeholder="اسم الفرع"></label>
 <label>المدينة<input id="branchCity" placeholder="الرياض"></label>

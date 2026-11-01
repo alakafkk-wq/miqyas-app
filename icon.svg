@@ -1,5 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="مقياس MIQYAS">
-<rect width="128" height="128" rx="28" fill="#08734f"/>
-<path d="M28 92V36h13l23 27 23-27h13v56H86V57L64 82 42 57v35z" fill="#fff"/>
-<path d="M26 105h76" stroke="#bde7cf" stroke-width="6" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<rect x="4" y="4" width="120" height="120" rx="30" fill="#08734f"/>
+<path d="M27 93V34a7 7 0 0 1 7-7h60a7 7 0 0 1 7 7v59a7 7 0 0 1-7 7H34a7 7 0 0 1-7-7Z" fill="none" stroke="#fff" stroke-width="6"/>
+<path d="M43 82V65h11v17M61 82V49h11v33M79 82V39h11v43" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="m40 46 17-8 15 5 18-15" fill="none" stroke="#b7edc9" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="90" cy="28" r="5" fill="#b7edc9"/>
 </svg>
