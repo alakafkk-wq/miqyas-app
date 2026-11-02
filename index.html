@@ -4,11 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#086b4b">
-<meta name="description" content="مقياس - منصة إدارة الجودة وتقييم أداء الفروع">
+<meta name="description" content="مقياس - منصة صوت العميل وقياس تجربة العملاء">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 <title>مقياس MIQYAS | منصة الجودة</title>
+<style>
+.service-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.service-card{border:1px solid #dce7e2;border-radius:14px;padding:16px;background:#fff}
+.service-card h3{margin:8px 0}.service-card p{margin:0;color:#64748b;font-size:.92rem}
+.service-state{display:inline-block;font-size:.78rem;font-weight:700;padding:5px 9px;border-radius:20px;background:#e8f5ee;color:#086b4b}
+.service-soon{background:#f8faf9;opacity:.72}.service-soon .service-state{background:#eef1f0;color:#66736e}
+.plan-card{position:relative}.plan-card.selected{outline:2px solid #086b4b;box-shadow:0 0 0 3px rgba(8,107,75,.10)}
+.plan-select-btn{display:block;width:100%;margin-top:14px;cursor:pointer;position:relative;z-index:1}
+</style>
 </head>
 <body>
 <header class="topbar">
@@ -59,12 +68,21 @@
   <div class="apphead"><div><span class="eyebrow">لوحة التحكم</span><h1 id="orgTitle">منشأتي</h1><p class="muted">متابعة مؤشرات الجودة وأداء الفروع</p></div><button id="addBranchBtn" class="primary">＋ إضافة فرع</button></div>
   <div class="stats">
     <article class="stat"><span>الفروع</span><strong id="branchCount">0</strong><small>إجمالي الفروع</small></article>
-    <article class="stat"><span>سجلات الجودة</span><strong id="evalCount">0</strong><small>التقييمات الداخلية وسجلات الجودة</small></article>
+    <article class="stat hidden"><span>سجلات الجودة</span><strong id="evalCount">0</strong><small>التقييمات الداخلية وسجلات الجودة</small></article>
     <article class="stat"><span>تقييمات العملاء</span><strong id="voiceCount">0</strong><small>عدد تقييمات QR المستلمة</small></article>
-    <article class="stat"><span>متوسط الجودة</span><strong id="avgScore">—</strong><small>من 100</small></article>
+    <article class="stat hidden"><span>متوسط الجودة</span><strong id="avgScore">—</strong><small>من 100</small></article>
     <article class="stat"><span>رضا العملاء</span><strong id="vocScore">—</strong><small>نسبة الإيجابي من VOC</small></article>
   </div>
 
+  <section class="panel service-status-panel" id="serviceStatusPanel">
+    <div class="panelhead"><div><h2>الخدمات المتاحة</h2><p>يتم تفعيل الخدمات الأخرى بعد اكتمال ربطها واختبارها.</p></div></div>
+    <div class="service-grid">
+      <article class="service-card service-active"><span class="service-state">متاحة الآن</span><h3>صوت العميل (VOC)</h3><p>استقبال تقييمات العملاء عبر QR ومتابعة مؤشرات الرضا والتقارير.</p></article>
+      <article class="service-card service-soon" aria-disabled="true"><span class="service-state">قريباً</span><h3>إدارة الجودة</h3><p>ستتاح بعد اكتمال الربط والاختبارات.</p></article>
+      <article class="service-card service-soon" aria-disabled="true"><span class="service-state">قريباً</span><h3>المتسوق السري</h3><p>ستتاح بعد اكتمال الربط والاختبارات.</p></article>
+      <article class="service-card service-soon" aria-disabled="true"><span class="service-state">قريباً</span><h3>الخدمات والتحليلات المتقدمة</h3><p>ستتاح تباعاً بعد اعتماد الربط.</p></article>
+    </div>
+  </section>
   <section class="panel account-panel" id="accountPanel">
     <div class="panelhead"><div><h2>بيانات المسجل في المنصة</h2><p>معلومات الحساب والمنشأة الحالية</p></div></div>
     <div class="account-grid">
@@ -83,13 +101,13 @@
       <div class="sub-expiry" id="subscriptionExpiry">—</div>
     </div>
     <div class="plan-grid" id="subscriptionPlans">
-      <article class="plan-card"><h3>الأساسية</h3><strong>199 ر.س <small>/ شهرياً</small></strong><p>حتى 5 فروع</p></article>
-      <article class="plan-card featured"><h3>الاحترافية</h3><strong>399 ر.س <small>/ شهرياً</small></strong><p>حتى 20 فرعاً</p></article>
-      <article class="plan-card"><h3>المؤسسات</h3><strong>حسب الاتفاق</strong><p>عدد فروع مخصص</p></article>
+      <article class="plan-card"><h3>الأساسية</h3><strong>99 ر.س <small>/ شهرياً</small></strong><p>فرع واحد · 3 مستخدمين</p></article>
+      <article class="plan-card featured"><h3>الاحترافية</h3><strong>199 ر.س <small>/ شهرياً</small></strong><p>حتى 5 فروع · 10 مستخدمين</p></article>
+      <article class="plan-card"><h3>المؤسسات</h3><strong>399 ر.س <small>/ شهرياً</small></strong><p>حتى 20 فرعاً · 30 مستخدماً</p></article>
     </div>
     <form id="subscriptionRequestForm" class="subscription-form">
       <div class="subscription-fields">
-        <label>الباقة المطلوبة<select id="subscriptionPlan" required><option value="basic">الأساسية – 199 ريال / شهر</option><option value="professional">الاحترافية – 399 ريال / شهر</option><option value="enterprise">المؤسسات – حسب الاتفاق</option></select></label>
+        <label>الباقة المطلوبة<select id="subscriptionPlan" required><option value="basic">الأساسية – 99 ريال / شهر</option><option value="professional">الاحترافية – 199 ريال / شهر</option><option value="enterprise">المؤسسات – 399 ريال / شهر</option></select></label>
         <label>طريقة الدفع<select id="subscriptionPaymentMethod" required><option value="bank_transfer">تحويل بنكي</option><option value="online" disabled>دفع إلكتروني – بانتظار ربط بوابة الدفع</option></select></label>
       </div>
       <div id="bankTransferInstructions" class="bank-instructions">
@@ -112,10 +130,10 @@
   </section>
   <div class="columns">
     <section class="panel"><div class="panelhead"><div><h2>الفروع</h2><p>الفروع التابعة لمنشأتك</p></div></div><div id="branchList" class="list empty">لا توجد فروع بعد</div></section>
-    <section class="panel"><div class="panelhead"><div><h2>إضافة تقييم</h2><p>سجل صوت العميل أو المتسوق السري</p></div></div>
+    <section class="panel hidden" id="manualAssessmentPanel"><div class="panelhead"><div><h2>إضافة تقييم</h2><p>سجل صوت العميل أو المتسوق السري</p></div></div>
       <form id="evalForm" class="compact">
         <label>الفرع<select id="evalBranch" required></select></label>
-        <label>نوع التقييم<select id="evalType"><option value="voc">صوت العميل VOC</option><option value="mystery_shopper">المتسوق السري</option><option value="internal">تقييم داخلي</option></select></label>
+        <label>نوع التقييم<select id="evalType"><option value="voc">صوت العميل VOC</option></select></label>
         <div class="three"><label>إيجابي<input id="positive" type="number" min="0" value="0" required></label><label>محايد<input id="neutral" type="number" min="0" value="0" required></label><label>سلبي<input id="negative" type="number" min="0" value="0" required></label></div>
         <label>ملاحظات<textarea id="notes" rows="2" placeholder="ملاحظات اختيارية"></textarea></label>
         <button class="primary wide" id="saveEval">حفظ التقييم</button>
@@ -137,7 +155,8 @@
       <div class="sentiment-legend" id="sentimentLegend"></div>
     </div>
   </section>
-  <section class="panel history"><div class="panelhead"><div><h2>تفاصيل تقييمات العملاء وسجلات الجودة</h2><p>تقييمات QR هي المصدر المعتمد لمؤشرات صوت العميل، مع عرض ملاحظات العملاء وتاريخ كل مشاركة.</p></div><button id="refresh" class="outline">تحديث</button></div><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الفرع</th><th>النوع</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>النتيجة</th><th>ملاحظة العميل / السجل</th></tr></thead><tbody id="evalRows"><tr><td colspan="8">لا توجد سجلات</td></tr></tbody></table></div></section>
+  <section class="panel history"><div class="panelhead"><div><h2>تفاصيل صوت العميل المعتمدة (QR)</h2><p>هذا الجدول وحده يدخل في مؤشرات صوت العميل وتقاريره. يعرض كل مشاركة وتاريخها والفرع والتقييم وملاحظة العميل.</p></div><button id="refresh" class="outline">تحديث</button></div><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الفرع</th><th>المصدر</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>التقييم</th><th>ملاحظة العميل</th></tr></thead><tbody id="feedbackRows"><tr><td colspan="8">لا توجد مشاركات QR</td></tr></tbody></table></div></section>
+  <section class="panel history hidden" id="archivedQualityHistory"><div class="panelhead"><div><h2>سجلات الجودة الداخلية</h2><p>سجلات التقييم اليدوي والجودة محفوظة هنا بشكل مستقل، ولا تدخل في نتيجة صوت العميل عبر QR.</p></div></div><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الفرع</th><th>نوع التقييم</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>النتيجة</th><th>الملاحظات</th></tr></thead><tbody id="qualityRows"><tr><td colspan="8">لا توجد سجلات جودة</td></tr></tbody></table></div></section>
 </section>
 </main>
 

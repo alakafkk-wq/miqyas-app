@@ -189,7 +189,7 @@ function showSubscriptionSetupError(err){
 async function loadSubscriptionData(){
   try{
     const [plansRes,subRes,reqRes,adminRes,bankRes]=await Promise.all([
-      supabase.from("subscription_plans").select("code,name,price_sar,billing_period_months,branch_limit,features").eq("is_active",true).order("price_sar"),
+      supabase.from("subscription_plans").select("code,name,price_sar,billing_period_months,branch_limit,max_users,features").eq("is_active",true).order("price_sar"),
       supabase.from("organization_subscriptions").select("id,plan_code,status,starts_at,ends_at,payment_method").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(1),
       supabase.from("subscription_payment_requests").select("id,plan_code,amount_sar,payment_method,status,transfer_reference,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(20),
       supabase.rpc("is_platform_admin"),
@@ -209,6 +209,15 @@ async function loadSubscriptionData(){
     if(isPlatformAdmin) await loadAdminSubscriptionRequests();
   }catch(err){showSubscriptionSetupError(err);}
 }
+function highlightSelectedPlan(){
+  const selected=$("#subscriptionPlan")?.value;
+  document.querySelectorAll("[data-plan-card]").forEach(card=>{
+    const active=card.dataset.planCard===selected;
+    card.classList.toggle("selected",active);
+    const button=card.querySelector("[data-select-plan]");
+    if(button){button.textContent=active?"تم اختيار هذه الباقة":"اختيار هذه الباقة";button.setAttribute("aria-pressed",String(active));}
+  });
+}
 function renderSubscription(){
   const active=currentSubscription&&currentSubscription.status==="active"&&(!currentSubscription.ends_at||new Date(currentSubscription.ends_at)>new Date());
   $("#subscriptionStatus").textContent=active?"اشتراك نشط":"لا يوجد اشتراك نشط";
@@ -220,7 +229,20 @@ function renderSubscription(){
   $("#bankDetailsText").innerHTML=bank?.iban&&bank?.beneficiary_name
     ? `<b>البنك:</b> ${escapeHtml(bank.bank_name||"—")}<br><b>اسم المستفيد:</b> ${escapeHtml(bank.beneficiary_name)}<br><b>الآيبان:</b> <span dir="ltr">${escapeHtml(bank.iban)}</span><br>${escapeHtml(bank.instructions||"حوّل قيمة الباقة ثم أدخل رقم مرجع التحويل.")}`
     : "بيانات الحساب البنكي لم تعتمد بعد. لا تحوّل أي مبلغ قبل ظهور اسم المستفيد والآيبان الرسميين.";
-  $("#subscriptionPlans").innerHTML=subscriptionPlans.map(p=>`<article class="plan-card ${p.code==="professional"?"featured":""}"><h3>${escapeHtml(p.name)}</h3><strong>${Number(p.price_sar)>0?`${Number(p.price_sar).toLocaleString("ar-SA")} ر.س <small>/ شهرياً</small>`:"حسب الاتفاق"}</strong><p>${p.branch_limit?`حتى ${p.branch_limit} فروع`:"عدد فروع مخصص"}</p><small>${escapeHtml(Array.isArray(p.features)?p.features.join(" • "):"")}</small></article>`).join("");
+  $("#subscriptionPlans").innerHTML=subscriptionPlans.map(p=>`<article class="plan-card ${p.code==="professional"?"featured":""}" data-plan-card="${escapeHtml(p.code)}"><h3>${escapeHtml(p.name)}</h3><strong>${Number(p.price_sar)>0?`${Number(p.price_sar).toLocaleString("ar-SA")} ر.س <small>/ شهرياً</small>`:"حسب الاتفاق"}</strong><p>حتى ${Number(p.branch_limit||0)} ${Number(p.branch_limit)===1?"فرع":"فروع"} · ${Number(p.max_users||0)} مستخدمين</p><small>${escapeHtml(Array.isArray(p.features)?p.features.join(" • "):"")}</small><button type="button" class="outline plan-select-btn" data-select-plan="${escapeHtml(p.code)}">اختيار هذه الباقة</button></article>`).join("");
+  const planSelect=$("#subscriptionPlan");
+  if(planSelect && !planSelect.dataset.selectionBound){
+    planSelect.dataset.selectionBound="1";
+    planSelect.addEventListener("change",()=>highlightSelectedPlan());
+    $("#subscriptionPlans").addEventListener("click",e=>{
+      const button=e.target.closest("[data-select-plan]");
+      if(!button)return;
+      planSelect.value=button.dataset.selectPlan;
+      planSelect.dispatchEvent(new Event("change",{bubbles:true}));
+      $("#subscriptionRequestForm").scrollIntoView({behavior:"smooth",block:"center"});
+    });
+  }
+  highlightSelectedPlan();
   $("#subscriptionRequestRows").innerHTML=subscriptionRequests.length?subscriptionRequests.map(r=>`<tr><td>${new Date(r.created_at).toLocaleDateString("ar-SA")}</td><td>${planLabels[r.plan_code]||escapeHtml(r.plan_code)}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA")} ر.س</td><td>${r.payment_method==="bank_transfer"?"تحويل بنكي":"إلكتروني"}</td><td>${requestStatusLabels[r.status]||escapeHtml(r.status)}</td></tr>`).join(""):'<tr><td colspan="5" class="muted">لا توجد طلبات بعد</td></tr>';
   $("#platformAdminPanel").classList.toggle("hidden",!isPlatformAdmin);
 }
@@ -331,18 +353,20 @@ function render() {
   $("#evalBranch").innerHTML=branches.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
   $("#saveEval").disabled=!branches.length;
 
-  const assessmentRows=filteredAssessments.map(x=>{
+  const qualityRows=filteredAssessments.map(x=>{
     const b=branches.find(z=>z.id===x.branch_id);
-    const types={voc:"صوت العميل",mystery_shopper:"المتسوق السري",internal:"تقييم داخلي"};
+    const types={voc:"صوت العميل (يدوي)",mystery_shopper:"المتسوق السري",internal:"تقييم داخلي"};
     return {created_at:x.created_at,html:`<tr><td>${x.created_at?new Date(x.created_at).toLocaleString("ar-SA"):"—"}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>${types[x.assessment_type]||escapeHtml(x.assessment_type)}</td><td>${Number(x.positive_count||0)}</td><td>${Number(x.neutral_count||0)}</td><td>${Number(x.negative_count||0)}</td><td>${Math.round(Number(x.score)||0)}%</td><td>${escapeHtml(x.notes||"—")}</td></tr>`};
   });
   const feedbackRows=filteredFeedback.map(x=>{
     const b=branches.find(z=>z.id===x.branch_id);
     const ratingLabel={positive:"إيجابي",neutral:"محايد",negative:"سلبي"};
-    return {created_at:x.created_at,html:`<tr><td>${x.created_at?new Date(x.created_at).toLocaleString("ar-SA"):"—"}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>صوت العميل (QR)</td><td>${x.rating==="positive"?1:0}</td><td>${x.rating==="neutral"?1:0}</td><td>${x.rating==="negative"?1:0}</td><td>${ratingLabel[x.rating]||"—"}</td><td>${escapeHtml(x.comment||"—")}</td></tr>`};
+    return {created_at:x.created_at,html:`<tr><td>${x.created_at?new Date(x.created_at).toLocaleString("ar-SA"):"—"}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>QR</td><td>${x.rating==="positive"?1:0}</td><td>${x.rating==="neutral"?1:0}</td><td>${x.rating==="negative"?1:0}</td><td>${ratingLabel[x.rating]||"—"}</td><td>${escapeHtml(x.comment||"—")}</td></tr>`};
   });
-  const rows=[...assessmentRows,...feedbackRows].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-  $("#evalRows").innerHTML=rows.length?rows.map(x=>x.html).join(""):'<tr><td colspan="8" class="muted">لا توجد سجلات مطابقة للتصفية</td></tr>';
+  qualityRows.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  feedbackRows.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  $("#qualityRows").innerHTML=qualityRows.length?qualityRows.map(x=>x.html).join(""):'<tr><td colspan="8" class="muted">لا توجد سجلات جودة مطابقة للتصفية</td></tr>';
+  $("#feedbackRows").innerHTML=feedbackRows.length?feedbackRows.map(x=>x.html).join(""):'<tr><td colspan="8" class="muted">لا توجد مشاركات QR مطابقة للتصفية</td></tr>';
 }
 $("#branchList").addEventListener("click",e=>{
   const btn=e.target.closest("[data-qr]"); if(!btn) return;
@@ -374,6 +398,7 @@ $("#branchForm").addEventListener("submit",async e=>{
 $("#evalForm").addEventListener("submit",async e=>{
   e.preventDefault(); const btn=$("#saveEval"); setBusy(btn,true);
   try{
+    if($("#evalType") && $("#evalType").value!=="voc") throw new Error("الخدمة المتاحة حالياً هي صوت العميل فقط.");
     const positive=Number($("#positive").value), neutral=Number($("#neutral").value), negative=Number($("#negative").value);
     const total=positive+neutral+negative;
     if(total<=0) throw new Error("أدخل عدداً واحداً على الأقل في التقييم.");
@@ -430,14 +455,10 @@ function exportExcelReport() {
     const b=branches.find(y=>y.id===x.branch_id);
     voiceRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"","QR",({positive:"إيجابي",neutral:"محايد",negative:"سلبي"})[x.rating]||x.rating,x.comment||""]);
   });
-  const recordRows=[["التاريخ","الفرع","المنطقة / الحي","نوع التقييم","إيجابي","محايد","سلبي","النتيجة / التصنيف","الملاحظات"]];
+  const qualityRows=[["التاريخ","الفرع","المنطقة / الحي","نوع سجل الجودة","إيجابي","محايد","سلبي","النتيجة / التصنيف","الملاحظات"]];
   filteredAssessments.forEach(x=>{
     const b=branches.find(y=>y.id===x.branch_id);
-    recordRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"",({voc:"صوت العميل VOC",mystery_shopper:"المتسوق السري",internal:"تقييم داخلي"})[x.assessment_type]||x.assessment_type,Number(x.positive_count||0),Number(x.neutral_count||0),Number(x.negative_count||0),`${Number(x.score||0)}%`,x.notes||""]);
-  });
-  filteredFeedback.forEach(x=>{
-    const b=branches.find(y=>y.id===x.branch_id);
-    recordRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"","صوت العميل (QR)",x.rating==="positive"?1:0,x.rating==="neutral"?1:0,x.rating==="negative"?1:0,({positive:"إيجابي",neutral:"محايد",negative:"سلبي"})[x.rating]||x.rating,x.comment||""]);
+    qualityRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"",({voc:"صوت العميل (يدوي)",mystery_shopper:"المتسوق السري",internal:"تقييم داخلي"})[x.assessment_type]||x.assessment_type,Number(x.positive_count||0),Number(x.neutral_count||0),Number(x.negative_count||0),`${Number(x.score||0)}%`,x.notes||""]);
   });
   const wb=XLSX.utils.book_new();
   const addSheet=(rows,name)=>{const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=rows[0].map((_,i)=>({wch:Math.min(38,Math.max(14,...rows.slice(0,80).map(r=>String(r[i]??"").length+2)))}));XLSX.utils.book_append_sheet(wb,ws,name);};
@@ -448,7 +469,7 @@ function exportExcelReport() {
   const branchSheet=wb.Sheets["أداء الفروع"];
   for(let r=2;r<=branchRows.length;r++){if(branchSheet[`I${r}`])branchSheet[`I${r}`].z="0.0%";if(branchSheet[`J${r}`])branchSheet[`J${r}`].z="0.0%";}
   addSheet(voiceRows,"صوت العميل");
-  addSheet(recordRows,"سجل التقييمات");
+  addSheet(qualityRows,"سجلات الجودة");
   const safeDate=new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb,`MIQYAS_Report_${safeDate}.xlsx`);
   toast("تم تجهيز تقرير Excel");
