@@ -151,7 +151,10 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
         <p id="adminSubscriptionEditMessage" class="message" aria-live="polite"></p>
       </form>
       <div class="subscription-history">
-        <h3>سجل عمليات الاشتراكات</h3>
+        <hr>
+      <div class="panelhead"><div><h2>إدارة جميع المنشآت</h2><p>حذف نهائي للمنشأة وبياناتها التابعة. حسابات الدخول لا تُحذف تلقائياً.</p></div><button type="button" class="outline" id="refreshAdminOrganizations">تحديث المنشآت</button></div>
+      <div class="tablewrap"><table><thead><tr><th>اسم المنشأة</th><th>النشاط</th><th>تاريخ التسجيل</th><th>ملاحظة</th><th>الإجراء</th></tr></thead><tbody id="adminOrganizationsRows"><tr><td colspan="5">جارٍ تحميل المنشآت...</td></tr></tbody></table></div>
+      <h3>سجل عمليات الاشتراكات</h3>
         <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>المنشأة</th><th>العملية</th><th>التفاصيل</th><th>المنفذ</th></tr></thead><tbody id="adminSubscriptionAuditRows"><tr><td colspan="5">لا توجد عمليات بعد</td></tr></tbody></table></div>
       </div>
     </div>

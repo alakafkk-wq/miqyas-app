@@ -207,7 +207,7 @@ async function loadSubscriptionData(){
     subscriptionRequests=reqRes.data||[];
     isPlatformAdmin=adminRes.data===true;
     renderSubscription();
-    if(isPlatformAdmin){ await loadAdminSubscriptionRequests(); await loadAdminSubscriptions(); }
+    if(isPlatformAdmin){ await loadAdminSubscriptionRequests(); await loadAdminSubscriptions(); await loadAdminOrganizations(); }
   }catch(err){showSubscriptionSetupError(err);}
 }
 function highlightSelectedPlan(){
@@ -317,6 +317,20 @@ async function loadAdminSubscriptions(){
     body.innerHTML=`<tr><td colspan="6">${escapeHtml(err?.message||"تعذر تحميل المشتركين. أعد المحاولة.")}</td></tr>`;
   }
 }
+async function loadAdminOrganizations(){
+  if(!isPlatformAdmin)return;
+  const body=$("#adminOrganizationsRows");
+  if(!body)return;
+  body.innerHTML='<tr><td colspan="5">جارٍ تحميل المنشآت...</td></tr>';
+  const {data,error}=await supabase.from("organizations").select("id,name,industry,created_at").order("created_at",{ascending:false});
+  if(error){body.innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
+  const rows=data||[];
+  body.innerHTML=rows.length?rows.map(o=>`<tr>
+    <td>${escapeHtml(o.name||"—")}</td><td>${escapeHtml(o.industry||"—")}</td>
+    <td>${adminDate(o.created_at)}</td><td>${o.id===currentOrg?.id?"المنشأة الحالية":"—"}</td>
+    <td><button type="button" class="danger" data-delete-organization="${o.id}" data-org-name="${escapeHtml(o.name||"")}">حذف نهائي</button></td>
+  </tr>`).join(""):'<tr><td colspan="5">لا توجد منشآت مسجلة</td></tr>';
+}
 async function loadAdminSubscriptionAudit(){
   if(!isPlatformAdmin)return;
   const {data,error}=await supabase.from("platform_subscription_audit")
@@ -345,6 +359,7 @@ function openAdminSubscriptionEdit(id){
   $("#adminSubscriptionEditForm").scrollIntoView({behavior:"smooth",block:"center"});
 }
 $("#refreshAdminSubscriptions").addEventListener("click",async()=>{await loadAdminSubscriptions();toast("تم تحديث قائمة المشتركين");});
+$("#refreshAdminOrganizations").addEventListener("click",async()=>{await loadAdminOrganizations();toast("تم تحديث قائمة المنشآت");});
 $("#cancelAdminSubscriptionEdit").addEventListener("click",()=>$("#adminSubscriptionEditForm").classList.add("hidden"));
 $("#adminSubscriptionEditForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!isPlatformAdmin)return;
@@ -370,6 +385,23 @@ $("#adminSubscriptionEditForm").addEventListener("submit",async e=>{
 });
 
 $("#platformAdminPanel").addEventListener("click",async e=>{
+  const deleteOrg=e.target.closest("[data-delete-organization]");
+  if(deleteOrg){
+    if(!isPlatformAdmin)return;
+    const orgId=deleteOrg.dataset.deleteOrganization, orgName=deleteOrg.dataset.orgName||"";
+    if(!confirm(`تنبيه: سيتم حذف المنشأة "${orgName}" نهائياً مع الفروع والتقييمات وآراء العملاء والاشتراكات وطلبات الدفع. لا يمكن التراجع. هل تريد المتابعة؟`))return;
+    const typed=prompt(`للتأكيد، اكتب اسم المنشأة كما هو تماماً:\n${orgName}`);
+    if(typed===null)return;
+    if(typed.trim()!==orgName){toast("اسم المنشأة غير مطابق. لم يتم الحذف.");return;}
+    deleteOrg.disabled=true;
+    const {data,error}=await supabase.rpc("platform_delete_organization",{p_organization_id:orgId,p_confirm_name:typed.trim()});
+    deleteOrg.disabled=false;
+    if(error){toast(error.message||"تعذر حذف المنشأة");return;}
+    toast(data||"تم حذف المنشأة نهائياً");
+    await loadAdminOrganizations(); await loadAdminSubscriptionRequests(); await loadAdminSubscriptions(); await loadAdminSubscriptionAudit();
+    return;
+  }
+
   const edit=e.target.closest("[data-admin-sub-edit]");
   if(edit){openAdminSubscriptionEdit(edit.dataset.adminSubEdit);return;}
   const actionBtn=e.target.closest("[data-admin-sub-action]");
