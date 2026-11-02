@@ -287,21 +287,34 @@ const subscriptionActionLabels={update:"تعديل",pause:"إيقاف مؤقت",
 async function loadAdminSubscriptions(){
   if(!isPlatformAdmin)return;
   const body=$("#adminSubscribersRows");
+  if(!body)return;
   body.innerHTML='<tr><td colspan="6">جارٍ تحميل المشتركين...</td></tr>';
-  const {data,error}=await supabase.from("organization_subscriptions")
-    .select("id,organization_id,plan_code,status,starts_at,ends_at,payment_method,created_at,organizations(name),subscription_plans(name,price_sar)")
-    .order("created_at",{ascending:false});
-  if(error){body.innerHTML=`<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;return;}
-  adminSubscriptions=data||[];
-  body.innerHTML=adminSubscriptions.length?adminSubscriptions.map(s=>`<tr>
-    <td>${escapeHtml(s.organizations?.name||"منشأة")}</td>
-    <td>${escapeHtml(s.subscription_plans?.name||planLabels[s.plan_code]||s.plan_code)}</td>
-    <td>${escapeHtml(subscriptionStatusLabels[s.status]||s.status)}</td>
-    <td>${adminDate(s.starts_at)}</td><td>${adminDate(s.ends_at)}</td>
-    <td><button type="button" class="outline" data-admin-sub-edit="${s.id}">تعديل</button>
-    ${s.status==="paused"||s.status==="cancelled"||s.status==="expired"?`<button type="button" class="primary" data-admin-sub-action="reactivate" data-id="${s.id}">تفعيل</button>`:`<button type="button" class="outline" data-admin-sub-action="pause" data-id="${s.id}">إيقاف</button>`}
-    <button type="button" class="danger" data-admin-sub-action="delete" data-id="${s.id}">حذف</button></td></tr>`).join(""):'<tr><td colspan="6">لا توجد اشتراكات مسجلة حالياً</td></tr>';
-  await loadAdminSubscriptionAudit();
+  let timeoutId;
+  try{
+    const query=supabase.from("organization_subscriptions")
+      .select("id,organization_id,plan_code,status,starts_at,ends_at,payment_method,created_at,organizations(name),subscription_plans(name,price_sar)")
+      .order("created_at",{ascending:false});
+    const result=await Promise.race([
+      query,
+      new Promise((_,reject)=>{timeoutId=setTimeout(()=>reject(new Error("انتهت مهلة تحميل المشتركين. تحقق من الاتصال ثم أعد المحاولة.")),15000);})
+    ]);
+    clearTimeout(timeoutId);
+    const {data,error}=result;
+    if(error)throw error;
+    adminSubscriptions=data||[];
+    body.innerHTML=adminSubscriptions.length?adminSubscriptions.map(s=>`<tr>
+      <td>${escapeHtml(s.organizations?.name||"منشأة")}</td>
+      <td>${escapeHtml(s.subscription_plans?.name||planLabels[s.plan_code]||s.plan_code)}</td>
+      <td>${escapeHtml(subscriptionStatusLabels[s.status]||s.status)}</td>
+      <td>${adminDate(s.starts_at)}</td><td>${adminDate(s.ends_at)}</td>
+      <td><button type="button" class="outline" data-admin-sub-edit="${s.id}">تعديل</button>
+      ${s.status==="paused"||s.status==="cancelled"||s.status==="expired"?`<button type="button" class="primary" data-admin-sub-action="reactivate" data-id="${s.id}">تفعيل</button>`:`<button type="button" class="outline" data-admin-sub-action="pause" data-id="${s.id}">إيقاف</button>`}
+      <button type="button" class="danger" data-admin-sub-action="delete" data-id="${s.id}">حذف</button></td></tr>`).join(""):'<tr><td colspan="6">لا توجد اشتراكات مسجلة حالياً</td></tr>';
+    await loadAdminSubscriptionAudit();
+  }catch(err){
+    if(timeoutId)clearTimeout(timeoutId);
+    body.innerHTML=`<tr><td colspan="6">${escapeHtml(err?.message||"تعذر تحميل المشتركين. أعد المحاولة.")}</td></tr>`;
+  }
 }
 async function loadAdminSubscriptionAudit(){
   if(!isPlatformAdmin)return;
