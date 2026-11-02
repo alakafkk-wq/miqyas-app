@@ -15,6 +15,7 @@ let activeFeedbackUrl = "";
 let subscriptionPlans = [];
 let currentSubscription = null;
 let subscriptionRequests = [];
+let adminSubscriptions = [];
 let isPlatformAdmin = false;
 let subscriptionBankSettings = null;
 
