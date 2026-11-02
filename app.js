@@ -18,6 +18,8 @@ let subscriptionRequests = [];
 let adminSubscriptions = [];
 let isPlatformAdmin = false;
 let subscriptionBankSettings = null;
+let subscriptionAccessActive = false;
+let subscriptionAccessError = false;
 
 function toast(msg) {
   const el = $("#toast"); el.textContent = msg; el.classList.add("show");
@@ -42,6 +44,44 @@ function score(row) {
   return total ? Math.round(row.positive_count/total*100) : 0;
 }
 function avg(a) { return a.length ? Math.round(a.reduce((s,x)=>s+x,0)/a.length) : null; }
+
+
+// MIQYAS v1.13: service navigation and ecommerce store registry.
+function setServiceView(name){
+  const map={dashboard:["#stats","#accountPanel","#subscriptionGate","#serviceStatusPanel"],branches:["#workspaceFeatures"],ecommerce:["#ecommerceService"],reports:["#workspaceFeatures"],subscription:["#subscriptionPanel"]};
+  const all=["#stats","#accountPanel","#subscriptionGate","#serviceStatusPanel","#workspaceFeatures","#ecommerceService","#subscriptionPanel"];
+  all.forEach(sel=>{const el=$(sel);if(el)el.classList.add("hidden");});
+  (map[name]||map.dashboard).forEach(sel=>{const el=$(sel);if(el)el.classList.remove("hidden");});
+  if(name==="ecommerce") loadEcommerceStores();
+}
+async function loadEcommerceStores(){
+  const body=$("#ecommerceStoreRows"); if(!body||!currentOrg)return;
+  body.innerHTML='<tr><td colspan="4">جارٍ تحميل المتاجر...</td></tr>';
+  const {data,error}=await supabase.from("ecommerce_stores")
+    .select("id,store_name,platform,store_url,connection_status,created_at")
+    .eq("organization_id",currentOrg.id).order("created_at",{ascending:false});
+  if(error){body.innerHTML=`<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;return;}
+  body.innerHTML=(data||[]).length?data.map(s=>`<tr><td>${escapeHtml(s.store_name)}</td><td>${escapeHtml(({salla:"سلة",zid:"زد",shopify:"Shopify",woocommerce:"WooCommerce",custom:"متجر خاص"})[s.platform]||s.platform)}</td><td>${s.connection_status==="connected"?"متصل":"بانتظار اختبار الربط"}</td><td>${adminDate(s.created_at)}</td></tr>`).join(""):'<tr><td colspan="4">لم تتم إضافة متاجر بعد</td></tr>';
+}
+$("#serviceSelect")?.addEventListener("change",e=>setServiceView(e.target.value));
+$("#refreshStores")?.addEventListener("click",loadEcommerceStores);
+$("#storeConnectForm")?.addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(!isPlatformAdmin&&!subscriptionAccessActive){message("#storeMessage","إضافة متجر إلكتروني تتطلب اشتراكاً فعالاً.",true);return;}
+  const btn=$("#addStoreBtn");setBusy(btn,true,"جارٍ إضافة المتجر...");
+  try{
+    const url=$("#storeUrl").value.trim();
+    const parsed=new URL(url);if(parsed.protocol!=="https:")throw new Error("يجب أن يبدأ رابط المتجر بـ https://");
+    const {error}=await supabase.from("ecommerce_stores").insert({
+      organization_id:currentOrg.id,store_name:$("#storeName").value.trim(),
+      platform:$("#storePlatform").value,store_url:url,connection_status:"pending"
+    });
+    if(error)throw error;
+    e.target.reset();message("#storeMessage","تم تسجيل المتجر. يلزم إعداد Webhook ونشر نقطة الاستقبال ثم اختبار الربط.");
+    await loadEcommerceStores();
+  }catch(err){message("#storeMessage",err.message||"تعذرت إضافة المتجر.",true);}
+  finally{setBusy(btn,false);}
+});
 
 function renderContactInfo(){
   const email=String(cfg.CONTACT_EMAIL||"").trim();
@@ -161,8 +201,17 @@ async function loadWorkspace() {
   $("#orgTitle").textContent=currentOrg.name;
   renderRegisteredAccount();
   show("#appView");
-  await refreshData();
   await loadSubscriptionData();
+  applySubscriptionGate();
+  if(subscriptionAccessActive){
+    await refreshData();
+  }else{
+    branches=[]; assessments=[]; customerFeedback=[];
+    render();
+    renderRegisteredAccount();
+  }
+  const serviceSelect=$("#serviceSelect");
+  if(serviceSelect){serviceSelect.value="dashboard";setServiceView("dashboard");}
 }
 async function refreshData() {
   const [b,e,f]=await Promise.all([
@@ -206,9 +255,19 @@ async function loadSubscriptionData(){
     currentSubscription=subRes.data?.[0]||null;
     subscriptionRequests=reqRes.data||[];
     isPlatformAdmin=adminRes.data===true;
+    subscriptionAccessError=false;
+    subscriptionAccessActive=isPlatformAdmin||isCurrentSubscriptionActive();
     renderSubscription();
+    applySubscriptionGate();
     if(isPlatformAdmin){ await loadAdminSubscriptionRequests(); await loadAdminSubscriptions(); await loadAdminOrganizations(); }
-  }catch(err){showSubscriptionSetupError(err);}
+    return subscriptionAccessActive;
+  }catch(err){
+    subscriptionAccessError=true;
+    subscriptionAccessActive=false;
+    showSubscriptionSetupError(err);
+    applySubscriptionGate();
+    return false;
+  }
 }
 function highlightSelectedPlan(){
   const selected=$("#subscriptionPlan")?.value;
@@ -219,8 +278,29 @@ function highlightSelectedPlan(){
     if(button){button.textContent=active?"تم اختيار هذه الباقة":"اختيار هذه الباقة";button.setAttribute("aria-pressed",String(active));}
   });
 }
+function isCurrentSubscriptionActive(){
+  if(!currentSubscription||currentSubscription.status!=="active") return false;
+  const now=Date.now();
+  const starts=currentSubscription.starts_at?new Date(currentSubscription.starts_at).getTime():0;
+  const ends=currentSubscription.ends_at?new Date(currentSubscription.ends_at).getTime():Infinity;
+  return starts<=now && ends>now;
+}
+function applySubscriptionGate(){
+  const allowed=!!(isPlatformAdmin||subscriptionAccessActive);
+  const gate=$("#subscriptionGate");
+  if(gate){
+    gate.classList.toggle("hidden",allowed);
+    gate.textContent=subscriptionAccessError
+      ?"تعذر التحقق من حالة الاشتراك. تم إيقاف الخدمات المدفوعة مؤقتاً لحماية بياناتك. حدّث الصفحة أو تواصل مع إدارة مقياس."
+      :"منشأتك غير مشتركة حالياً أو أن الاشتراك منتهي/موقوف. اختر باقة وأرسل طلب الاشتراك، وستُفتح الفروع والتقارير بعد اعتماد الاشتراك من إدارة مقياس.";
+  }
+  const add=$("#addBranchBtn");
+  if(add){add.disabled=!allowed;add.title=allowed?"إضافة فرع":"يتطلب اشتراكاً فعالاً";}
+  const features=$("#workspaceFeatures");
+  if(features) features.classList.toggle("hidden",!allowed);
+}
 function renderSubscription(){
-  const active=currentSubscription&&currentSubscription.status==="active"&&(!currentSubscription.ends_at||new Date(currentSubscription.ends_at)>new Date());
+  const active=isCurrentSubscriptionActive();
   $("#subscriptionStatus").textContent=active?"اشتراك نشط":"لا يوجد اشتراك نشط";
   $("#subscriptionStatus").classList.toggle("active",!!active);
   $("#currentPlanName").textContent=active?`باقة ${planLabels[currentSubscription.plan_code]||currentSubscription.plan_code}`:"لا يوجد اشتراك نشط";
@@ -526,11 +606,15 @@ $("#branchList").addEventListener("click",e=>{
 });
 $("#closeQr").addEventListener("click",()=>$("#qrDialog").close());
 $("#copyFeedbackLink").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(activeFeedbackUrl);toast("تم نسخ رابط التقييم");}catch(e){toast("انسخ الرابط يدوياً من النص الظاهر");}});
-$("#addBranchBtn").addEventListener("click",()=>$("#branchDialog").showModal());
+$("#addBranchBtn").addEventListener("click",()=>{
+  if(!isPlatformAdmin&&!subscriptionAccessActive){toast("إضافة الفروع تتطلب اشتراكاً فعالاً.");return;}
+  $("#branchDialog").showModal();
+});
 $("#closeBranch").addEventListener("click",()=>$("#branchDialog").close());
 $("#branchForm").addEventListener("submit",async e=>{
   e.preventDefault(); const btn=e.submitter; setBusy(btn,true);
   try{
+    if(!isPlatformAdmin&&!subscriptionAccessActive) throw new Error("إضافة الفروع تتطلب اشتراكاً فعالاً.");
     const mapsUrl=$("#branchGoogleMaps").value.trim();
     if(!validGoogleMapsUrl(mapsUrl)) throw new Error("أدخل رابط Google Maps صحيحاً يبدأ بـ https://");
     const {error}=await supabase.from("branches").insert({organization_id:currentOrg.id,name:$("#branchName").value.trim(),city:$("#branchCity").value.trim()||null,area:$("#branchArea").value.trim()||null,google_maps_url:mapsUrl||null});
@@ -542,6 +626,7 @@ $("#branchForm").addEventListener("submit",async e=>{
 $("#evalForm").addEventListener("submit",async e=>{
   e.preventDefault(); const btn=$("#saveEval"); setBusy(btn,true);
   try{
+    if(!isPlatformAdmin&&!subscriptionAccessActive) throw new Error("إضافة التقييمات تتطلب اشتراكاً فعالاً.");
     if($("#evalType") && $("#evalType").value!=="voc") throw new Error("الخدمة المتاحة حالياً هي صوت العميل فقط.");
     const positive=Number($("#positive").value), neutral=Number($("#neutral").value), negative=Number($("#negative").value);
     const total=positive+neutral+negative;
@@ -559,6 +644,7 @@ $("#evalForm").addEventListener("submit",async e=>{
 });
 
 function exportExcelReport() {
+  if(!isPlatformAdmin&&!subscriptionAccessActive){toast("تحميل التقارير يتطلب اشتراكاً فعالاً.");return;}
   if(!window.XLSX){toast("تعذر تحميل أداة Excel. تحقق من الاتصال بالإنترنت ثم أعد المحاولة.");return;}
   const {selectedBranches,filteredAssessments,filteredFeedback}=getFilteredData();
   const positive=filteredFeedback.filter(x=>x.rating==="positive").length;

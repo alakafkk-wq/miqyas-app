@@ -25,6 +25,11 @@
 button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 #adminSubscribersRows button{margin:2px;white-space:nowrap}
 @media(max-width:700px){#adminSubscribersRows td{min-width:110px}.admin-subscription-form .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}}
+
+.service-select{width:100%;max-width:520px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font:inherit}
+#serviceNavigation{margin-top:16px}
+#ecommerceService .service-card{min-height:120px}
+#ecommerceService ol{line-height:2}
 </style>
 </head>
 <body>
@@ -74,7 +79,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 
 <section id="appView" class="hidden">
   <div class="apphead"><div><span class="eyebrow">لوحة التحكم</span><h1 id="orgTitle">منشأتي</h1><p class="muted">متابعة مؤشرات الجودة وأداء الفروع</p></div><button id="addBranchBtn" class="primary">＋ إضافة فرع</button></div>
-  <div class="stats">
+  <div class="stats" id="stats">
     <article class="stat"><span>الفروع</span><strong id="branchCount">0</strong><small>إجمالي الفروع</small></article>
     <article class="stat hidden"><span>سجلات الجودة</span><strong id="evalCount">0</strong><small>التقييمات الداخلية وسجلات الجودة</small></article>
     <article class="stat"><span>تقييمات العملاء</span><strong id="voiceCount">0</strong><small>عدد تقييمات QR المستلمة</small></article>
@@ -89,6 +94,51 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <article class="service-card service-soon" aria-disabled="true"><span class="service-state">قريباً</span><h3>إدارة الجودة</h3><p>ستتاح بعد اكتمال الربط والاختبارات.</p></article>
       <article class="service-card service-soon" aria-disabled="true"><span class="service-state">قريباً</span><h3>المتسوق السري</h3><p>ستتاح بعد اكتمال الربط والاختبارات.</p></article>
       <article class="service-card service-soon" aria-disabled="true"><span class="service-state">قريباً</span><h3>الخدمات والتحليلات المتقدمة</h3><p>ستتاح تباعاً بعد اعتماد الربط.</p></article>
+    </div>
+  </section>
+  <section class="panel" id="serviceNavigation">
+    <div class="panelhead"><div><h2>الخدمات</h2><p>اختر مساحة العمل من القائمة</p></div></div>
+    <label for="serviceSelect">الخدمة</label>
+    <select id="serviceSelect" class="service-select">
+      <option value="dashboard">لوحة الإحصائيات</option>
+      <option value="branches">صوت العميل للفروع (QR)</option>
+      <option value="ecommerce">تقييم المتاجر الإلكترونية</option>
+      <option value="reports">التقارير والتحليلات</option>
+      <option value="subscription">الاشتراك والباقات</option>
+    </select>
+  </section>
+  <section class="panel service-page hidden" id="ecommerceService">
+    <div class="panelhead"><div><h2>تقييم المتاجر الإلكترونية</h2><p>اربط متجرك عبر Webhook موحد أو API، ثم اجمع تقييمات ما بعد التسليم.</p></div><span class="sub-status">تكامل موحد</span></div>
+    <div class="service-grid">
+      <article class="service-card"><h3>المنصات المدعومة عبر Webhook/API</h3><p>سلة، زد، Shopify، WooCommerce، والمتاجر المبرمجة خصيصاً. يتطلب كل متجر إعداد Webhook أو موصل API معتمد.</p></article>
+      <article class="service-card"><h3>رحلة التقييم</h3><p>طلب مكتمل ← تأكيد التسليم ← دعوة تقييم ← تقييم العميل ← مؤشرات الأداء.</p></article>
+      <article class="service-card"><h3>معايير القياس</h3><p>جودة المنتج، التوصيل، التغليف، سهولة الشراء، خدمة العملاء، والرضا العام.</p></article>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <h3>إضافة متجر</h3>
+      <form id="storeConnectForm" class="compact">
+        <label>اسم المتجر<input id="storeName" required maxlength="120" placeholder="مثال: متجري الإلكتروني"></label>
+        <label>منصة المتجر<select id="storePlatform" required><option value="salla">سلة</option><option value="zid">زد</option><option value="shopify">Shopify</option><option value="woocommerce">WooCommerce</option><option value="custom">متجر مبرمج / API خاص</option></select></label>
+        <label>رابط المتجر<input id="storeUrl" type="url" required placeholder="https://store.example"></label>
+        <button class="primary" type="submit" id="addStoreBtn">إضافة المتجر</button>
+        <p class="fine">بعد الإضافة ستظهر تعليمات إعداد Webhook. لا تضع مفاتيح API السرية في هذه الصفحة أو في ملفات JavaScript العامة.</p>
+        <p id="storeMessage" class="message" aria-live="polite"></p>
+      </form>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <div class="panelhead"><div><h3>متاجري المرتبطة</h3><p>حالة الربط وعدد دعوات التقييم</p></div><button type="button" class="outline" id="refreshStores">تحديث</button></div>
+      <div class="tablewrap"><table><thead><tr><th>المتجر</th><th>المنصة</th><th>الحالة</th><th>تاريخ الإضافة</th></tr></thead><tbody id="ecommerceStoreRows"><tr><td colspan="4">لا توجد متاجر مضافة</td></tr></tbody></table></div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <h3>طريقة الربط</h3>
+      <ol>
+        <li>أضف المتجر أعلاه.</li>
+        <li>من لوحة المنصة أنشئ Webhook لأحداث الطلبات المكتملة أو المسلّمة.</li>
+        <li>وجّه الحدث إلى نقطة الاستقبال التي ستُفعّل بعد نشر Supabase Edge Function.</li>
+        <li>أرسل معرف الطلب وحالته وبريداً أو رقم تواصل للعميل وفق موافقته وسياسة الخصوصية.</li>
+        <li>يُنشئ مقياس دعوة تقييم مرتبطة بالطلب، ويمنع تكرار تقييم الطلب نفسه.</li>
+      </ol>
+      <p class="fine">هذه الحزمة تجهّز قاعدة التكامل وإدارة المتاجر. تفعيل استقبال Webhooks والإرسال الآلي يتطلب نشر الدالة وإعداد سرّ الربط وموفر الرسائل، ثم اختبار كل منصة على حدة.</p>
     </div>
   </section>
   <section class="panel account-panel" id="accountPanel">
@@ -159,6 +209,8 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       </div>
     </div>
   </section>
+  <div id="subscriptionGate" class="panel message error hidden" role="alert" style="margin:18px 0;padding:18px"></div>
+  <div id="workspaceFeatures">
   <div class="columns">
     <section class="panel"><div class="panelhead"><div><h2>الفروع</h2><p>الفروع التابعة لمنشأتك</p></div></div><div id="branchList" class="list empty">لا توجد فروع بعد</div></section>
     <section class="panel hidden" id="manualAssessmentPanel"><div class="panelhead"><div><h2>إضافة تقييم</h2><p>سجل صوت العميل أو المتسوق السري</p></div></div>
@@ -171,7 +223,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       </form>
     </section>
   </div>
-  <section class="panel report-panel">
+  <section class="panel report-panel" id="reportPanel">
     <div class="panelhead"><div><h2>تحليل النتائج والتقارير</h2><p>تصفية المؤشرات ثم تصدير تقرير Excel</p></div><button id="exportExcel" class="primary">تحميل تقرير Excel</button></div>
     <div class="report-filters">
       <label>المنطقة / الحي<select id="filterArea"><option value="">كل المناطق</option></select></label>
@@ -186,8 +238,9 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <div class="sentiment-legend" id="sentimentLegend"></div>
     </div>
   </section>
-  <section class="panel history"><div class="panelhead"><div><h2>تفاصيل صوت العميل المعتمدة (QR)</h2><p>هذا الجدول وحده يدخل في مؤشرات صوت العميل وتقاريره. يعرض كل مشاركة وتاريخها والفرع والتقييم وملاحظة العميل.</p></div><button id="refresh" class="outline">تحديث</button></div><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الفرع</th><th>المصدر</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>التقييم</th><th>ملاحظة العميل</th></tr></thead><tbody id="feedbackRows"><tr><td colspan="8">لا توجد مشاركات QR</td></tr></tbody></table></div></section>
+  <section class="panel history" id="feedbackHistoryPanel"><div class="panelhead"><div><h2>تفاصيل صوت العميل المعتمدة (QR)</h2><p>هذا الجدول وحده يدخل في مؤشرات صوت العميل وتقاريره. يعرض كل مشاركة وتاريخها والفرع والتقييم وملاحظة العميل.</p></div><button id="refresh" class="outline">تحديث</button></div><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الفرع</th><th>المصدر</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>التقييم</th><th>ملاحظة العميل</th></tr></thead><tbody id="feedbackRows"><tr><td colspan="8">لا توجد مشاركات QR</td></tr></tbody></table></div></section>
   <section class="panel history hidden" id="archivedQualityHistory"><div class="panelhead"><div><h2>سجلات الجودة الداخلية</h2><p>سجلات التقييم اليدوي والجودة محفوظة هنا بشكل مستقل، ولا تدخل في نتيجة صوت العميل عبر QR.</p></div></div><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الفرع</th><th>نوع التقييم</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>النتيجة</th><th>الملاحظات</th></tr></thead><tbody id="qualityRows"><tr><td colspan="8">لا توجد سجلات جودة</td></tr></tbody></table></div></section>
+  </div>
 </section>
 </main>
 
