@@ -206,7 +206,7 @@ async function loadSubscriptionData(){
     subscriptionRequests=reqRes.data||[];
     isPlatformAdmin=adminRes.data===true;
     renderSubscription();
-    if(isPlatformAdmin) await loadAdminSubscriptionRequests();
+    if(isPlatformAdmin){ await loadAdminSubscriptionRequests(); await loadAdminSubscriptions(); }
   }catch(err){showSubscriptionSetupError(err);}
 }
 function highlightSelectedPlan(){
@@ -273,7 +273,105 @@ async function loadAdminSubscriptionRequests(){
   if(error){$("#adminSubscriptionRows").innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
   $("#adminSubscriptionRows").innerHTML=(data||[]).length?data.map(r=>`<tr><td>${escapeHtml(r.organizations?.name||"منشأة")}</td><td>${planLabels[r.plan_code]||r.plan_code}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA")} ر.س</td><td>${escapeHtml(r.transfer_reference||"—")}</td><td><button class="primary" data-approve-sub="${r.id}">اعتماد</button> <button class="outline" data-reject-sub="${r.id}">رفض</button></td></tr>`).join(""):'<tr><td colspan="5">لا توجد طلبات معلقة</td></tr>';
 }
+function adminDate(value){
+  if(!value)return "—";
+  const d=new Date(value); return Number.isNaN(d.getTime())?"—":d.toLocaleDateString("ar-SA");
+}
+function toDateInput(value){
+  if(!value)return "";
+  const d=new Date(value); if(Number.isNaN(d.getTime()))return "";
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+const subscriptionStatusLabels={trial:"تجريبي",active:"نشط",paused:"موقوف مؤقتاً",past_due:"متأخر السداد",expired:"منتهي",cancelled:"ملغي"};
+const subscriptionActionLabels={update:"تعديل",pause:"إيقاف مؤقت",reactivate:"إعادة تفعيل",delete:"حذف الاشتراك"};
+async function loadAdminSubscriptions(){
+  if(!isPlatformAdmin)return;
+  const body=$("#adminSubscribersRows");
+  body.innerHTML='<tr><td colspan="6">جارٍ تحميل المشتركين...</td></tr>';
+  const {data,error}=await supabase.from("organization_subscriptions")
+    .select("id,organization_id,plan_code,status,starts_at,ends_at,payment_method,created_at,organizations(name),subscription_plans(name,price_sar)")
+    .order("created_at",{ascending:false});
+  if(error){body.innerHTML=`<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;return;}
+  adminSubscriptions=data||[];
+  body.innerHTML=adminSubscriptions.length?adminSubscriptions.map(s=>`<tr>
+    <td>${escapeHtml(s.organizations?.name||"منشأة")}</td>
+    <td>${escapeHtml(s.subscription_plans?.name||planLabels[s.plan_code]||s.plan_code)}</td>
+    <td>${escapeHtml(subscriptionStatusLabels[s.status]||s.status)}</td>
+    <td>${adminDate(s.starts_at)}</td><td>${adminDate(s.ends_at)}</td>
+    <td><button type="button" class="outline" data-admin-sub-edit="${s.id}">تعديل</button>
+    ${s.status==="paused"||s.status==="cancelled"||s.status==="expired"?`<button type="button" class="primary" data-admin-sub-action="reactivate" data-id="${s.id}">تفعيل</button>`:`<button type="button" class="outline" data-admin-sub-action="pause" data-id="${s.id}">إيقاف</button>`}
+    <button type="button" class="danger" data-admin-sub-action="delete" data-id="${s.id}">حذف</button></td></tr>`).join(""):'<tr><td colspan="6">لا توجد اشتراكات مسجلة حالياً</td></tr>';
+  await loadAdminSubscriptionAudit();
+}
+async function loadAdminSubscriptionAudit(){
+  if(!isPlatformAdmin)return;
+  const {data,error}=await supabase.from("platform_subscription_audit")
+    .select("created_at,organization_name,action,reason,actor_email,old_data,new_data")
+    .order("created_at",{ascending:false}).limit(50);
+  const body=$("#adminSubscriptionAuditRows");
+  if(error){body.innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
+  body.innerHTML=(data||[]).length?data.map(a=>{
+    const details=a.reason|| (a.new_data?JSON.stringify(a.new_data):a.old_data?JSON.stringify(a.old_data):"—");
+    return `<tr><td>${adminDate(a.created_at)}</td><td>${escapeHtml(a.organization_name||"—")}</td><td>${escapeHtml(subscriptionActionLabels[a.action]||a.action)}</td><td>${escapeHtml(details)}</td><td>${escapeHtml(a.actor_email||"مدير المنصة")}</td></tr>`;
+  }).join(""):'<tr><td colspan="5">لا توجد عمليات مسجلة بعد</td></tr>';
+}
+function openAdminSubscriptionEdit(id){
+  if(!isPlatformAdmin)return;
+  const s=adminSubscriptions.find(x=>x.id===id); if(!s)return;
+  $("#adminSubscriptionEditTitle").textContent=`تعديل اشتراك ${s.organizations?.name||"المنشأة"}`;
+  $("#adminEditSubscriptionId").value=s.id;
+  $("#adminEditPlan").innerHTML=subscriptionPlans.map(p=>`<option value="${escapeHtml(p.code)}">${escapeHtml(p.name)}</option>`).join("");
+  $("#adminEditPlan").value=s.plan_code;
+  $("#adminEditStatus").value=s.status;
+  $("#adminEditStart").value=toDateInput(s.starts_at);
+  $("#adminEditEnd").value=toDateInput(s.ends_at);
+  $("#adminEditReason").value="";
+  message("#adminSubscriptionEditMessage","");
+  $("#adminSubscriptionEditForm").classList.remove("hidden");
+  $("#adminSubscriptionEditForm").scrollIntoView({behavior:"smooth",block:"center"});
+}
+$("#refreshAdminSubscriptions").addEventListener("click",async()=>{await loadAdminSubscriptions();toast("تم تحديث قائمة المشتركين");});
+$("#cancelAdminSubscriptionEdit").addEventListener("click",()=>$("#adminSubscriptionEditForm").classList.add("hidden"));
+$("#adminSubscriptionEditForm").addEventListener("submit",async e=>{
+  e.preventDefault(); if(!isPlatformAdmin)return;
+  const btn=$("#saveAdminSubscription");setBusy(btn,true,"جارٍ الحفظ...");
+  try{
+    const start=$("#adminEditStart").value, end=$("#adminEditEnd").value;
+    if(!start)throw new Error("حدد تاريخ بداية الاشتراك.");
+    if(end&&new Date(end)<new Date(start))throw new Error("تاريخ نهاية الاشتراك لا يمكن أن يسبق تاريخ البداية.");
+    const {error}=await supabase.rpc("platform_manage_subscription",{
+      p_subscription_id:$("#adminEditSubscriptionId").value,p_action:"update",
+      p_plan_code:$("#adminEditPlan").value,p_status:$("#adminEditStatus").value,
+      p_starts_at:new Date(`${start}T00:00:00`).toISOString(),
+      p_ends_at:end?new Date(`${end}T23:59:59`).toISOString():null,
+      p_reason:$("#adminEditReason").value.trim()||null
+    });
+    if(error)throw error;
+    message("#adminSubscriptionEditMessage","تم تحديث الاشتراك بنجاح.");
+    $("#adminSubscriptionEditForm").classList.add("hidden");
+    await loadAdminSubscriptions(); await loadSubscriptionData();
+    toast("تم حفظ التعديلات");
+  }catch(err){message("#adminSubscriptionEditMessage",err.message||"تعذر تعديل الاشتراك.",true);}
+  finally{setBusy(btn,false);}
+});
+
 $("#platformAdminPanel").addEventListener("click",async e=>{
+  const edit=e.target.closest("[data-admin-sub-edit]");
+  if(edit){openAdminSubscriptionEdit(edit.dataset.adminSubEdit);return;}
+  const actionBtn=e.target.closest("[data-admin-sub-action]");
+  if(actionBtn){
+    if(!isPlatformAdmin)return;
+    const action=actionBtn.dataset.adminSubAction,id=actionBtn.dataset.id;
+    const prompts={pause:"هل تريد إيقاف الاشتراك مؤقتاً؟ ستبقى بيانات المنشأة محفوظة.",reactivate:"هل تريد إعادة تفعيل الاشتراك؟",delete:"سيتم حذف سجل الاشتراك فقط. لن تُحذف المنشأة أو الفروع أو المستخدمون أو التقييمات. هل تريد المتابعة؟"};
+    if(!confirm(prompts[action]||"تأكيد العملية؟"))return;
+    const reason=prompt("يمكنك كتابة ملاحظة للعملية (اختياري):")||null;
+    const {error}=await supabase.rpc("platform_manage_subscription",{
+      p_subscription_id:id,p_action:action,p_plan_code:null,p_status:null,p_starts_at:null,p_ends_at:null,p_reason:reason
+    });
+    if(error){toast(error.message);return;}
+    toast(action==="delete"?"تم حذف سجل الاشتراك مع الاحتفاظ ببيانات المنشأة":action==="pause"?"تم إيقاف الاشتراك مؤقتاً":"تمت إعادة تفعيل الاشتراك");
+    await loadAdminSubscriptions(); await loadSubscriptionData(); return;
+  }
   const approve=e.target.closest("[data-approve-sub]"),reject=e.target.closest("[data-reject-sub]");
   if(!approve&&!reject)return;
   const id=(approve||reject).dataset.approveSub||(approve||reject).dataset.rejectSub;

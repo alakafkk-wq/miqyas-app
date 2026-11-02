@@ -17,6 +17,14 @@
 .service-soon{background:#f8faf9;opacity:.72}.service-soon .service-state{background:#eef1f0;color:#66736e}
 .plan-card{position:relative}.plan-card.selected{outline:2px solid #086b4b;box-shadow:0 0 0 3px rgba(8,107,75,.10)}
 .plan-select-btn{display:block;width:100%;margin-top:14px;cursor:pointer;position:relative;z-index:1}
+
+.admin-subscription-form{margin-top:18px;padding:16px;border:1px solid #dce7e2;border-radius:14px;background:#f8fbf9}
+.admin-subscription-form label{display:block;margin:10px 0}
+.admin-subscription-form input,.admin-subscription-form select,.admin-subscription-form textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}
+.admin-subscription-actions{display:flex;gap:8px;flex-wrap:wrap}
+button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
+#adminSubscribersRows button{margin:2px;white-space:nowrap}
+@media(max-width:700px){#adminSubscribersRows td{min-width:110px}.admin-subscription-form .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}}
 </style>
 </head>
 <body>
@@ -126,6 +134,26 @@
     <div id="platformAdminPanel" class="platform-admin hidden">
       <div class="panelhead"><div><h2>إدارة طلبات الاشتراك</h2><p>مراجعة طلبات المنشآت وتفعيل الاشتراكات</p></div><button type="button" class="outline" id="refreshSubscriptionRequests">تحديث الطلبات</button></div>
       <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>مرجع التحويل</th><th>الإجراء</th></tr></thead><tbody id="adminSubscriptionRows"><tr><td colspan="5">لا توجد طلبات معلقة</td></tr></tbody></table></div>
+      <hr>
+      <div class="panelhead"><div><h2>إدارة المشتركين</h2><p>عرض الاشتراكات وتعديلها أو إيقافها أو إعادة تفعيلها أو حذف الاشتراك فقط مع الاحتفاظ ببيانات المنشأة.</p></div><button type="button" class="outline" id="refreshAdminSubscriptions">تحديث المشتركين</button></div>
+      <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>الحالة</th><th>بداية الاشتراك</th><th>نهاية الاشتراك</th><th>الإجراءات</th></tr></thead><tbody id="adminSubscribersRows"><tr><td colspan="6">جارٍ تحميل المشتركين...</td></tr></tbody></table></div>
+      <form id="adminSubscriptionEditForm" class="compact hidden admin-subscription-form">
+        <h3 id="adminSubscriptionEditTitle">تعديل الاشتراك</h3>
+        <input type="hidden" id="adminEditSubscriptionId">
+        <label>الباقة<select id="adminEditPlan" required></select></label>
+        <div class="two">
+          <label>حالة الاشتراك<select id="adminEditStatus"><option value="trial">تجريبي</option><option value="active">نشط</option><option value="paused">موقوف مؤقتاً</option><option value="past_due">متأخر السداد</option><option value="expired">منتهي</option><option value="cancelled">ملغي</option></select></label>
+          <label>تاريخ البداية<input id="adminEditStart" type="date" required></label>
+        </div>
+        <label>تاريخ النهاية<input id="adminEditEnd" type="date"></label>
+        <label>ملاحظات العملية<textarea id="adminEditReason" rows="2" maxlength="500" placeholder="سبب التعديل (اختياري)"></textarea></label>
+        <div class="actions"><button type="submit" class="primary" id="saveAdminSubscription">حفظ التعديلات</button><button type="button" class="outline" id="cancelAdminSubscriptionEdit">إلغاء</button></div>
+        <p id="adminSubscriptionEditMessage" class="message" aria-live="polite"></p>
+      </form>
+      <div class="subscription-history">
+        <h3>سجل عمليات الاشتراكات</h3>
+        <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>المنشأة</th><th>العملية</th><th>التفاصيل</th><th>المنفذ</th></tr></thead><tbody id="adminSubscriptionAuditRows"><tr><td colspan="5">لا توجد عمليات بعد</td></tr></tbody></table></div>
+      </div>
     </div>
   </section>
   <div class="columns">
