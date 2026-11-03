@@ -17,7 +17,7 @@ let currentSubscription = null;
 let subscriptionRequests = [];
 let adminSubscriptions = [];
 let isPlatformAdmin = false;
-let subscriptionBankSettings = null;
+let adminRequestsChannel = null;
 let subscriptionAccessActive = false;
 let subscriptionAccessError = false;
 
@@ -48,8 +48,8 @@ function avg(a) { return a.length ? Math.round(a.reduce((s,x)=>s+x,0)/a.length) 
 
 // MIQYAS v1.13: service navigation and ecommerce store registry.
 function setServiceView(name){
-  const map={dashboard:["#stats","#accountPanel","#subscriptionGate","#serviceStatusPanel"],branches:["#workspaceFeatures"],ecommerce:["#ecommerceService"],reports:["#workspaceFeatures"],subscription:["#subscriptionPanel"]};
-  const all=["#stats","#accountPanel","#subscriptionGate","#serviceStatusPanel","#workspaceFeatures","#ecommerceService","#subscriptionPanel"];
+  const map={dashboard:["#stats","#subscriptionGate","#serviceStatusPanel"],branches:["#workspaceFeatures"],ecommerce:["#ecommerceService"],reports:["#workspaceFeatures"],subscription:["#subscriptionPanel"]};
+  const all=["#stats","#subscriptionGate","#serviceStatusPanel","#workspaceFeatures","#ecommerceService","#subscriptionPanel"];
   all.forEach(sel=>{const el=$(sel);if(el)el.classList.add("hidden");});
   (map[name]||map.dashboard).forEach(sel=>{const el=$(sel);if(el)el.classList.remove("hidden");});
   if(name==="ecommerce") loadEcommerceStores();
@@ -87,7 +87,7 @@ function renderContactInfo(){
   const email=String(cfg.CONTACT_EMAIL||"").trim();
   const whatsapp=String(cfg.WHATSAPP_NUMBER||"").replace(/[^0-9]/g,"");
   const emailLink=$("#contactEmailLink"), waLink=$("#contactWhatsAppLink");
-  if(email && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)){
+  if(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
     emailLink.href=`mailto:${email}`; emailLink.classList.remove("hidden");
   } else emailLink.classList.add("hidden");
   if(whatsapp.length>=8){
@@ -187,19 +187,8 @@ $("#orgForm").addEventListener("submit",async e=>{
   } catch(err){message("#orgMessage",err.message||"تعذر إنشاء المنشأة.",true);}
   finally{setBusy(btn,false);}
 });
-function renderRegisteredAccount(){
-  const user=currentUser||{};
-  const meta=user.user_metadata||{};
-  $("#registeredUserName").textContent=meta.full_name||meta.name||"غير محدد";
-  $("#registeredUserEmail").textContent=user.email||"—";
-  $("#registeredUserId").textContent=user.id||"—";
-  $("#registeredOrgName").textContent=currentOrg?.name||"—";
-  $("#registeredAt").textContent=user.created_at?new Date(user.created_at).toLocaleDateString("ar-SA"):"—";
-  $("#registeredBranchCount").textContent=String(branches.length);
-}
 async function loadWorkspace() {
   $("#orgTitle").textContent=currentOrg.name;
-  renderRegisteredAccount();
   show("#appView");
   await loadSubscriptionData();
   applySubscriptionGate();
@@ -208,7 +197,6 @@ async function loadWorkspace() {
   }else{
     branches=[]; assessments=[]; customerFeedback=[];
     render();
-    renderRegisteredAccount();
   }
   const serviceSelect=$("#serviceSelect");
   if(serviceSelect){serviceSelect.value="dashboard";setServiceView("dashboard");}
@@ -224,7 +212,6 @@ async function refreshData() {
   if(f.error) throw f.error;
   branches=b.data||[]; assessments=e.data||[]; customerFeedback=f.data||[];
   render();
-  if(currentUser&&currentOrg) renderRegisteredAccount();
 }
 
 const planLabels={basic:"الأساسية",professional:"الاحترافية",enterprise:"المؤسسات"};
@@ -238,19 +225,16 @@ function showSubscriptionSetupError(err){
 }
 async function loadSubscriptionData(){
   try{
-    const [plansRes,subRes,reqRes,adminRes,bankRes]=await Promise.all([
+    const [plansRes,subRes,reqRes,adminRes]=await Promise.all([
       supabase.from("subscription_plans").select("code,name,price_sar,billing_period_months,branch_limit,max_users,features").eq("is_active",true).order("price_sar"),
       supabase.from("organization_subscriptions").select("id,plan_code,status,starts_at,ends_at,payment_method").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(1),
       supabase.from("subscription_payment_requests").select("id,plan_code,amount_sar,payment_method,status,transfer_reference,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(20),
-      supabase.rpc("is_platform_admin"),
-      supabase.from("subscription_bank_settings").select("bank_name,beneficiary_name,iban,instructions").eq("id",true).maybeSingle()
+      supabase.rpc("is_platform_admin")
     ]);
     if(plansRes.error) throw plansRes.error;
     if(subRes.error) throw subRes.error;
     if(reqRes.error) throw reqRes.error;
     if(adminRes.error) throw adminRes.error;
-    if(bankRes.error) throw bankRes.error;
-    subscriptionBankSettings=bankRes.data||null;
     subscriptionPlans=plansRes.data||[];
     currentSubscription=subRes.data?.[0]||null;
     subscriptionRequests=reqRes.data||[];
@@ -259,7 +243,12 @@ async function loadSubscriptionData(){
     subscriptionAccessActive=isPlatformAdmin||isCurrentSubscriptionActive();
     renderSubscription();
     applySubscriptionGate();
-    if(isPlatformAdmin){ await loadAdminSubscriptionRequests(); await loadAdminSubscriptions(); await loadAdminOrganizations(); }
+    if(isPlatformAdmin){
+      await loadAdminSubscriptionRequests();
+      await loadAdminSubscriptions();
+      await loadAdminOrganizations();
+      startAdminRequestNotifications();
+    }
     return subscriptionAccessActive;
   }catch(err){
     subscriptionAccessError=true;
@@ -306,10 +295,7 @@ function renderSubscription(){
   $("#currentPlanName").textContent=active?`باقة ${planLabels[currentSubscription.plan_code]||currentSubscription.plan_code}`:"لا يوجد اشتراك نشط";
   $("#currentPlanDates").textContent=active?`بدأ في ${new Date(currentSubscription.starts_at).toLocaleDateString("ar-SA")}`:"اختر الباقة المناسبة للبدء";
   $("#subscriptionExpiry").textContent=active&&currentSubscription.ends_at?`ينتهي ${new Date(currentSubscription.ends_at).toLocaleDateString("ar-SA")}`:"—";
-  const bank=subscriptionBankSettings;
-  $("#bankDetailsText").innerHTML=bank?.iban&&bank?.beneficiary_name
-    ? `<b>البنك:</b> ${escapeHtml(bank.bank_name||"—")}<br><b>اسم المستفيد:</b> ${escapeHtml(bank.beneficiary_name)}<br><b>الآيبان:</b> <span dir="ltr">${escapeHtml(bank.iban)}</span><br>${escapeHtml(bank.instructions||"حوّل قيمة الباقة ثم أدخل رقم مرجع التحويل.")}`
-    : "بيانات الحساب البنكي لم تعتمد بعد. لا تحوّل أي مبلغ قبل ظهور اسم المستفيد والآيبان الرسميين.";
+
   $("#subscriptionPlans").innerHTML=subscriptionPlans.map(p=>`<article class="plan-card ${p.code==="professional"?"featured":""}" data-plan-card="${escapeHtml(p.code)}"><h3>${escapeHtml(p.name)}</h3><strong>${Number(p.price_sar)>0?`${Number(p.price_sar).toLocaleString("ar-SA")} ر.س <small>/ شهرياً</small>`:"حسب الاتفاق"}</strong><p>حتى ${Number(p.branch_limit||0)} ${Number(p.branch_limit)===1?"فرع":"فروع"} · ${Number(p.max_users||0)} مستخدمين</p><small>${escapeHtml(Array.isArray(p.features)?p.features.join(" • "):"")}</small><button type="button" class="outline plan-select-btn" data-select-plan="${escapeHtml(p.code)}">اختيار هذه الباقة</button></article>`).join("");
   const planSelect=$("#subscriptionPlan");
   if(planSelect && !planSelect.dataset.selectionBound){
@@ -329,31 +315,62 @@ function renderSubscription(){
 }
 $("#subscriptionRequestForm").addEventListener("submit",async e=>{
   e.preventDefault();
-  const btn=$("#submitSubscriptionRequest");setBusy(btn,true,"جارٍ إرسال الطلب...");
+  const btn=$("#submitSubscriptionRequest");
+  if(!currentOrg?.id){message("#subscriptionMessage","تعذر تحديد المنشأة الحالية. أعد تسجيل الدخول وحاول مرة أخرى.",true);return;}
+  const planCode=$("#subscriptionPlan").value;
+  if(!planCode){message("#subscriptionMessage","اختر الباقة أولاً.",true);return;}
+  if($("#subscriptionPaymentMethod").value!=="online"){
+    message("#subscriptionMessage","طريقة الدفع المتاحة حالياً هي الدفع الإلكتروني عبر ميسر.",true);return;
+  }
+  setBusy(btn,true,"جارٍ تجهيز فاتورة الدفع...");
+  message("#subscriptionMessage","يتم إنشاء فاتورة آمنة عبر ميسر. يرجى الانتظار...");
   try{
-    const planCode=$("#subscriptionPlan").value;
-    const paymentMethod=$("#subscriptionPaymentMethod").value;
-    if(paymentMethod==="online") throw new Error("الدفع الإلكتروني غير متاح حتى يتم ربط بوابة الدفع واعتماد مفاتيحها.");
-    const reference=$("#transferReference").value.trim();
-    if(!reference) throw new Error("أدخل رقم مرجع التحويل بعد إتمام التحويل البنكي.");
-    if(!subscriptionBankSettings?.iban||!subscriptionBankSettings?.beneficiary_name) throw new Error("بيانات التحويل البنكي لم تعتمد بعد. تواصل مع إدارة مقياس قبل التحويل.");
-    const {data,error}=await supabase.rpc("create_subscription_payment_request",{
-      p_organization_id:currentOrg.id,p_plan_code:planCode,p_payment_method:paymentMethod,p_transfer_reference:reference
+    const {data,error}=await supabase.functions.invoke("miqyas-moyasar",{
+      body:{action:"create_invoice",organization_id:currentOrg.id,plan_code:planCode}
     });
     if(error) throw error;
-    $("#transferReference").value="";
-    message("#subscriptionMessage","تم إرسال طلب الاشتراك بنجاح. سيظهر الاشتراك بعد مراجعة التحويل واعتماده.");
-    await loadSubscriptionData();
-  }catch(err){message("#subscriptionMessage",err.message||"تعذر إرسال طلب الاشتراك.",true);}
-  finally{setBusy(btn,false);}
+    if(!data?.checkout_url) throw new Error(data?.error||"لم يصل رابط الدفع من ميسر.");
+    message("#subscriptionMessage","تم إنشاء الفاتورة. سيتم تحويلك إلى صفحة الدفع...");
+    window.location.assign(data.checkout_url);
+  }catch(err){
+    console.error("MIQYAS checkout error",err);
+    const detail=err?.context?.error||err?.message||"تعذر إنشاء فاتورة الدفع.";
+    message("#subscriptionMessage",detail,true);
+    setBusy(btn,false);
+  }
 });
 $("#refreshSubscriptionRequests").addEventListener("click",async()=>{await loadAdminSubscriptionRequests();toast("تم تحديث الطلبات");});
 async function loadAdminSubscriptionRequests(){
   if(!isPlatformAdmin)return;
-  const {data,error}=await supabase.from("subscription_payment_requests").select("id,organization_id,plan_code,amount_sar,transfer_reference,created_at,organizations(name)").eq("status","pending").order("created_at",{ascending:true});
+  const {data,error}=await supabase.from("subscription_payment_requests").select("id,organization_id,plan_code,amount_sar,payment_method,status,created_at,organizations(name)").eq("status","pending").order("created_at",{ascending:true});
   if(error){$("#adminSubscriptionRows").innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
-  $("#adminSubscriptionRows").innerHTML=(data||[]).length?data.map(r=>`<tr><td>${escapeHtml(r.organizations?.name||"منشأة")}</td><td>${planLabels[r.plan_code]||r.plan_code}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA")} ر.س</td><td>${escapeHtml(r.transfer_reference||"—")}</td><td><button class="primary" data-approve-sub="${r.id}">اعتماد</button> <button class="outline" data-reject-sub="${r.id}">رفض</button></td></tr>`).join(""):'<tr><td colspan="5">لا توجد طلبات معلقة</td></tr>';
+  $("#adminSubscriptionRows").innerHTML=(data||[]).length?data.map(r=>`<tr><td>${escapeHtml(r.organizations?.name||"منشأة")}</td><td>${planLabels[r.plan_code]||r.plan_code}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA")} ر.س</td><td>${escapeHtml(requestStatusLabels[r.status]||r.status)}</td><td><button class="primary" data-approve-sub="${r.id}">اعتماد</button> <button class="outline" data-reject-sub="${r.id}">رفض</button></td></tr>`).join(""):'<tr><td colspan="5">لا توجد طلبات معلقة</td></tr>';
 }
+function startAdminRequestNotifications(){
+  if(!isPlatformAdmin || adminRequestsChannel) return;
+  adminRequestsChannel=supabase.channel("miqyas-admin-subscription-requests")
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"subscription_payment_requests"},payload=>{
+      const request=payload.new||{};
+      if(!request.id) return;
+      const plan=planLabels[request.plan_code]||"باقة جديدة";
+      const amount=Number(request.amount_sar||0).toLocaleString("ar-SA");
+      const notice=`وصل طلب اشتراك جديد: ${plan} بقيمة ${amount} ريال.`;
+      toast(notice);
+      if("Notification" in window && Notification.permission==="granted"){
+        try{new Notification("طلب اشتراك جديد في مقياس",{body:notice,icon:"./icon.svg",tag:`miqyas-sub-${request.id}`});}catch(e){}
+      }
+      loadAdminSubscriptionRequests();
+    })
+    .subscribe();
+}
+$("#enableAdminNotifications")?.addEventListener("click",async()=>{
+  if(!isPlatformAdmin){toast("هذه الميزة متاحة لمدير المنصة فقط.");return;}
+  if(!("Notification" in window)){toast("المتصفح لا يدعم إشعارات النظام؛ ستظهر التنبيهات داخل المنصة عند فتحها.");return;}
+  try{
+    const permission=await Notification.requestPermission();
+    toast(permission==="granted"?"تم تفعيل إشعارات طلبات الاشتراك.":"لم يتم السماح بالإشعارات؛ ستظل التنبيهات داخل المنصة متاحة عند فتحها.");
+  }catch(e){toast("تعذر طلب إذن الإشعارات من المتصفح.");}
+});
 function adminDate(value){
   if(!value)return "—";
   const d=new Date(value); return Number.isNaN(d.getTime())?"—":d.toLocaleDateString("ar-SA");
@@ -722,6 +739,7 @@ $("#signOut").addEventListener("click",async()=>{
   const {error}=await supabase.auth.signOut();
   if(error){toast(error.message);return;}
   currentUser=null;currentOrg=null;branches=[];assessments=[];
+  if(adminRequestsChannel){supabase.removeChannel(adminRequestsChannel);adminRequestsChannel=null;}
   $("#signOut").classList.add("hidden");$("#connection").textContent="غير متصل";$("#connection").classList.remove("online");show("#authView");
 });
 supabase.auth.onAuthStateChange(async(event,session)=>{

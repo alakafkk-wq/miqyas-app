@@ -30,6 +30,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 #serviceNavigation{margin-top:16px}
 #ecommerceService .service-card{min-height:120px}
 #ecommerceService ol{line-height:2}
+.contact-icon-link{display:inline-flex;align-items:center;gap:8px;text-decoration:none}.contact-icon-link svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 </style>
 </head>
 <body>
@@ -141,19 +142,8 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <p class="fine">هذه الحزمة تجهّز قاعدة التكامل وإدارة المتاجر. تفعيل استقبال Webhooks والإرسال الآلي يتطلب نشر الدالة وإعداد سرّ الربط وموفر الرسائل، ثم اختبار كل منصة على حدة.</p>
     </div>
   </section>
-  <section class="panel account-panel" id="accountPanel">
-    <div class="panelhead"><div><h2>بيانات المسجل في المنصة</h2><p>معلومات الحساب والمنشأة الحالية</p></div></div>
-    <div class="account-grid">
-      <div><small>اسم المستخدم</small><strong id="registeredUserName">—</strong></div>
-      <div><small>البريد الإلكتروني</small><strong id="registeredUserEmail">—</strong></div>
-      <div><small>معرّف الحساب</small><strong id="registeredUserId" dir="ltr">—</strong></div>
-      <div><small>اسم المنشأة</small><strong id="registeredOrgName">—</strong></div>
-      <div><small>تاريخ التسجيل</small><strong id="registeredAt">—</strong></div>
-      <div><small>عدد الفروع</small><strong id="registeredBranchCount">0</strong></div>
-    </div>
-  </section>
   <section class="panel subscription-panel" id="subscriptionPanel">
-    <div class="panelhead"><div><h2>الاشتراك والباقات</h2><p>اختر الباقة المناسبة لمنشأتك وأرسل طلب الاشتراك</p></div><span id="subscriptionStatus" class="sub-status">جارٍ التحقق...</span></div>
+    <div class="panelhead"><div><h2>الاشتراك والباقات</h2><p>اختر الباقة المناسبة لمنشأتك وأكمل الدفع الإلكتروني بأمان عبر ميسر</p></div><span id="subscriptionStatus" class="sub-status">جارٍ التحقق...</span></div>
     <div class="current-subscription" id="currentSubscription">
       <div><small>اشتراك المنشأة الحالي</small><strong id="currentPlanName">لا يوجد اشتراك نشط</strong><span id="currentPlanDates">يمكنك اختيار إحدى الباقات أدناه</span></div>
       <div class="sub-expiry" id="subscriptionExpiry">—</div>
@@ -166,24 +156,23 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
     <form id="subscriptionRequestForm" class="subscription-form">
       <div class="subscription-fields">
         <label>الباقة المطلوبة<select id="subscriptionPlan" required><option value="basic">الأساسية – 99 ريال / شهر</option><option value="professional">الاحترافية – 199 ريال / شهر</option><option value="enterprise">المؤسسات – 399 ريال / شهر</option></select></label>
-        <label>طريقة الدفع<select id="subscriptionPaymentMethod" required><option value="bank_transfer">تحويل بنكي</option><option value="online" disabled>دفع إلكتروني – بانتظار ربط بوابة الدفع</option></select></label>
+        <label>طريقة الدفع<select id="subscriptionPaymentMethod" required><option value="online">الدفع الإلكتروني فقط</option></select></label>
       </div>
-      <div id="bankTransferInstructions" class="bank-instructions">
-        <h3>الدفع بالتحويل البنكي</h3>
-        <p id="bankDetailsText">ستظهر بيانات الحساب البنكي بعد اعتمادها في إعدادات المنصة. لا تحوّل أي مبلغ قبل ظهور بيانات المستفيد الرسمية.</p>
-        <label>رقم مرجع التحويل (بعد إتمام التحويل)<input id="transferReference" maxlength="100" placeholder="أدخل رقم العملية أو مرجع التحويل"></label>
+      <div id="onlinePaymentInstructions" class="bank-instructions">
+        <h3>الدفع الإلكتروني</h3>
+        <p>سيتم تحويلك إلى صفحة الدفع الآمنة لدى ميسر. يُفعّل الاشتراك تلقائياً بعد تأكيد نجاح عملية الدفع.</p>
       </div>
-      <button class="primary wide" id="submitSubscriptionRequest">إرسال طلب الاشتراك</button>
+      <button class="primary wide" id="submitSubscriptionRequest" type="submit">المتابعة إلى الدفع الإلكتروني</button>
       <p id="subscriptionMessage" class="message" aria-live="polite"></p>
-      <p class="fine">لا يتم تفعيل الاشتراك بمجرد إرسال الطلب؛ يتم التفعيل بعد مراجعة التحويل واعتماده من إدارة مقياس.</p>
+      <p class="fine">لا تشارك بيانات بطاقتك مع أي جهة. أدخل بيانات الدفع في صفحة ميسر الرسمية فقط، وسيتم تفعيل اشتراكك بعد التحقق من الفاتورة.</p>
     </form>
     <div class="subscription-history">
       <h3>طلبات الاشتراك السابقة</h3>
       <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الباقة</th><th>المبلغ</th><th>طريقة الدفع</th><th>الحالة</th></tr></thead><tbody id="subscriptionRequestRows"><tr><td colspan="5">لا توجد طلبات بعد</td></tr></tbody></table></div>
     </div>
     <div id="platformAdminPanel" class="platform-admin hidden">
-      <div class="panelhead"><div><h2>إدارة طلبات الاشتراك</h2><p>مراجعة طلبات المنشآت وتفعيل الاشتراكات</p></div><button type="button" class="outline" id="refreshSubscriptionRequests">تحديث الطلبات</button></div>
-      <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>مرجع التحويل</th><th>الإجراء</th></tr></thead><tbody id="adminSubscriptionRows"><tr><td colspan="5">لا توجد طلبات معلقة</td></tr></tbody></table></div>
+      <div class="panelhead"><div><h2>إدارة طلبات الاشتراك</h2><p>مراجعة طلبات المنشآت وتفعيل الاشتراكات</p></div><div class="actions"><button type="button" class="outline" id="enableAdminNotifications">تفعيل إشعارات الطلبات</button><button type="button" class="outline" id="refreshSubscriptionRequests">تحديث الطلبات</button></div></div>
+      <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody id="adminSubscriptionRows"><tr><td colspan="5">لا توجد طلبات معلقة</td></tr></tbody></table></div>
       <hr>
       <div class="panelhead"><div><h2>إدارة المشتركين</h2><p>عرض الاشتراكات وتعديلها أو إيقافها أو إعادة تفعيلها أو حذف الاشتراك فقط مع الاحتفاظ ببيانات المنشأة.</p></div><button type="button" class="outline" id="refreshAdminSubscriptions">تحديث المشتركين</button></div>
       <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>الحالة</th><th>بداية الاشتراك</th><th>نهاية الاشتراك</th><th>الإجراءات</th></tr></thead><tbody id="adminSubscribersRows"><tr><td colspan="6">جارٍ تحميل المشتركين...</td></tr></tbody></table></div>
@@ -247,9 +236,13 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 <section class="contact-strip" id="contactStrip" aria-label="التواصل مع مقياس">
   <div><strong>تواصل مع مقياس</strong><small>يسعدنا استقبال استفساراتكم</small></div>
   <div class="contact-links">
-    <a id="contactEmailLink" class="outline hidden" href="#">البريد الإلكتروني</a>
-    <a id="contactWhatsAppLink" class="primary hidden" href="#" target="_blank" rel="noopener">واتساب</a>
-    <span id="contactInfoPending" class="fine">أضف بيانات التواصل في config.js لإظهار وسائل التواصل.</span>
+    <a id="contactEmailLink" class="outline contact-icon-link hidden" href="#" aria-label="التواصل عبر البريد الإلكتروني" title="البريد الإلكتروني">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5h18v13H3z"/><path d="m3.5 6 8.5 7 8.5-7"/></svg><span>البريد الإلكتروني</span>
+    </a>
+    <a id="contactWhatsAppLink" class="primary contact-icon-link hidden" href="#" target="_blank" rel="noopener noreferrer" aria-label="التواصل عبر واتساب" title="واتساب">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 11.7a8.2 8.2 0 0 1-12.1 7.2L3 20l1.2-4.9a8.2 8.2 0 1 1 16-3.4Z"/><path d="M8.2 8.2c.2-.5.5-.5.8-.5h.5c.2 0 .4.1.5.4l.7 1.7c.1.2.1.4-.1.6l-.5.6c-.2.2-.2.4 0 .6.4.7 1 1.3 1.7 1.7.2.1.4.1.6-.1l.7-.8c.2-.2.4-.2.6-.1l1.6.8c.2.1.3.3.3.5 0 .3-.2 1.1-.7 1.5-.5.4-1.1.6-1.8.5-1-.2-2.2-.8-3.4-1.9-1-.9-1.8-2.1-2-3.1-.2-.9.1-1.6.5-2Z"/></svg><span>واتساب</span>
+    </a>
+    <span id="contactInfoPending" class="fine">أضف بريد التواصل ورقم واتساب الدولي في config.js لإظهار روابط التواصل.</span>
   </div>
 </section>
 <dialog id="branchDialog"><form id="branchForm"><div class="dialog-head"><h2>إضافة فرع</h2><button type="button" class="x" id="closeBranch">×</button></div>
