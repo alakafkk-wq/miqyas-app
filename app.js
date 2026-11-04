@@ -87,7 +87,7 @@ $("#storeConnectForm")?.addEventListener("submit",async e=>{
 
 function renderContactInfo(){
   const email=String(cfg.CONTACT_EMAIL||"miqyassupport@gmail.com").trim();
-  const whatsapp=String(cfg.WHATSAPP_NUMBER||"").replace(/[^0-9]/g,"");
+  const whatsapp=String(cfg.WHATSAPP_NUMBER||"966530561303").replace(/[^0-9]/g,"");
   const emailLink=$("#contactEmailLink"), waLink=$("#contactWhatsAppLink");
   if(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
     emailLink.href=`mailto:${email}`; emailLink.classList.remove("hidden");
