@@ -579,7 +579,7 @@ function render() {
   $("#branchList").classList.toggle("empty",!selectedBranches.length);
   $("#branchList").innerHTML=selectedBranches.length?selectedBranches.map(b=>{
     const count=filteredFeedback.filter(x=>x.branch_id===b.id).length;
-    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} صوت عميل</span>${validGoogleMapsUrl(b.google_maps_url)&&b.google_maps_url?`<a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح موقع الفرع على Google Maps ↗</a><button class="outline" data-mapqr="${escapeHtml(b.id)}">QR موقع Google Maps</button>`:""}<button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
+    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} صوت عميل</span>${validGoogleMapsUrl(b.google_maps_url)&&b.google_maps_url?`<a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح موقع الفرع على Google Maps ↗</a><button class="outline" data-mapqr="${escapeHtml(b.id)}">QR موقع Google Maps</button>`:""}<button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button><button class="danger" type="button" data-delete-branch="${escapeHtml(b.id)}">حذف الفرع</button></div></div>`;
   }).join(""):"لا توجد فروع مطابقة للتصفية";
   $("#evalBranch").innerHTML=branches.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
   $("#saveEval").disabled=!branches.length;
@@ -633,6 +633,34 @@ $("#branchList").addEventListener("click",e=>{
 });
 $("#closeQr").addEventListener("click",()=>$("#qrDialog").close());
 $("#copyFeedbackLink").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(activeQrUrl);toast(activeQrPurpose==="maps"?"تم نسخ رابط Google Maps":"تم نسخ رابط التقييم");}catch(e){toast("انسخ الرابط يدوياً من النص الظاهر");}});
+$("#branchList").addEventListener("click",async e=>{
+  const btn=e.target.closest("[data-delete-branch]");
+  if(!btn)return;
+  const branch=branches.find(b=>b.id===btn.dataset.deleteBranch);
+  if(!branch)return;
+  const ok=confirm(`هل تريد حذف الفرع «${branch.name}»؟\\n\\nلن يتم الحذف إذا كان للفرع تقييمات أو آراء عملاء، حفاظاً على سجلاتك.`);
+  if(!ok)return;
+  setBusy(btn,true,"جارٍ التحقق...");
+  try{
+    const [quality,feedback]=await Promise.all([
+      supabase.from("quality_assessments").select("id",{count:"exact",head:true}).eq("organization_id",currentOrg.id).eq("branch_id",branch.id),
+      supabase.from("customer_feedback").select("id",{count:"exact",head:true}).eq("organization_id",currentOrg.id).eq("branch_id",branch.id)
+    ]);
+    if(quality.error)throw quality.error;
+    if(feedback.error)throw feedback.error;
+    const linked=(quality.count||0)+(feedback.count||0);
+    if(linked>0){
+      toast(`لا يمكن حذف الفرع حالياً لوجود ${linked} سجلاً مرتبطاً به. حفاظاً على بيانات التقييمات، نحتاج أرشفة الفرع بدلاً من الحذف.`);
+      return;
+    }
+    const {error}=await supabase.from("branches").delete().eq("id",branch.id).eq("organization_id",currentOrg.id);
+    if(error)throw error;
+    await refreshData();
+    toast("تم حذف الفرع بنجاح.");
+  }catch(err){toast(err.message||"تعذر حذف الفرع.");}
+  finally{setBusy(btn,false);}
+});
+
 $("#addBranchBtn").addEventListener("click",()=>{
   if(!isPlatformAdmin&&!subscriptionAccessActive){toast("إضافة الفروع تتطلب اشتراكاً فعالاً.");return;}
   $("#branchDialog").showModal();

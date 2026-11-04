@@ -37,3 +37,4 @@ MIQYAS v1.16 update:
 - Improved subscription request notifications through Service Worker notifications while app is open/connected.
 - Push notifications while the app is fully closed require VAPID push server setup and subscription storage; this package does not claim background push is configured.
 - Configure Supabase Auth URL allow-list to include the exact site URL with ?reset-password=1.
+\n\nMIQYAS v1.17 branch deletion:\n- Added a Delete Branch control to each branch card.\n- Requires explicit confirmation.\n- Checks quality_assessments and customer_feedback first; if records exist, deletion is blocked to preserve history and the user is advised to archive instead.\n- Deletes only the branch belonging to the current organization.\n
