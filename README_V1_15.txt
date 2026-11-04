@@ -38,3 +38,10 @@ MIQYAS v1.16 update:
 - Push notifications while the app is fully closed require VAPID push server setup and subscription storage; this package does not claim background push is configured.
 - Configure Supabase Auth URL allow-list to include the exact site URL with ?reset-password=1.
 \n\nMIQYAS v1.17 branch deletion:\n- Added a Delete Branch control to each branch card.\n- Requires explicit confirmation.\n- Checks quality_assessments and customer_feedback first; if records exist, deletion is blocked to preserve history and the user is advised to archive instead.\n- Deletes only the branch belonging to the current organization.\n
+
+MIQYAS v1.18 Activity Audit Log:
+1) Run MIQYAS_ACTIVITY_AUDIT.sql in Supabase SQL Editor.
+2) Deploy index.html and app.js from this package; keep config.js unchanged.
+3) The Platform Admin panel displays the latest 200 activity events.
+4) Events are captured for organizations, branches, quality_assessments, customer_feedback, ecommerce_stores, organization_subscriptions and subscription_payment_requests when those tables exist.
+5) Successful sign-in events are recorded through the log_platform_login() RPC; credentials and tokens are never stored.
