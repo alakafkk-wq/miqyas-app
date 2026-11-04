@@ -431,10 +431,9 @@ async function loadActivityAudit(){
     .order("created_at",{ascending:false}).limit(200);
   if(error){body.innerHTML=`<tr><td colspan="6">${escapeHtml(error.message)} — تأكد من تنفيذ ملف MIQYAS_ACTIVITY_AUDIT.sql</td></tr>`;return;}
   const labels={INSERT:"إضافة",UPDATE:"تعديل",DELETE:"حذف",LOGIN:"تسجيل دخول"};
-  const tableLabels={organizations:"المنشآت",branches:"الفروع",quality_assessments:"تقييمات الجودة",customer_feedback:"آراء العملاء",ecommerce_stores:"المتاجر الإلكترونية",organization_subscriptions:"اشتراكات المنشآت",subscription_payment_requests:"طلبات دفع الاشتراك",auth:"المصادقة"};
   body.innerHTML=(data||[]).length?data.map(a=>{
     const details=a.details?JSON.stringify(a.details):"—";
-    return `<tr><td>${adminDate(a.created_at)}</td><td>${escapeHtml(a.actor_email||"غير معروف")}</td><td>${escapeHtml(a.organization_name||"—")}</td><td>${labels[a.action]||escapeHtml(a.action)}</td><td>${escapeHtml(tableLabels[a.table_name]||a.table_name||"—")}</td><td>${escapeHtml(details.slice(0,500))}</td></tr>`;
+    return `<tr><td>${adminDate(a.created_at)}</td><td>${escapeHtml(a.actor_email||"غير معروف")}</td><td>${escapeHtml(a.organization_name||"—")}</td><td>${labels[a.action]||escapeHtml(a.action)}</td><td>${escapeHtml(a.table_name||"—")}</td><td>${escapeHtml(details.slice(0,500))}</td></tr>`;
   }).join(""):'<tr><td colspan="6">لا توجد عمليات مسجلة بعد تفعيل السجل</td></tr>';
 }
 $("#refreshActivityAudit")?.addEventListener("click",loadActivityAudit);
@@ -443,52 +442,54 @@ async function loadAdminSubscriptionAudit(){
   if(!isPlatformAdmin)return;
   const body=$("#adminSubscriptionAuditRows");
   if(!body)return;
-  body.innerHTML='<tr><td colspan="5">جارٍ تحميل سجل الاشتراكات...</td></tr>';
-
-  // Use the verified central audit table. Subscription changes are already
-  // captured by triggers on organization_subscriptions and subscription_payment_requests.
-  const {data,error}=await supabase.from("platform_activity_audit")
-    .select("created_at,organization_name,action,table_name,actor_email,details")
-    .in("table_name",["organization_subscriptions","subscription_payment_requests"])
-    .order("created_at",{ascending:false}).limit(100);
-
-  if(error){
-    body.innerHTML=`<tr><td colspan="5">${escapeHtml(error.message||"تعذر تحميل سجل الاشتراكات.")}</td></tr>`;
+  body.innerHTML='<tr><td colspan="5">جارٍ تحميل عمليات الاشتراكات...</td></tr>';
+  const [requestsRes,subscriptionsRes]=await Promise.all([
+    supabase.from("subscription_payment_requests")
+      .select("id,organization_id,user_id,plan_code,amount_sar,payment_method,status,transfer_reference,gateway_checkout_id,reviewed_by,reviewed_at,created_at,organizations(name)")
+      .order("created_at",{ascending:false}).limit(100),
+    supabase.from("organization_subscriptions")
+      .select("id,organization_id,plan_code,status,starts_at,ends_at,payment_method,created_at,organizations(name)")
+      .order("created_at",{ascending:false}).limit(100)
+  ]);
+  if(requestsRes.error || subscriptionsRes.error){
+    const err=requestsRes.error||subscriptionsRes.error;
+    body.innerHTML=`<tr><td colspan="5">${escapeHtml(err.message||"تعذر تحميل سجل الاشتراكات")}</td></tr>`;
     return;
   }
-
-  const tableLabels={
-    organization_subscriptions:"الاشتراكات",
-    subscription_payment_requests:"طلبات دفع الاشتراك"
-  };
-  const actionLabels={
-    INSERT:"إضافة",
-    UPDATE:"تحديث",
-    DELETE:"حذف"
-  };
-  const statusLabels={
-    pending:"بانتظار المراجعة",
-    approved:"معتمد",
-    rejected:"مرفوض",
-    active:"نشط",
-    paused:"موقوف مؤقتاً",
-    expired:"منتهي",
-    cancelled:"ملغي",
-    past_due:"متأخر السداد"
-  };
-
-  body.innerHTML=(data||[]).length?data.map(a=>{
-    const snapshot=a.details?.new||a.details?.old||{};
-    const info=[];
-    if(snapshot.plan_code)info.push(`الباقة: ${snapshot.plan_code}`);
-    if(snapshot.amount_sar!==undefined&&snapshot.amount_sar!==null)info.push(`المبلغ: ${Number(snapshot.amount_sar).toLocaleString("ar-SA")} ر.س`);
-    if(snapshot.payment_method)info.push(`طريقة الدفع: ${snapshot.payment_method}`);
-    if(snapshot.status)info.push(`الحالة: ${statusLabels[snapshot.status]||snapshot.status}`);
-    if(snapshot.transfer_reference)info.push(`مرجع التحويل: ${snapshot.transfer_reference}`);
-    const rawDetails=info.length?info.join(" | "):(a.details?JSON.stringify(a.details):"—");
-    const operation=`${actionLabels[a.action]||a.action} ${tableLabels[a.table_name]||a.table_name}`;
-    return `<tr><td>${adminDate(a.created_at)}</td><td>${escapeHtml(a.organization_name||"—")}</td><td>${escapeHtml(operation)}</td><td>${escapeHtml(rawDetails.slice(0,500))}</td><td>${escapeHtml(a.actor_email||"النظام")}</td></tr>`;
-  }).join(""):'<tr><td colspan="5">لا توجد عمليات اشتراك مسجلة حتى الآن</td></tr>';
+  const paymentLabels={bank_transfer:"تحويل بنكي",online:"دفع إلكتروني",cash:"نقدي"};
+  const statusLabels={pending:"بانتظار المراجعة",awaiting_gateway:"بانتظار الدفع",paid:"مدفوع",approved:"معتمد",rejected:"مرفوض",cancelled:"ملغي",failed:"فشل الدفع",active:"نشط",paused:"موقوف مؤقتاً",expired:"منتهي",past_due:"متأخر السداد",trial:"تجريبي"};
+  const planName=code=>planLabels[code]||code||"—";
+  const requestRows=(requestsRes.data||[]).map(r=>{
+    const details=[
+      `الباقة: ${planName(r.plan_code)}`,
+      `المبلغ: ${Number(r.amount_sar||0).toLocaleString("ar-SA")} ر.س`,
+      `الدفع: ${paymentLabels[r.payment_method]||r.payment_method||"—"}`,
+      `الحالة: ${statusLabels[r.status]||r.status||"—"}`,
+      r.transfer_reference?`مرجع التحويل: ${r.transfer_reference}`:"",
+      r.gateway_checkout_id?`رقم العملية: ${r.gateway_checkout_id}`:""
+    ].filter(Boolean).join(" — ");
+    return {created_at:r.created_at,organization_name:r.organizations?.name||"—",
+      action:"طلب اشتراك",details,actor:r.reviewed_by?"مراجع الطلب":r.user_id?"مقدم الطلب":"—"};
+  });
+  const subscriptionRows=(subscriptionsRes.data||[]).map(s=>{
+    const details=[
+      `الباقة: ${planName(s.plan_code)}`,
+      `الحالة: ${statusLabels[s.status]||s.status||"—"}`,
+      `طريقة الدفع: ${paymentLabels[s.payment_method]||s.payment_method||"—"}`,
+      s.starts_at?`البداية: ${adminDate(s.starts_at)}`:"",
+      s.ends_at?`الانتهاء: ${adminDate(s.ends_at)}`:""
+    ].filter(Boolean).join(" — ");
+    return {created_at:s.created_at,organization_name:s.organizations?.name||"—",
+      action:"تسجيل اشتراك",details,actor:"النظام"};
+  });
+  const rows=[...requestRows,...subscriptionRows].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,100);
+  body.innerHTML=rows.length?rows.map(r=>`<tr>
+    <td>${adminDate(r.created_at)}</td>
+    <td>${escapeHtml(r.organization_name)}</td>
+    <td>${escapeHtml(r.action)}</td>
+    <td>${escapeHtml(r.details)}</td>
+    <td>${escapeHtml(r.actor)}</td>
+  </tr>`).join(""):'<tr><td colspan="5">لا توجد عمليات اشتراك مسجلة بعد</td></tr>';
 }
 function openAdminSubscriptionEdit(id){
   if(!isPlatformAdmin)return;
