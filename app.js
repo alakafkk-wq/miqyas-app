@@ -176,6 +176,8 @@ $("#authForm").addEventListener("submit",async e=>{
 async function handleSession(session) {
   currentUser=session?.user||null;
   if(!currentUser){show("#authView");return;}
+  // Record a successful sign-in without exposing credentials or tokens.
+  try { await supabase.rpc("log_platform_login"); } catch (auditError) { console.warn("Activity audit login event was not recorded", auditError); }
   $("#connection").textContent="متصل";
   $("#connection").classList.add("online");
   $("#signOut").classList.remove("hidden");
@@ -259,6 +261,7 @@ async function loadSubscriptionData(){
       await loadAdminSubscriptionRequests();
       await loadAdminSubscriptions();
       await loadAdminOrganizations();
+      await loadActivityAudit();
       startAdminRequestNotifications();
     }
     return subscriptionAccessActive;
@@ -418,6 +421,23 @@ async function loadAdminOrganizations(){
     <td><button type="button" class="danger" data-delete-organization="${o.id}" data-org-name="${escapeHtml(o.name||"")}">حذف نهائي</button></td>
   </tr>`).join(""):'<tr><td colspan="5">لا توجد منشآت مسجلة</td></tr>';
 }
+async function loadActivityAudit(){
+  if(!isPlatformAdmin)return;
+  const body=$("#activityAuditRows");
+  if(!body)return;
+  body.innerHTML='<tr><td colspan="6">جارٍ تحميل سجل الحركة...</td></tr>';
+  const {data,error}=await supabase.from("platform_activity_audit")
+    .select("created_at,actor_email,organization_name,action,table_name,record_id,details")
+    .order("created_at",{ascending:false}).limit(200);
+  if(error){body.innerHTML=`<tr><td colspan="6">${escapeHtml(error.message)} — تأكد من تنفيذ ملف MIQYAS_ACTIVITY_AUDIT.sql</td></tr>`;return;}
+  const labels={INSERT:"إضافة",UPDATE:"تعديل",DELETE:"حذف",LOGIN:"تسجيل دخول"};
+  body.innerHTML=(data||[]).length?data.map(a=>{
+    const details=a.details?JSON.stringify(a.details):"—";
+    return `<tr><td>${adminDate(a.created_at)}</td><td>${escapeHtml(a.actor_email||"غير معروف")}</td><td>${escapeHtml(a.organization_name||"—")}</td><td>${labels[a.action]||escapeHtml(a.action)}</td><td>${escapeHtml(a.table_name||"—")}</td><td>${escapeHtml(details.slice(0,500))}</td></tr>`;
+  }).join(""):'<tr><td colspan="6">لا توجد عمليات مسجلة بعد تفعيل السجل</td></tr>';
+}
+$("#refreshActivityAudit")?.addEventListener("click",loadActivityAudit);
+
 async function loadAdminSubscriptionAudit(){
   if(!isPlatformAdmin)return;
   const {data,error}=await supabase.from("platform_subscription_audit")
