@@ -330,7 +330,35 @@ function renderSubscription(){
 }
 $("#subscriptionRequestForm").addEventListener("submit",async e=>{
   e.preventDefault();
-  message("#subscriptionMessage","الدفع الإلكتروني لم يُفعّل بعد. اختر بوابة الدفع أولاً حتى نربطها بأمان.",true);
+  const submitButton=$("#submitSubscriptionRequest");
+  const planCode=$("#subscriptionPlan")?.value;
+  if(!currentUser || !currentOrg?.id){
+    message("#subscriptionMessage","يرجى تسجيل الدخول واختيار المنشأة قبل متابعة الدفع.",true);
+    return;
+  }
+  if(!planCode || !subscriptionPlans.some(p=>p.code===planCode)){
+    message("#subscriptionMessage","يرجى اختيار باقة صحيحة.",true);
+    return;
+  }
+  const originalText=submitButton?.textContent||"المتابعة إلى الدفع الإلكتروني";
+  if(submitButton){submitButton.disabled=true;submitButton.textContent="جارٍ تجهيز فاتورة الدفع...";}
+  message("#subscriptionMessage","جارٍ تحويلك إلى بوابة ميسر الآمنة لإتمام الدفع.",false);
+  try{
+    const {data,error}=await supabase.functions.invoke("miqyas-moyasar",{
+      body:{
+        action:"create_invoice",
+        organization_id:currentOrg.id,
+        plan_code:planCode
+      }
+    });
+    if(error) throw error;
+    if(!data?.checkout_url) throw new Error(data?.error||data?.message||"لم يتم استلام رابط الدفع من بوابة ميسر.");
+    window.location.assign(data.checkout_url);
+  }catch(err){
+    console.error("MIQYAS Moyasar checkout error:",err);
+    message("#subscriptionMessage",err?.message||"تعذر إنشاء فاتورة الدفع. حاول مرة أخرى أو تواصل مع إدارة مقياس.",true);
+    if(submitButton){submitButton.disabled=false;submitButton.textContent=originalText;}
+  }
 });
 $("#refreshSubscriptionRequests").addEventListener("click",async()=>{await loadAdminSubscriptionRequests();toast("تم تحديث الطلبات");});
 async function loadAdminSubscriptionRequests(){
