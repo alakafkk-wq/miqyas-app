@@ -31,7 +31,7 @@ function message(id, msg, error=false) {
   const el=$(id); el.textContent=msg; el.className="message "+(error?"error":"success");
 }
 function show(view) {
-  ["#authView","#orgView","#appView"].forEach(s=>$(s).classList.add("hidden"));
+  ["#authView","#orgView","#appView","#passwordRecoveryView"].forEach(s=>$(s).classList.add("hidden"));
   $(view).classList.remove("hidden");
 }
 function setBusy(button, busy, text) {
@@ -66,6 +66,7 @@ async function loadEcommerceStores(){
   body.innerHTML=(data||[]).length?data.map(s=>`<tr><td>${escapeHtml(s.store_name)}</td><td>${escapeHtml(({salla:"سلة",zid:"زد",shopify:"Shopify",woocommerce:"WooCommerce",custom:"متجر خاص"})[s.platform]||s.platform)}</td><td>${s.connection_status==="connected"?"متصل":"بانتظار اختبار الربط"}</td><td>${adminDate(s.created_at)}</td></tr>`).join(""):'<tr><td colspan="4">لم تتم إضافة متاجر بعد</td></tr>';
 }
 $("#serviceSelect")?.addEventListener("change",e=>setServiceView(e.target.value));
+$("#homeButton")?.addEventListener("click",()=>{const s=$("#serviceSelect");if(s){s.value="dashboard";setServiceView("dashboard");}window.scrollTo({top:0,behavior:"smooth"});});
 $("#refreshStores")?.addEventListener("click",loadEcommerceStores);
 $("#storeConnectForm")?.addEventListener("submit",async e=>{
   e.preventDefault();
@@ -145,6 +146,15 @@ document.querySelectorAll("[data-auth]").forEach(btn=>btn.addEventListener("clic
   $("#password").autocomplete=authMode==="login"?"current-password":"new-password";
   message("#authMessage","");
 }));
+$("#forgotPasswordBtn")?.addEventListener("click",async()=>{
+ const email=$("#email").value.trim(); if(!email){message("#authMessage","أدخل بريدك الإلكتروني أولاً ثم اضغط نسيت كلمة المرور.",true);$("#email").focus();return;}
+ const btn=$("#forgotPasswordBtn");setBusy(btn,true,"جارٍ إرسال الرابط...");
+ try{const redirectTo=`${location.origin}${location.pathname}?reset-password=1`;const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo});if(error)throw error;message("#authMessage","إذا كان البريد مسجلاً، فسيصلك رابط استعادة كلمة المرور. تحقق من الوارد والرسائل غير المرغوب فيها.");}
+ catch(err){message("#authMessage",err.message||"تعذر إرسال رابط الاستعادة.",true);}finally{setBusy(btn,false);}
+});
+$("#passwordRecoveryForm")?.addEventListener("submit",async e=>{e.preventDefault();const p=$("#newPassword").value,c=$("#confirmNewPassword").value;if(p.length<8){message("#recoveryMessage","كلمة المرور يجب ألا تقل عن 8 أحرف.",true);return;}if(p!==c){message("#recoveryMessage","كلمتا المرور غير متطابقتين.",true);return;}const btn=$("#saveNewPasswordBtn");setBusy(btn,true,"جارٍ الحفظ...");try{const {error}=await supabase.auth.updateUser({password:p});if(error)throw error;message("#recoveryMessage","تم تحديث كلمة المرور بنجاح.");$("#passwordRecoveryForm").classList.add("hidden");setTimeout(()=>{show("#authView");history.replaceState({},document.title,location.pathname);},1800);}catch(err){message("#recoveryMessage",err.message||"تعذر تحديث كلمة المرور. افتح رابط الاستعادة من البريد مرة أخرى.",true);}finally{setBusy(btn,false);}});
+supabase.auth.onAuthStateChange((event)=>{if(event==="PASSWORD_RECOVERY")show("#passwordRecoveryView");});
+if(new URLSearchParams(location.search).has("reset-password"))show("#passwordRecoveryView");
 $("#authForm").addEventListener("submit",async e=>{
   e.preventDefault();
   const btn=$("#authSubmit"); setBusy(btn,true);
@@ -337,7 +347,7 @@ function startAdminRequestNotifications(){
       const notice=`وصل طلب اشتراك جديد: ${plan} بقيمة ${amount} ريال.`;
       toast(notice);
       if("Notification" in window && Notification.permission==="granted"){
-        try{new Notification("طلب اشتراك جديد في مقياس",{body:notice,icon:"./icon.svg",tag:`miqyas-sub-${request.id}`});}catch(e){}
+        try{if("serviceWorker" in navigator){navigator.serviceWorker.ready.then(reg=>reg.showNotification("طلب اشتراك جديد في مقياس",{body:notice,icon:"./icon.svg",badge:"./icon.svg",tag:`miqyas-sub-${request.id}`,data:{url:"./"}})).catch(()=>{});}else new Notification("طلب اشتراك جديد في مقياس",{body:notice,icon:"./icon.svg",tag:`miqyas-sub-${request.id}`});}catch(e){}
       }
       loadAdminSubscriptionRequests();
     })

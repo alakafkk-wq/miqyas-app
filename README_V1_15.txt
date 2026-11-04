@@ -29,3 +29,11 @@ WHATSAPP_NUMBER: "966530561303"  (رقم الدعم الذي زوّدني به �
 7) تم ضبط رقم واتساب 966530561303 كقيمة افتراضية داخل app.js؛ ويمكن تغييره لاحقاً من config.js عبر WHATSAPP_NUMBER. اضغط أيقونة واتساب للتأكد من فتح المحادثة الصحيحة.
 
 ملاحظة: QR موقع Google Maps يفتح الرابط الذي أدخله المستخدم؛ لا يجلب تقييمات Google أو المراجعات تلقائياً.
+
+
+MIQYAS v1.16 update:
+- Added Home button to return to dashboard from service sections.
+- Added Supabase Auth password reset email flow and password update form.
+- Improved subscription request notifications through Service Worker notifications while app is open/connected.
+- Push notifications while the app is fully closed require VAPID push server setup and subscription storage; this package does not claim background push is configured.
+- Configure Supabase Auth URL allow-list to include the exact site URL with ?reset-password=1.

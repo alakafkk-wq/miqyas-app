@@ -63,10 +63,18 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
     <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" minlength="8" required placeholder="8 أحرف على الأقل"></label>
     <button class="primary wide" id="authSubmit">تسجيل الدخول</button>
   </form>
+  <button type="button" class="text-link" id="forgotPasswordBtn">نسيت كلمة المرور؟</button>
   <p id="authMessage" class="message" aria-live="polite"></p>
   <p class="fine">تأكد من استخدام بريد تملكه. عند تفعيل تأكيد البريد، ستحتاج إلى تأكيده قبل أول دخول.</p>
 </section>
-
+<section id="passwordRecoveryView" class="auth-card hidden">
+  <div class="auth-intro"><span class="eyebrow">MIQYAS ACCOUNT RECOVERY</span><h1>استعادة كلمة المرور</h1><p>أدخل كلمة مرور جديدة لحسابك.</p></div>
+  <form id="passwordRecoveryForm">
+    <label>كلمة المرور الجديدة<input id="newPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="8 أحرف على الأقل"></label>
+    <label>تأكيد كلمة المرور<input id="confirmNewPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="أعد كتابة كلمة المرور"></label>
+    <button class="primary wide" id="saveNewPasswordBtn">حفظ كلمة المرور</button>
+  </form><p id="recoveryMessage" class="message" aria-live="polite"></p>
+</section>
 <section id="orgView" class="auth-card hidden">
   <span class="eyebrow">خطوة الإعداد الأولى</span><h1>أنشئ مساحة منشأتك</h1>
   <p class="muted">سيصبح حسابك مالك المنشأة ويمكنك إضافة الفروع والموظفين لاحقاً.</p>
@@ -79,7 +87,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 </section>
 
 <section id="appView" class="hidden">
-  <div class="apphead"><div><span class="eyebrow">لوحة التحكم</span><h1 id="orgTitle">منشأتي</h1><p class="muted">متابعة مؤشرات الجودة وأداء الفروع</p></div><button id="addBranchBtn" class="primary">＋ إضافة فرع</button></div>
+  <div class="apphead"><div><span class="eyebrow">لوحة التحكم</span><h1 id="orgTitle">منشأتي</h1><p class="muted">متابعة مؤشرات الجودة وأداء الفروع</p></div><div class="actions"><button id="homeButton" class="outline" type="button">⌂ الرئيسية</button><button id="addBranchBtn" class="primary">＋ إضافة فرع</button></div></div>
   <div class="stats" id="stats">
     <article class="stat"><span>الفروع</span><strong id="branchCount">0</strong><small>إجمالي الفروع</small></article>
     <article class="stat hidden"><span>سجلات الجودة</span><strong id="evalCount">0</strong><small>التقييمات الداخلية وسجلات الجودة</small></article>
