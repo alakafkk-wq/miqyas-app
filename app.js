@@ -12,6 +12,8 @@ let assessments = [];
 let customerFeedback = [];
 let activeFeedbackToken = null;
 let activeFeedbackUrl = "";
+let activeQrUrl = "";
+let activeQrPurpose = "feedback";
 let subscriptionPlans = [];
 let currentSubscription = null;
 let subscriptionRequests = [];
@@ -84,7 +86,7 @@ $("#storeConnectForm")?.addEventListener("submit",async e=>{
 });
 
 function renderContactInfo(){
-  const email=String(cfg.CONTACT_EMAIL||"").trim();
+  const email=String(cfg.CONTACT_EMAIL||"miqyassupport@gmail.com").trim();
   const whatsapp=String(cfg.WHATSAPP_NUMBER||"").replace(/[^0-9]/g,"");
   const emailLink=$("#contactEmailLink"), waLink=$("#contactWhatsAppLink");
   if(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
@@ -315,29 +317,7 @@ function renderSubscription(){
 }
 $("#subscriptionRequestForm").addEventListener("submit",async e=>{
   e.preventDefault();
-  const btn=$("#submitSubscriptionRequest");
-  if(!currentOrg?.id){message("#subscriptionMessage","تعذر تحديد المنشأة الحالية. أعد تسجيل الدخول وحاول مرة أخرى.",true);return;}
-  const planCode=$("#subscriptionPlan").value;
-  if(!planCode){message("#subscriptionMessage","اختر الباقة أولاً.",true);return;}
-  if($("#subscriptionPaymentMethod").value!=="online"){
-    message("#subscriptionMessage","طريقة الدفع المتاحة حالياً هي الدفع الإلكتروني عبر ميسر.",true);return;
-  }
-  setBusy(btn,true,"جارٍ تجهيز فاتورة الدفع...");
-  message("#subscriptionMessage","يتم إنشاء فاتورة آمنة عبر ميسر. يرجى الانتظار...");
-  try{
-    const {data,error}=await supabase.functions.invoke("miqyas-moyasar",{
-      body:{action:"create_invoice",organization_id:currentOrg.id,plan_code:planCode}
-    });
-    if(error) throw error;
-    if(!data?.checkout_url) throw new Error(data?.error||"لم يصل رابط الدفع من ميسر.");
-    message("#subscriptionMessage","تم إنشاء الفاتورة. سيتم تحويلك إلى صفحة الدفع...");
-    window.location.assign(data.checkout_url);
-  }catch(err){
-    console.error("MIQYAS checkout error",err);
-    const detail=err?.context?.error||err?.message||"تعذر إنشاء فاتورة الدفع.";
-    message("#subscriptionMessage",detail,true);
-    setBusy(btn,false);
-  }
+  message("#subscriptionMessage","الدفع الإلكتروني لم يُفعّل بعد. اختر بوابة الدفع أولاً حتى نربطها بأمان.",true);
 });
 $("#refreshSubscriptionRequests").addEventListener("click",async()=>{await loadAdminSubscriptionRequests();toast("تم تحديث الطلبات");});
 async function loadAdminSubscriptionRequests(){
@@ -589,7 +569,7 @@ function render() {
   $("#branchList").classList.toggle("empty",!selectedBranches.length);
   $("#branchList").innerHTML=selectedBranches.length?selectedBranches.map(b=>{
     const count=filteredFeedback.filter(x=>x.branch_id===b.id).length;
-    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} صوت عميل</span>${validGoogleMapsUrl(b.google_maps_url)?(b.google_maps_url?`<a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح موقع الفرع على Google Maps ↗</a>`:""):""}<button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
+    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} صوت عميل</span>${validGoogleMapsUrl(b.google_maps_url)&&b.google_maps_url?`<a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح موقع الفرع على Google Maps ↗</a><button class="outline" data-mapqr="${escapeHtml(b.id)}">QR موقع Google Maps</button>`:""}<button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button></div></div>`;
   }).join(""):"لا توجد فروع مطابقة للتصفية";
   $("#evalBranch").innerHTML=branches.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
   $("#saveEval").disabled=!branches.length;
@@ -609,20 +589,40 @@ function render() {
   $("#qualityRows").innerHTML=qualityRows.length?qualityRows.map(x=>x.html).join(""):'<tr><td colspan="8" class="muted">لا توجد سجلات جودة مطابقة للتصفية</td></tr>';
   $("#feedbackRows").innerHTML=feedbackRows.length?feedbackRows.map(x=>x.html).join(""):'<tr><td colspan="8" class="muted">لا توجد مشاركات QR مطابقة للتصفية</td></tr>';
 }
-$("#branchList").addEventListener("click",e=>{
-  const btn=e.target.closest("[data-qr]"); if(!btn) return;
-  const branch=branches.find(x=>x.id===btn.dataset.qr); if(!branch?.public_token){toast("رمز الفرع غير متاح. نفّذ تحديث قاعدة البيانات أولاً.");return;}
-  const url=new URL(window.location.href); url.search=""; url.searchParams.set("feedback",branch.public_token);
-  activeFeedbackUrl=url.toString();
+function openBranchQr(branch, purpose){
+  let url="";
+  if(purpose==="maps"){
+    if(!validGoogleMapsUrl(branch.google_maps_url)||!branch.google_maps_url){toast("أضف رابط Google Maps صحيحاً لهذا الفرع أولاً.");return;}
+    url=branch.google_maps_url;
+    $("#qrDialogTitle").textContent="رمز موقع الفرع على Google Maps";
+    $("#qrHint").textContent="امسح الرمز لفتح موقع الفرع مباشرةً على Google Maps.";
+    $("#copyFeedbackLink").textContent="نسخ رابط Google Maps";
+  }else{
+    if(!branch.public_token){toast("رمز الفرع غير متاح. نفّذ تحديث قاعدة البيانات أولاً.");return;}
+    const feedbackUrl=new URL(window.location.href); feedbackUrl.search=""; feedbackUrl.searchParams.set("feedback",branch.public_token);
+    url=feedbackUrl.toString();
+    $("#qrDialogTitle").textContent="رمز تقييم الفرع";
+    $("#qrHint").textContent="اطبع الرمز وضعه في الفرع ليتمكن العملاء من تقييم تجربتهم.";
+    $("#copyFeedbackLink").textContent="نسخ رابط التقييم";
+  }
+  activeQrUrl=url; activeQrPurpose=purpose;
   $("#qrBranchTitle").textContent=branch.name;
-  $("#qrUrlText").textContent=activeFeedbackUrl;
+  $("#qrUrlText").textContent=url;
   $("#qrCanvas").innerHTML="";
-  if(window.QRCode) new QRCode($("#qrCanvas"),{text:activeFeedbackUrl,width:210,height:210});
-  else $("#qrCanvas").textContent="تعذر تحميل مولّد QR؛ استخدم رابط التقييم أدناه.";
+  if(window.QRCode) new QRCode($("#qrCanvas"),{text:url,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});
+  else $("#qrCanvas").textContent="تعذر تحميل مولّد QR؛ استخدم الرابط الظاهر أدناه.";
   $("#qrDialog").showModal();
+}
+$("#branchList").addEventListener("click",e=>{
+  const mapBtn=e.target.closest("[data-mapqr]");
+  const feedbackBtn=e.target.closest("[data-qr]");
+  if(!mapBtn&&!feedbackBtn)return;
+  const id=mapBtn?mapBtn.dataset.mapqr:feedbackBtn.dataset.qr;
+  const branch=branches.find(x=>x.id===id); if(!branch)return;
+  openBranchQr(branch,mapBtn?"maps":"feedback");
 });
 $("#closeQr").addEventListener("click",()=>$("#qrDialog").close());
-$("#copyFeedbackLink").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(activeFeedbackUrl);toast("تم نسخ رابط التقييم");}catch(e){toast("انسخ الرابط يدوياً من النص الظاهر");}});
+$("#copyFeedbackLink").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(activeQrUrl);toast(activeQrPurpose==="maps"?"تم نسخ رابط Google Maps":"تم نسخ رابط التقييم");}catch(e){toast("انسخ الرابط يدوياً من النص الظاهر");}});
 $("#addBranchBtn").addEventListener("click",()=>{
   if(!isPlatformAdmin&&!subscriptionAccessActive){toast("إضافة الفروع تتطلب اشتراكاً فعالاً.");return;}
   $("#branchDialog").showModal();

@@ -143,7 +143,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
     </div>
   </section>
   <section class="panel subscription-panel" id="subscriptionPanel">
-    <div class="panelhead"><div><h2>الاشتراك والباقات</h2><p>اختر الباقة المناسبة لمنشأتك وأكمل الدفع الإلكتروني بأمان عبر ميسر</p></div><span id="subscriptionStatus" class="sub-status">جارٍ التحقق...</span></div>
+    <div class="panelhead"><div><h2>الاشتراك والباقات</h2><p>اختر الباقة المناسبة لمنشأتك وأرسل طلب الاشتراك</p></div><span id="subscriptionStatus" class="sub-status">جارٍ التحقق...</span></div>
     <div class="current-subscription" id="currentSubscription">
       <div><small>اشتراك المنشأة الحالي</small><strong id="currentPlanName">لا يوجد اشتراك نشط</strong><span id="currentPlanDates">يمكنك اختيار إحدى الباقات أدناه</span></div>
       <div class="sub-expiry" id="subscriptionExpiry">—</div>
@@ -160,11 +160,11 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       </div>
       <div id="onlinePaymentInstructions" class="bank-instructions">
         <h3>الدفع الإلكتروني</h3>
-        <p>سيتم تحويلك إلى صفحة الدفع الآمنة لدى ميسر. يُفعّل الاشتراك تلقائياً بعد تأكيد نجاح عملية الدفع.</p>
+        <p>تم إلغاء خيار التحويل البنكي من واجهة الاشتراك. إتمام الدفع الإلكتروني سيتاح فور ربط بوابة الدفع واعتماد إعداداتها.</p>
       </div>
-      <button class="primary wide" id="submitSubscriptionRequest" type="submit">المتابعة إلى الدفع الإلكتروني</button>
+      <button class="primary wide" id="submitSubscriptionRequest" type="button" disabled>الدفع الإلكتروني – قيد الإعداد</button>
       <p id="subscriptionMessage" class="message" aria-live="polite"></p>
-      <p class="fine">لا تشارك بيانات بطاقتك مع أي جهة. أدخل بيانات الدفع في صفحة ميسر الرسمية فقط، وسيتم تفعيل اشتراكك بعد التحقق من الفاتورة.</p>
+      <p class="fine">لا يتم تفعيل الاشتراك بمجرد إرسال الطلب؛ يتم التفعيل بعد مراجعة التحويل واعتماده من إدارة مقياس.</p>
     </form>
     <div class="subscription-history">
       <h3>طلبات الاشتراك السابقة</h3>
@@ -252,7 +252,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 <label>رابط فرع Google Maps<input id="branchGoogleMaps" type="url" placeholder="https://maps.google.com/..."></label>
 <p class="fine">أضف رابط صفحة الفرع على Google Maps ليظهر رابط مباشر بجانب الفرع. جلب النجوم وعدد المراجعات تلقائياً يتطلب Google Places API.</p>
 <button class="primary wide">حفظ الفرع</button><p id="branchMessage" class="message"></p></form></dialog>
-<dialog id="qrDialog"><div class="dialog-head"><h2>رمز تقييم الفرع</h2><button type="button" class="x" id="closeQr">×</button></div><p id="qrBranchTitle" class="muted"></p><div id="qrCanvas" class="qr-canvas"></div><p id="qrUrlText" class="fine"></p><button type="button" class="outline wide" id="copyFeedbackLink">نسخ رابط التقييم</button><p class="fine">اطبع الرمز وضعه في الفرع ليتمكن العملاء من تقييم تجربتهم.</p></dialog>
+<dialog id="qrDialog"><div class="dialog-head"><h2 id="qrDialogTitle">رمز تقييم الفرع</h2><button type="button" class="x" id="closeQr">×</button></div><p id="qrBranchTitle" class="muted"></p><div id="qrCanvas" class="qr-canvas"></div><p id="qrUrlText" class="fine"></p><button type="button" class="outline wide" id="copyFeedbackLink">نسخ الرابط</button><p id="qrHint" class="fine">اطبع الرمز وضعه في الفرع.</p></dialog>
 <div id="toast" class="toast" role="status"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
