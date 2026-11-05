@@ -144,6 +144,7 @@ document.querySelectorAll("[data-auth]").forEach(btn=>btn.addEventListener("clic
   document.querySelectorAll("[data-auth]").forEach(b=>b.classList.toggle("active",b===btn));
   $("#authSubmit").textContent=authMode==="login"?"تسجيل الدخول":"إنشاء الحساب";
   $("#password").autocomplete=authMode==="login"?"current-password":"new-password";
+  $("#signupBusinessType")?.classList.toggle("hidden",authMode!=="signup");
   message("#authMessage","");
 }));
 $("#forgotPasswordBtn")?.addEventListener("click",async()=>{
@@ -161,7 +162,8 @@ $("#authForm").addEventListener("submit",async e=>{
   const email=$("#email").value.trim(), password=$("#password").value;
   try {
     if(authMode==="signup"){
-      const {data,error}=await supabase.auth.signUp({email,password});
+      const businessType=document.querySelector('input[name="businessType"]:checked')?.value||"branches";
+      const {data,error}=await supabase.auth.signUp({email,password,options:{data:{business_type:businessType}}});
       if(error) throw error;
       if(!data.session) message("#authMessage","تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتأكيد الحساب، ثم ارجع وسجّل الدخول.");
       else {message("#authMessage","تم إنشاء الحساب بنجاح."); await handleSession(data.session);}

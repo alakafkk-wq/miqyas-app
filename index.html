@@ -59,6 +59,14 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
   <div class="auth-intro"><span class="eyebrow">MIQYAS CLOUD</span><h1>مرحباً بك في مقياس</h1><p>سجّل الدخول أو أنشئ حساب منشأتك لبدء متابعة الجودة وأداء الفروع.</p></div>
   <div class="tabs"><button class="tab active" data-auth="login">تسجيل الدخول</button><button class="tab" data-auth="signup">إنشاء حساب</button></div>
   <form id="authForm">
+    <div id="signupBusinessType" class="hidden" style="border:1px solid #dce7e2;border-radius:12px;padding:12px;margin:12px 0">
+      <label style="font-weight:700">نوع النشاط</label>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px">
+        <label style="border:1px solid #cbd5e1;border-radius:10px;padding:12px;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="businessType" value="branches" checked><span>🏢 فروع</span></label>
+        <label style="border:1px solid #cbd5e1;border-radius:10px;padding:12px;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="businessType" value="ecommerce"><span>🛒 متجر إلكتروني</span></label>
+      </div>
+      <small style="color:#64748b">يمكنك اختيار نوع النشاط المناسب لحسابك.</small>
+    </div>
     <label>البريد الإلكتروني<input id="email" type="email" autocomplete="email" required placeholder="name@company.com"></label>
     <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" minlength="8" required placeholder="8 أحرف على الأقل"></label>
     <button class="primary wide" id="authSubmit">تسجيل الدخول</button>

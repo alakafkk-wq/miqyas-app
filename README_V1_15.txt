@@ -45,3 +45,4 @@ MIQYAS v1.18 Activity Audit Log:
 3) The Platform Admin panel displays the latest 200 activity events.
 4) Events are captured for organizations, branches, quality_assessments, customer_feedback, ecommerce_stores, organization_subscriptions and subscription_payment_requests when those tables exist.
 5) Successful sign-in events are recorded through the log_platform_login() RPC; credentials and tokens are never stored.
+\n\nMIQYAS v1.18.3 — Subscription audit display update\n- The admin subscription audit now reads directly from subscription_payment_requests and organization_subscriptions.\n- No database schema changes or SQL execution are required.\n- Service worker cache version updated to force fresh app.js and sw.js assets.\n
