@@ -1,4 +1,4 @@
-const CACHE="miqyas-v1-18-5-business-type";
+const CACHE="miqyas-v1-18-6-business-type-display-fix";
 const ASSETS=["./","./index.html","./app.js","./style.css","./config.js","./manifest.webmanifest","./icon.svg"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));

@@ -144,7 +144,16 @@ document.querySelectorAll("[data-auth]").forEach(btn=>btn.addEventListener("clic
   document.querySelectorAll("[data-auth]").forEach(b=>b.classList.toggle("active",b===btn));
   $("#authSubmit").textContent=authMode==="login"?"تسجيل الدخول":"إنشاء الحساب";
   $("#password").autocomplete=authMode==="login"?"current-password":"new-password";
-  $("#signupBusinessType")?.classList.toggle("hidden",authMode!=="signup");
+  const businessTypePanel=$("#signupBusinessType");
+  if(businessTypePanel){
+    if(authMode==="signup"){
+      businessTypePanel.classList.remove("hidden");
+      businessTypePanel.style.setProperty("display","block","important");
+    }else{
+      businessTypePanel.style.setProperty("display","none","important");
+      businessTypePanel.classList.add("hidden");
+    }
+  }
   message("#authMessage","");
 }));
 $("#forgotPasswordBtn")?.addEventListener("click",async()=>{
