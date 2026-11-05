@@ -31,6 +31,19 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 #ecommerceService .service-card{min-height:120px}
 #ecommerceService ol{line-height:2}
 .contact-icon-link{display:inline-flex;align-items:center;gap:8px;text-decoration:none}.contact-icon-link svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* Responsive business type selector: keep both choices inside the signup panel. */
+#signupBusinessType{box-sizing:border-box;width:100%;max-width:100%;min-width:0;overflow:hidden}
+#signupBusinessType .business-type-heading{display:block!important;font-weight:700;margin:0 0 8px!important}
+#signupBusinessType .business-type-options{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0!important;width:100%;min-width:0;direction:rtl}
+#signupBusinessType .business-type-option{box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:10px!important;width:100%!important;min-width:0!important;min-height:126px;padding:12px!important;margin:0!important;border:1px solid #cbd5e1;border-radius:14px;background:#fff;cursor:pointer;text-align:center;overflow:hidden}
+#signupBusinessType .business-type-option input[type=radio]{display:block!important;appearance:auto!important;-webkit-appearance:radio!important;width:20px!important;height:20px!important;min-width:20px!important;max-width:20px!important;margin:0!important;padding:0!important;flex:0 0 20px!important}
+#signupBusinessType .business-type-label{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:5px!important;width:100%;min-width:0;font-weight:600;line-height:1.4;overflow-wrap:anywhere;word-break:normal}
+#signupBusinessType .business-type-icon{display:block;font-size:25px;line-height:1.2}
+#signupBusinessType .business-type-option:has(input:checked){border:2px solid #087650;background:#f2faf6;box-shadow:0 0 0 2px rgba(8,118,80,.08)}
+#signupBusinessType .business-type-option:focus-within{outline:2px solid #087650;outline-offset:2px}
+#signupBusinessType .business-type-help{display:block;margin-top:12px;color:#64748b;line-height:1.7}
+@media(max-width:420px){#signupBusinessType{padding:10px!important}#signupBusinessType .business-type-options{gap:8px}#signupBusinessType .business-type-option{min-height:116px;padding:8px!important;font-size:.95rem}}
 </style>
 </head>
 <body>
@@ -60,12 +73,12 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
   <div class="tabs"><button class="tab active" data-auth="login">تسجيل الدخول</button><button class="tab" data-auth="signup">إنشاء حساب</button></div>
   <form id="authForm">
     <div id="signupBusinessType" class="hidden" style="border:1px solid #dce7e2;border-radius:12px;padding:12px;margin:12px 0">
-      <label style="font-weight:700">نوع النشاط</label>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px">
-        <label style="border:1px solid #cbd5e1;border-radius:10px;padding:12px;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="businessType" value="branches" checked><span>🏢 فروع</span></label>
-        <label style="border:1px solid #cbd5e1;border-radius:10px;padding:12px;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="businessType" value="ecommerce"><span>🛒 متجر إلكتروني</span></label>
+      <label class="business-type-heading">نوع النشاط</label>
+      <div class="business-type-options" role="radiogroup" aria-label="نوع النشاط">
+        <label class="business-type-option"><input type="radio" name="businessType" value="branches" checked><span class="business-type-label"><span class="business-type-icon" aria-hidden="true">🏢</span><span>فروع</span></span></label>
+        <label class="business-type-option"><input type="radio" name="businessType" value="ecommerce"><span class="business-type-label"><span class="business-type-icon" aria-hidden="true">🛒</span><span>متجر إلكتروني</span></span></label>
       </div>
-      <small style="color:#64748b">يمكنك اختيار نوع النشاط المناسب لحسابك.</small>
+      <small class="business-type-help">يمكنك اختيار نوع النشاط المناسب لحسابك.</small>
     </div>
     <label>البريد الإلكتروني<input id="email" type="email" autocomplete="email" required placeholder="name@company.com"></label>
     <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" minlength="8" required placeholder="8 أحرف على الأقل"></label>
