@@ -22,6 +22,7 @@ let isPlatformAdmin = false;
 let adminRequestsChannel = null;
 let subscriptionAccessActive = false;
 let subscriptionAccessError = false;
+let pendingSignupBusinessType = null;
 
 function toast(msg) {
   const el = $("#toast"); el.textContent = msg; el.classList.add("show");
@@ -63,6 +64,11 @@ function applyBusinessTypeView(){
   ["#stats","#serviceStatusPanel","#workspaceFeatures"].forEach(sel=>{
     const el=$(sel); if(el) el.classList.toggle("hidden",ecommerce);
   });
+  // The app header contains branch-only controls outside the statistics panel.
+  const addBranch=$("#addBranchBtn"); if(addBranch) addBranch.classList.toggle("hidden",ecommerce);
+  const home=$("#homeButton"); if(home) home.classList.toggle("hidden",ecommerce);
+  const headerDescription=document.querySelector("#appView .apphead .muted");
+  if(headerDescription) headerDescription.textContent=ecommerce?"إدارة المتجر الإلكتروني وقياس تجربة العملاء":"متابعة مؤشرات الجودة وأداء الفروع";
   const ecommercePage=$("#ecommerceService");
   if(ecommercePage) ecommercePage.classList.add("hidden");
   const title=$("#orgTitle");
@@ -199,10 +205,18 @@ $("#authForm").addEventListener("submit",async e=>{
   try {
     if(authMode==="signup"){
       const businessType=document.querySelector('input[name="businessType"]:checked')?.value||"branches";
+      pendingSignupBusinessType=businessType;
       const {data,error}=await supabase.auth.signUp({email,password,options:{data:{business_type:businessType}}});
       if(error) throw error;
       if(!data.session) message("#authMessage","تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتأكيد الحساب، ثم ارجع وسجّل الدخول.");
-      else {message("#authMessage","تم إنشاء الحساب بنجاح."); await handleSession(data.session);}
+      else {
+        // Re-assert the selected activity on the authenticated profile before creating the workspace.
+        const {error:metaError}=await supabase.auth.updateUser({data:{business_type:businessType}});
+        if(metaError) throw metaError;
+        const {data:refreshed}=await supabase.auth.getUser();
+        if(refreshed?.user) data.session.user=refreshed.user;
+        message("#authMessage","تم إنشاء الحساب بنجاح."); await handleSession(data.session);
+      }
     } else {
       const {data,error}=await supabase.auth.signInWithPassword({email,password});
       if(error) throw error;
@@ -214,6 +228,16 @@ $("#authForm").addEventListener("submit",async e=>{
 async function handleSession(session) {
   currentUser=session?.user||null;
   if(!currentUser){show("#authView");return;}
+  // Fetch the authoritative Supabase user metadata rather than relying on a stale session snapshot.
+  try {
+    const {data}=await supabase.auth.getUser();
+    if(data?.user) currentUser=data.user;
+  } catch(e) { console.warn("Could not refresh user profile metadata",e); }
+  if(pendingSignupBusinessType && currentUser.user_metadata?.business_type!==pendingSignupBusinessType){
+    const {data,error}=await supabase.auth.updateUser({data:{business_type:pendingSignupBusinessType}});
+    if(!error && data?.user) currentUser=data.user;
+  }
+  pendingSignupBusinessType=null;
   // Record a successful sign-in without exposing credentials or tokens.
   try { await supabase.rpc("log_platform_login"); } catch (auditError) { console.warn("Activity audit login event was not recorded", auditError); }
   $("#connection").textContent="متصل";
