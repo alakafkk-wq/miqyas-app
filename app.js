@@ -308,18 +308,32 @@ async function handleSession(session) {
 async function loadOrganizations() {
   const {data,error}=await supabase.from("organizations").select("id,name,industry,business_type,created_at").order("created_at",{ascending:true});
   if(error) throw error;
-  if(!data?.length){show("#orgView");return;}
+  if(!data?.length){
+    const preferredType=currentUser?.user_metadata?.business_type==="ecommerce"?"ecommerce":"branches";
+    const orgTypeRadio=document.querySelector(`input[name="orgBusinessType"][value="${preferredType}"]`);
+    if(orgTypeRadio) orgTypeRadio.checked=true;
+    show("#orgView");return;
+  }
   currentOrg=data[0];
   await loadWorkspace();
 }
 $("#orgForm").addEventListener("submit",async e=>{
   e.preventDefault(); const btn=e.submitter; setBusy(btn,true);
   try {
-    const phoneRaw=$("#ownerPhone").value.trim().replace(/[\\s-]/g,"");
-    const phone=phoneRaw.startsWith("+")?phoneRaw:(phoneRaw.startsWith("05")?"+966"+phoneRaw.slice(1):(phoneRaw.startsWith("966")?"+"+phoneRaw:""));
-    if(!/^\\+9665\\d{8}$/.test(phone)) throw new Error("أدخل رقم جوال سعودي صحيحاً مثل 05XXXXXXXX.");
-    const {error:phoneError}=await supabase.auth.updateUser({data:{contact_phone:phone}});
+    const phoneRaw=$("#ownerPhone").value.trim().replace(/[^\d+]/g,"");
+    let phoneDigits=phoneRaw.replace(/\D/g,"");
+    let phone="";
+    if(phoneDigits.startsWith("00966")) phoneDigits=phoneDigits.slice(2);
+    if(phoneDigits.startsWith("966")) phone="+"+phoneDigits;
+    else if(phoneDigits.startsWith("05") && phoneDigits.length===10) phone="+966"+phoneDigits.slice(1);
+    else if(phoneDigits.startsWith("5") && phoneDigits.length===9) phone="+966"+phoneDigits;
+    if(!/^\+9665\d{8}$/.test(phone)) throw new Error("أدخل رقم جوال سعودي صحيحاً مثل 05XXXXXXXX أو +9665XXXXXXXX.");
+    const selectedBusinessType=document.querySelector('input[name="orgBusinessType"]:checked')?.value||currentUser?.user_metadata?.business_type||"branches";
+    const {error:phoneError}=await supabase.auth.updateUser({data:{contact_phone:phone,business_type:selectedBusinessType}});
     if(phoneError) throw phoneError;
+    const {data:refreshData,error:refreshError}=await supabase.auth.refreshSession();
+    if(refreshError) throw refreshError;
+    if(refreshData?.user) currentUser=refreshData.user;
     const {data,error}=await supabase.rpc("create_organization",{org_name:$("#orgName").value.trim(),org_industry:$("#industry").value});
     if(error) throw error;
     const {data:org,error:readError}=await supabase.from("organizations").select("id,name,industry,business_type").eq("id",data).single();

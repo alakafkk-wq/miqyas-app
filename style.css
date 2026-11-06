@@ -118,3 +118,17 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
   #qrPrintCard{display:block!important;border:2px solid #08734f!important;border-radius:18px!important;padding:22px!important;margin:0 auto!important;max-width:125mm!important;break-inside:avoid}
   #qrCanvas{min-height:0!important}.qr-print-card .qr-canvas canvas,.qr-print-card .qr-canvas img{width:62mm!important;height:62mm!important;max-width:100%!important}
 }
+
+
+/* MIQYAS v1.20.1: business type selector on organization creation */
+#orgBusinessType{box-sizing:border-box;width:100%;max-width:100%;min-width:0;overflow:hidden}
+#orgBusinessType .business-type-heading{display:block!important;font-weight:700;margin:0 0 8px!important}
+#orgBusinessType .business-type-options{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0!important;width:100%;min-width:0;direction:rtl}
+#orgBusinessType .business-type-option{box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:10px!important;width:100%!important;min-width:0!important;min-height:100px;padding:10px!important;margin:0!important;border:1px solid #cbd5e1;border-radius:14px;background:#fff;cursor:pointer;text-align:center;overflow:hidden}
+#orgBusinessType .business-type-option input[type=radio]{display:block!important;appearance:auto!important;-webkit-appearance:radio!important;width:20px!important;height:20px!important;min-width:20px!important;max-width:20px!important;margin:0!important;padding:0!important;flex:0 0 20px!important}
+#orgBusinessType .business-type-label{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:5px!important;width:100%;min-width:0;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
+#orgBusinessType .business-type-icon{display:block;font-size:25px;line-height:1.2}
+#orgBusinessType .business-type-option:has(input:checked){border:2px solid #087650;background:#f2faf6;box-shadow:0 0 0 2px rgba(8,118,80,.08)}
+#orgBusinessType .business-type-option:focus-within{outline:2px solid #087650;outline-offset:2px}
+#orgBusinessType .business-type-help{display:block;margin-top:12px;color:#64748b;line-height:1.7}
+@media(max-width:420px){#orgBusinessType .business-type-options{gap:8px}#orgBusinessType .business-type-option{min-height:92px;padding:8px!important;font-size:.95rem}}

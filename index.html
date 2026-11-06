@@ -100,8 +100,16 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
   <span class="eyebrow">خطوة الإعداد الأولى</span><h1>أنشئ مساحة منشأتك</h1>
   <p class="muted">سيصبح حسابك مالك المنشأة ويمكنك إضافة الفروع والموظفين لاحقاً.</p>
   <form id="orgForm">
+    <div id="orgBusinessType" class="business-type-picker" style="border:1px solid #dce7e2;border-radius:12px;padding:12px;margin:12px 0">
+      <label class="business-type-heading">نوع النشاط</label>
+      <div class="business-type-options" role="radiogroup" aria-label="نوع النشاط">
+        <label class="business-type-option"><input type="radio" name="orgBusinessType" value="branches" checked><span class="business-type-label"><span class="business-type-icon" aria-hidden="true">🏢</span><span>فروع</span></span></label>
+        <label class="business-type-option"><input type="radio" name="orgBusinessType" value="ecommerce"><span class="business-type-label"><span class="business-type-icon" aria-hidden="true">🛒</span><span>متجر إلكتروني</span></span></label>
+      </div>
+      <small class="business-type-help">اختر نوع النشاط لتجهيز مساحة العمل والباقات المناسبة.</small>
+    </div>
     <label>اسم المنشأة<input id="orgName" required placeholder="مثال: شركة الضيافة الحديثة"></label>
-    <label>رقم الجوال للتواصل<input id="ownerPhone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="16" placeholder="05XXXXXXXX أو +9665XXXXXXXX"></label>
+    <label>رقم الجوال للتواصل<input id="ownerPhone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" placeholder="05XXXXXXXX أو +9665XXXXXXXX"></label>
     <small class="fine">رقم الجوال مطلوب للتواصل بشأن حسابك واشتراكك.</small>
     <label>القطاع<select id="industry"><option value="restaurants">المطاعم والمقاهي</option><option value="retail">التجزئة والمتاجر</option><option value="health">العيادات والمراكز الطبية</option><option value="services">الخدمات والصيانة</option><option value="education">التعليم والتدريب</option><option value="other">قطاع آخر</option></select></label>
     <button class="primary wide">إنشاء المنشأة</button>
