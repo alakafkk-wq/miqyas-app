@@ -132,3 +132,8 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
 #orgBusinessType .business-type-option:focus-within{outline:2px solid #087650;outline-offset:2px}
 #orgBusinessType .business-type-help{display:block;margin-top:12px;color:#64748b;line-height:1.7}
 @media(max-width:420px){#orgBusinessType .business-type-options{gap:8px}#orgBusinessType .business-type-option{min-height:92px;padding:8px!important;font-size:.95rem}}
+
+/* MIQYAS v1.20.4 Google Maps review report */
+.review-item{margin-top:10px;padding:10px 12px;border:1px solid #e1ebe5;border-radius:12px;background:#f8fbf9}
+.review-item b{color:#d69b20;letter-spacing:1px}
+.review-item p{margin:6px 0 0;white-space:pre-wrap;line-height:1.7}

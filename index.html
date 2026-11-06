@@ -282,6 +282,11 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
   <div id="workspaceFeatures">
   <div class="columns">
     <section class="panel"><div class="panelhead"><div><h2>الفروع</h2><p>الفروع التابعة لمنشأتك</p></div></div><div id="branchList" class="list empty">لا توجد فروع بعد</div></section>
+    <section class="panel" id="googleMapsReportPanel">
+      <div class="panelhead"><div><h2>تقييمات Google Maps</h2><p>اسحب ملخص التقييمات والمراجعات المتاحة لكل فرع من الرابط المسجل</p></div></div>
+      <div id="googleMapsReports" class="list empty">أضف رابط Google Maps للفرع ثم اضغط «تحديث تقييمات Google Maps» من بطاقة الفرع.</div>
+      <p class="muted">يعرض Google Places API حتى 5 مراجعات مختارة للموقع، وليس كامل سجل المراجعات. لاستخدام جميع مراجعات منشأتك يلزم ربط Google Business Profile بصلاحية الإدارة.</p>
+    </section>
     <section class="panel hidden" id="manualAssessmentPanel"><div class="panelhead"><div><h2>إضافة تقييم</h2><p>سجل صوت العميل أو المتسوق السري</p></div></div>
       <form id="evalForm" class="compact">
         <label>الفرع<select id="evalBranch" required></select></label>

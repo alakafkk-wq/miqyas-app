@@ -10,6 +10,7 @@ let currentOrg = null;
 let branches = [];
 let assessments = [];
 let customerFeedback = [];
+let googleMapsSnapshots = [];
 let activeFeedbackToken = null;
 let activeFeedbackUrl = "";
 let activeQrUrl = "";
@@ -389,15 +390,17 @@ async function loadWorkspace() {
   if(serviceSelect){const initialView=getBusinessType()==="ecommerce"?"ecommerce":"dashboard";serviceSelect.value=initialView;setServiceView(initialView);}
 }
 async function refreshData() {
-  const [b,e,f]=await Promise.all([
+  const [b,e,f,g]=await Promise.all([
     supabase.from("branches").select("id,name,city,area,google_maps_url,public_token,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}),
     supabase.from("quality_assessments").select("id,branch_id,assessment_type,positive_count,neutral_count,negative_count,score,notes,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(100),
-    supabase.from("customer_feedback").select("id,branch_id,rating,comment,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(500)
+    supabase.from("customer_feedback").select("id,branch_id,rating,comment,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(500),
+    supabase.from("google_maps_review_snapshots").select("id,branch_id,place_id,place_name,rating,user_rating_count,reviews,fetched_at").eq("organization_id",currentOrg.id).order("fetched_at",{ascending:false}).limit(100)
   ]);
   if(b.error) throw b.error;
   if(e.error) throw e.error;
   if(f.error) throw f.error;
   branches=b.data||[]; assessments=e.data||[]; customerFeedback=f.data||[];
+  googleMapsSnapshots=g.error?[]:(g.data||[]);
   render();
 }
 
@@ -859,8 +862,15 @@ function render() {
   $("#branchList").classList.toggle("empty",!selectedBranches.length);
   $("#branchList").innerHTML=selectedBranches.length?selectedBranches.map(b=>{
     const count=filteredFeedback.filter(x=>x.branch_id===b.id).length;
-    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} صوت عميل</span>${validGoogleMapsUrl(b.google_maps_url)&&b.google_maps_url?`<a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح موقع الفرع على Google Maps ↗</a><button class="outline" data-mapqr="${escapeHtml(b.id)}">QR موقع Google Maps</button>`:""}<button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button><button class="danger" type="button" data-delete-branch="${escapeHtml(b.id)}">حذف الفرع</button></div></div>`;
+    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><div class="branch-tools"><span class="count">${count} صوت عميل</span>${validGoogleMapsUrl(b.google_maps_url)&&b.google_maps_url?`<a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح موقع الفرع على Google Maps ↗</a><button class="outline" data-mapqr="${escapeHtml(b.id)}">QR موقع Google Maps</button><button class="outline" data-google-reviews="${escapeHtml(b.id)}">تحديث تقييمات Google Maps</button>`:""}<button class="outline" data-qr="${escapeHtml(b.id)}">QR التقييم</button><button class="danger" type="button" data-delete-branch="${escapeHtml(b.id)}">حذف الفرع</button></div></div>`;
   }).join(""):"لا توجد فروع مطابقة للتصفية";
+  const latestGoogleSnapshots=new Map();
+  googleMapsSnapshots.forEach(s=>{if(!latestGoogleSnapshots.has(s.branch_id))latestGoogleSnapshots.set(s.branch_id,s);});
+  $("#googleMapsReports").innerHTML=branches.filter(b=>b.google_maps_url).map(b=>{
+    const s=latestGoogleSnapshots.get(b.id);
+    const reviews=Array.isArray(s?.reviews)?s.reviews:[];
+    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${s?`تقييم ${escapeHtml(s.rating??"—")} من 5 · ${Number(s.user_rating_count||0)} تقييماً · آخر تحديث ${new Date(s.fetched_at).toLocaleString("ar-SA")}`:"لم يتم سحب البيانات بعد"}</small>${s?reviews.map(r=>`<div class="review-item"><b>${"★".repeat(Math.max(0,Math.min(5,Number(r.rating)||0)))}</b> ${escapeHtml(r.author_name||"مستخدم Google")} · ${escapeHtml(r.relative_time_description||"")}<p>${escapeHtml(r.text||"لا يوجد نص للتعليق")}</p></div>`).join(""):""}</div><a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح الموقع ↗</a></div>`;
+  }).join("")||"لا توجد فروع مرتبطة بروابط Google Maps.";
   $("#evalBranch").innerHTML=branches.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
   $("#saveEval").disabled=!branches.length;
 
@@ -922,6 +932,23 @@ $("#printQrCard").addEventListener("click",()=>{
 });
 $("#copyFeedbackLink").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(activeQrUrl);toast(activeQrPurpose==="maps"?"تم نسخ رابط Google Maps":"تم نسخ رابط التقييم");}catch(e){toast("انسخ الرابط يدوياً من النص الظاهر");}});
 $("#branchList").addEventListener("click",async e=>{
+  const reviewBtn=e.target.closest("[data-google-reviews]");
+  if(reviewBtn){
+    const branch=branches.find(b=>b.id===reviewBtn.dataset.googleReviews);
+    if(!branch)return;
+    if(!branch.google_maps_url){toast("أضف رابط Google Maps لهذا الفرع أولاً.");return;}
+    setBusy(reviewBtn,true,"جارٍ جلب التقييمات...");
+    try{
+      const {data,error}=await supabase.functions.invoke("google-maps-reviews",{body:{branch_id:branch.id}});
+      if(error)throw error;
+      if(data?.error)throw new Error(data.error);
+      toast(`تم تحديث تقييمات ${branch.name}`);
+      await refreshData();
+    }catch(err){
+      toast(err.message||"تعذر جلب تقييمات Google Maps. تحقق من إعداد الخدمة.");
+    }finally{setBusy(reviewBtn,false);}
+    return;
+  }
   const btn=e.target.closest("[data-delete-branch]");
   if(!btn)return;
   const branch=branches.find(b=>b.id===btn.dataset.deleteBranch);
