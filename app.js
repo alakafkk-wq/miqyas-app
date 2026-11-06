@@ -48,8 +48,35 @@ function score(row) {
 function avg(a) { return a.length ? Math.round(a.reduce((s,x)=>s+x,0)/a.length) : null; }
 
 
-// MIQYAS v1.13: service navigation and ecommerce store registry.
+// MIQYAS v1.18.8: isolate the workspace by the business type selected at signup.
+function getBusinessType(){
+  const value=currentUser?.user_metadata?.business_type;
+  return value==="ecommerce"?"ecommerce":"branches";
+}
+function applyBusinessTypeView(){
+  const type=getBusinessType(), ecommerce=type==="ecommerce";
+  const optionMap={dashboard:!ecommerce,branches:!ecommerce,ecommerce,reports:!ecommerce,subscription:true};
+  document.querySelectorAll("#serviceSelect option").forEach(option=>{
+    option.hidden=optionMap[option.value]===false;
+    option.disabled=option.hidden;
+  });
+  ["#stats","#serviceStatusPanel","#workspaceFeatures"].forEach(sel=>{
+    const el=$(sel); if(el) el.classList.toggle("hidden",ecommerce);
+  });
+  const ecommercePage=$("#ecommerceService");
+  if(ecommercePage) ecommercePage.classList.add("hidden");
+  const title=$("#orgTitle");
+  if(title){
+    title.dataset.businessType=type;
+    title.title=ecommerce?"نوع النشاط: متجر إلكتروني":"نوع النشاط: فروع";
+  }
+  const select=$("#serviceSelect");
+  if(select){ select.value=ecommerce?"ecommerce":"dashboard"; }
+}
 function setServiceView(name){
+  const ecommerce=getBusinessType()==="ecommerce";
+  if(ecommerce && !["ecommerce","subscription"].includes(name)) name="ecommerce";
+  if(!ecommerce && name==="ecommerce") name="dashboard";
   const map={dashboard:["#stats","#subscriptionGate","#serviceStatusPanel"],branches:["#workspaceFeatures"],ecommerce:["#ecommerceService"],reports:["#workspaceFeatures"],subscription:["#subscriptionPanel"]};
   const all=["#stats","#subscriptionGate","#serviceStatusPanel","#workspaceFeatures","#ecommerceService","#subscriptionPanel"];
   all.forEach(sel=>{const el=$(sel);if(el)el.classList.add("hidden");});
@@ -224,7 +251,8 @@ async function loadWorkspace() {
     render();
   }
   const serviceSelect=$("#serviceSelect");
-  if(serviceSelect){serviceSelect.value="dashboard";setServiceView("dashboard");}
+  applyBusinessTypeView();
+  if(serviceSelect){const initialView=getBusinessType()==="ecommerce"?"ecommerce":"dashboard";serviceSelect.value=initialView;setServiceView(initialView);}
 }
 async function refreshData() {
   const [b,e,f]=await Promise.all([
