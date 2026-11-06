@@ -144,6 +144,31 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <article class="service-card"><h3>رحلة التقييم</h3><p>طلب مكتمل ← تأكيد التسليم ← دعوة تقييم ← تقييم العميل ← مؤشرات الأداء.</p></article>
       <article class="service-card"><h3>معايير القياس</h3><p>جودة المنتج، التوصيل، التغليف، سهولة الشراء، خدمة العملاء، والرضا العام.</p></article>
     </div>
+    <section class="ecom-dashboard" id="ecommerceReports" aria-labelledby="ecommerceReportsTitle">
+      <div class="ecom-report-head">
+        <div><h3 id="ecommerceReportsTitle">تقارير المتاجر الإلكترونية</h3><p class="muted">لوحة موحدة لجميع المتاجر مع إمكانية اختيار متجر وفترة محددة</p></div>
+        <button type="button" class="outline" id="refreshEcommerceReports">تحديث التقارير</button>
+      </div>
+      <div class="ecom-filters">
+        <label>المتجر<select id="ecomReportStore"><option value="">جميع المتاجر</option></select></label>
+        <label>من تاريخ<input type="date" id="ecomReportStart"></label>
+        <label>إلى تاريخ<input type="date" id="ecomReportEnd"></label>
+        <button type="button" class="outline" id="clearEcomReportFilters">مسح التصفية</button>
+      </div>
+      <p id="ecomReportMessage" class="message" aria-live="polite">تعرض اللوحة البيانات المسجلة فعلياً في MIQYAS.</p>
+      <div class="ecom-kpis">
+        <article class="ecom-kpi"><span>إجمالي الطلبات</span><strong id="ecomOrdersKpi">0</strong></article>
+        <article class="ecom-kpi"><span>دعوات التقييم</span><strong id="ecomInvitesKpi">0</strong></article>
+        <article class="ecom-kpi"><span>التقييمات المستلمة</span><strong id="ecomReviewsKpi">0</strong></article>
+        <article class="ecom-kpi"><span>متوسط رضا العملاء</span><strong id="ecomSatisfactionKpi">—</strong></article>
+        <article class="ecom-kpi"><span>نسبة الاستجابة</span><strong id="ecomResponseKpi">—</strong></article>
+      </div>
+      <div class="ecom-report-grid">
+        <article class="ecom-chart-card"><h4>تقييم عناصر التجربة</h4><div id="ecomQualityBars" class="ecom-bars"><p class="muted">لا توجد تقييمات بعد</p></div></article>
+        <article class="ecom-chart-card"><h4>مقارنة المتاجر</h4><div id="ecomStoreComparison" class="ecom-bars"><p class="muted">لا توجد بيانات للمقارنة بعد</p></div></article>
+      </div>
+      <div class="ecom-report-foot"><span id="ecomReportPeriod">الفترة: كل الفترات</span><button type="button" class="primary" id="exportEcommerceExcel">تصدير تقرير Excel</button></div>
+    </section>
     <div class="panel" style="margin-top:14px">
       <h3>إضافة متجر</h3>
       <form id="storeConnectForm" class="compact">

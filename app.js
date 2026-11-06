@@ -87,7 +87,7 @@ function setServiceView(name){
   const all=["#stats","#subscriptionGate","#serviceStatusPanel","#workspaceFeatures","#ecommerceService","#subscriptionPanel"];
   all.forEach(sel=>{const el=$(sel);if(el)el.classList.add("hidden");});
   (map[name]||map.dashboard).forEach(sel=>{const el=$(sel);if(el)el.classList.remove("hidden");});
-  if(name==="ecommerce") loadEcommerceStores();
+  if(name==="ecommerce"){loadEcommerceStores();loadEcommerceReports();}
 }
 async function loadEcommerceStores(){
   const body=$("#ecommerceStoreRows"); if(!body||!currentOrg)return;
@@ -98,6 +98,66 @@ async function loadEcommerceStores(){
   if(error){body.innerHTML=`<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;return;}
   body.innerHTML=(data||[]).length?data.map(s=>`<tr><td>${escapeHtml(s.store_name)}</td><td>${escapeHtml(({salla:"سلة",zid:"زد",shopify:"Shopify",woocommerce:"WooCommerce",custom:"متجر خاص"})[s.platform]||s.platform)}</td><td>${s.connection_status==="connected"?"متصل":"بانتظار اختبار الربط"}</td><td>${adminDate(s.created_at)}</td></tr>`).join(""):'<tr><td colspan="4">لم تتم إضافة متاجر بعد</td></tr>';
 }
+
+// MIQYAS v1.19: ecommerce reporting reads existing tables only; no schema or RLS changes.
+let ecommerceReportCache={stores:[],orders:[],invites:[],reviews:[]};
+function reportDateOk(value,start,end){
+  if(!value)return !start&&!end;
+  const d=String(value).slice(0,10);return (!start||d>=start)&&(!end||d<=end);
+}
+function renderEcommerceBars(targetId,items){
+  const el=$(targetId);if(!el)return;
+  if(!items.length){el.innerHTML='<p class="muted">لا توجد تقييمات مسجلة حتى الآن</p>';return;}
+  el.innerHTML=items.map(x=>{const v=Number(x.value)||0;const pct=Math.max(0,Math.min(100,v/5*100));return `<div class="ecom-bar-row"><span>${escapeHtml(x.label)}</span><div class="ecom-bar-track"><div class="ecom-bar-fill" style="width:${pct}%"></div></div><b>${v.toFixed(1)} / 5</b></div>`;}).join('');
+}
+function renderEcommerceReports(){
+  const start=$("#ecomReportStart")?.value||"",end=$("#ecomReportEnd")?.value||"",storeId=$("#ecomReportStore")?.value||"";
+  const pick=a=>a.filter(x=>(!storeId||x.store_id===storeId)&&reportDateOk(x.created_at||x.sent_at,start,end));
+  const orders=pick(ecommerceReportCache.orders),invites=pick(ecommerceReportCache.invites),reviews=pick(ecommerceReportCache.reviews);
+  const avgKey=k=>reviews.length?reviews.reduce((a,x)=>a+Number(x[k]||0),0)/reviews.length:null;
+  const avg=avgKey('overall_rating');
+  const set=(id,v)=>{const el=$(id);if(el)el.textContent=v;};
+  set('#ecomOrdersKpi',orders.length.toLocaleString('en-US'));set('#ecomInvitesKpi',invites.length.toLocaleString('en-US'));set('#ecomReviewsKpi',reviews.length.toLocaleString('en-US'));
+  set('#ecomSatisfactionKpi',avg===null?'—':`${(avg/5*100).toFixed(1)}%`);
+  set('#ecomResponseKpi',invites.length?`${(reviews.length/invites.length*100).toFixed(1)}%`:'—');
+  set('#ecomReportPeriod',`الفترة: ${start||'البداية'} — ${end||'حتى الآن'}`);
+  renderEcommerceBars('#ecomQualityBars',[['جودة المنتج','product_quality'],['التوصيل','delivery_rating'],['التغليف','packaging_rating'],['سهولة الدفع','checkout_rating'],['خدمة العملاء','support_rating']].map(([label,key])=>({label,value:avgKey(key)})).filter(x=>x.value!==null));
+  const storeRows=ecommerceReportCache.stores.map(st=>{const rr=reviews.filter(r=>r.store_id===st.id&&reportDateOk(r.created_at,start,end));return {label:st.store_name,value:rr.length?rr.reduce((a,r)=>a+Number(r.overall_rating||0),0)/rr.length:null};}).filter(x=>x.value!==null);
+  renderEcommerceBars('#ecomStoreComparison',storeRows);
+}
+async function loadEcommerceReports(){
+  if(!currentOrg)return;const msg=$("#ecomReportMessage");if(msg)msg.textContent='جارٍ تحميل بيانات التقارير...';
+  try{
+    const [o,i,r,s]=await Promise.all([
+      supabase.from('ecommerce_orders').select('id,store_id,order_status,created_at,delivered_at').eq('organization_id',currentOrg.id).order('created_at',{ascending:false}).limit(5000),
+      supabase.from('ecommerce_review_invites').select('id,store_id,invite_status,sent_at,created_at').eq('organization_id',currentOrg.id).order('created_at',{ascending:false}).limit(5000),
+      supabase.from('ecommerce_reviews').select('id,store_id,product_quality,delivery_rating,packaging_rating,checkout_rating,support_rating,overall_rating,created_at').eq('organization_id',currentOrg.id).order('created_at',{ascending:false}).limit(5000),
+      supabase.from('ecommerce_stores').select('id,store_name,platform,connection_status,created_at').eq('organization_id',currentOrg.id).order('created_at',{ascending:false})
+    ]);
+    const err=[o.error,i.error,r.error,s.error].find(Boolean);if(err)throw err;
+    ecommerceReportCache={orders:o.data||[],invites:i.data||[],reviews:r.data||[],stores:s.data||[]};
+    const select=$("#ecomReportStore"),prior=select?.value||'';
+    if(select){select.innerHTML='<option value="">جميع المتاجر</option>'+ecommerceReportCache.stores.map(x=>`<option value="${escapeHtml(x.id)}">${escapeHtml(x.store_name)}</option>`).join('');if(ecommerceReportCache.stores.some(x=>x.id===prior))select.value=prior;}
+    renderEcommerceReports();if(msg)msg.textContent='تم تحديث التقارير من البيانات المسجلة فعلياً. الأرقام صفر عند عدم وجود سجلات.';
+  }catch(err){if(msg){msg.textContent=`تعذر تحميل التقارير: ${err.message||'خطأ غير معروف'}`;msg.className='message error';}}
+}
+function exportEcommerceExcel(){
+  if(!window.XLSX){toast('مكتبة Excel غير متاحة حالياً');return;}
+  const start=$("#ecomReportStart").value,end=$("#ecomReportEnd").value,storeId=$("#ecomReportStore").value;
+  const filter=a=>a.filter(x=>(!storeId||x.store_id===storeId)&&reportDateOk(x.created_at||x.sent_at,start,end));
+  const orders=filter(ecommerceReportCache.orders),invites=filter(ecommerceReportCache.invites),reviews=filter(ecommerceReportCache.reviews);
+  const storeName=id=>ecommerceReportCache.stores.find(s=>s.id===id)?.store_name||'';
+  const wb=XLSX.utils.book_new();
+  const add=(name,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),name);
+  add('الملخص',[['المؤشر','القيمة'],['إجمالي الطلبات',orders.length],['دعوات التقييم',invites.length],['التقييمات المستلمة',reviews.length],['متوسط الرضا من 5',reviews.length?reviews.reduce((a,x)=>a+Number(x.overall_rating||0),0)/reviews.length:0],['نسبة الاستجابة',invites.length?reviews.length/invites.length:0],['من تاريخ',start||'كل الفترات'],['إلى تاريخ',end||'حتى الآن']]);
+  add('تقييمات العملاء',[['المتجر','جودة المنتج','التوصيل','التغليف','سهولة الدفع','خدمة العملاء','الرضا العام','التاريخ'],...reviews.map(x=>[storeName(x.store_id),x.product_quality,x.delivery_rating,x.packaging_rating,x.checkout_rating,x.support_rating,x.overall_rating,x.created_at||''])]);
+  add('الطلبات',[['المتجر','رقم داخلي','الحالة','تاريخ الإنشاء','تاريخ التسليم'],...orders.map(x=>[storeName(x.store_id),x.id,x.order_status,x.created_at||'',x.delivered_at||''])]);
+  add('دعوات التقييم',[['المتجر','الحالة','تاريخ الإنشاء','تاريخ الإرسال'],...invites.map(x=>[storeName(x.store_id),x.invite_status,x.created_at||'',x.sent_at||''])]);
+  XLSX.writeFile(wb,`MIQYAS_Ecommerce_Report_${new Date().toISOString().slice(0,10)}.xlsx`);toast('تم تجهيز تقرير Excel');
+}
+$("#ecomReportStore")?.addEventListener('change',renderEcommerceReports);$("#ecomReportStart")?.addEventListener('change',renderEcommerceReports);$("#ecomReportEnd")?.addEventListener('change',renderEcommerceReports);
+$("#refreshEcommerceReports")?.addEventListener('click',loadEcommerceReports);$("#exportEcommerceExcel")?.addEventListener('click',exportEcommerceExcel);
+$("#clearEcomReportFilters")?.addEventListener('click',()=>{$("#ecomReportStore").value='';$("#ecomReportStart").value='';$("#ecomReportEnd").value='';renderEcommerceReports();});
 $("#serviceSelect")?.addEventListener("change",e=>setServiceView(e.target.value));
 $("#homeButton")?.addEventListener("click",()=>{const s=$("#serviceSelect");if(s){s.value="dashboard";setServiceView("dashboard");}window.scrollTo({top:0,behavior:"smooth"});});
 $("#refreshStores")?.addEventListener("click",loadEcommerceStores);
