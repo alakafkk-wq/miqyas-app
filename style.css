@@ -137,3 +137,16 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
 .review-item{margin-top:10px;padding:10px 12px;border:1px solid #e1ebe5;border-radius:12px;background:#f8fbf9}
 .review-item b{color:#d69b20;letter-spacing:1px}
 .review-item p{margin:6px 0 0;white-space:pre-wrap;line-height:1.7}
+
+/* MIQYAS legal and about pages */
+.legal-links{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #e3ebe6}
+.legal-links a{color:#176b45;text-decoration:none;font-weight:700;font-size:14px}
+.legal-links a:hover{text-decoration:underline}
+.legal-dialog{width:min(720px,calc(100% - 28px));max-height:85vh;border:0;border-radius:18px;padding:20px;background:#fff;color:#18352a;box-shadow:0 20px 60px #102b1e33}
+.legal-dialog::backdrop{background:#10251dcc}
+.legal-dialog .dialog-head{position:sticky;top:-20px;background:#fff;z-index:2;padding:4px 0 12px}
+.legal-content{max-height:62vh;overflow:auto;line-height:1.9;padding:0 4px}
+.legal-content h3{margin:18px 0 6px;color:#176b45;font-size:16px}
+.legal-content p{margin:8px 0}
+.legal-content ul{padding-right:22px}
+@media(max-width:600px){.legal-dialog{padding:15px}.legal-content{max-height:65vh}}

@@ -1110,3 +1110,21 @@ renderContactInfo();
   if(session){try{await handleSession(session);}catch(e){message("#authMessage",e.message,true);}}
 })();
 if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+
+// Public legal/about pages
+document.addEventListener("click",(event)=>{
+  const openLink=event.target.closest("[data-open-legal]");
+  if(openLink){
+    event.preventDefault();
+    document.getElementById(openLink.dataset.openLegal)?.showModal();
+    return;
+  }
+  if(event.target.closest("[data-close-legal]")){
+    event.target.closest("dialog")?.close();
+  }
+});
+document.querySelectorAll(".legal-dialog").forEach(dialog=>{
+  dialog.addEventListener("click",event=>{
+    if(event.target===dialog) dialog.close();
+  });
+});
