@@ -101,6 +101,8 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
   <p class="muted">سيصبح حسابك مالك المنشأة ويمكنك إضافة الفروع والموظفين لاحقاً.</p>
   <form id="orgForm">
     <label>اسم المنشأة<input id="orgName" required placeholder="مثال: شركة الضيافة الحديثة"></label>
+    <label>رقم الجوال للتواصل<input id="ownerPhone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="16" placeholder="05XXXXXXXX أو +9665XXXXXXXX"></label>
+    <small class="fine">رقم الجوال مطلوب للتواصل بشأن حسابك واشتراكك.</small>
     <label>القطاع<select id="industry"><option value="restaurants">المطاعم والمقاهي</option><option value="retail">التجزئة والمتاجر</option><option value="health">العيادات والمراكز الطبية</option><option value="services">الخدمات والصيانة</option><option value="education">التعليم والتدريب</option><option value="other">قطاع آخر</option></select></label>
     <button class="primary wide">إنشاء المنشأة</button>
   </form>
@@ -230,6 +232,19 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <hr>
       <div class="panelhead"><div><h2>إدارة المشتركين</h2><p>عرض الاشتراكات وتعديلها أو إيقافها أو إعادة تفعيلها أو حذف الاشتراك فقط مع الاحتفاظ ببيانات المنشأة.</p></div><button type="button" class="outline" id="refreshAdminSubscriptions">تحديث المشتركين</button></div>
       <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>الحالة</th><th>بداية الاشتراك</th><th>نهاية الاشتراك</th><th>الإجراءات</th></tr></thead><tbody id="adminSubscribersRows"><tr><td colspan="6">جارٍ تحميل المشتركين...</td></tr></tbody></table></div>
+      <form id="adminFreeGrantForm" class="compact admin-subscription-form">
+        <h3>منح اشتراك مجاني</h3>
+        <div class="two">
+          <label>المنشأة<select id="adminGrantOrg" required><option value="">اختر المنشأة</option></select></label>
+          <label>الباقة<select id="adminGrantPlan" required><option value="">اختر الباقة</option></select></label>
+        </div>
+        <div class="two">
+          <label>مدة المنحة بالأيام<input id="adminGrantDays" type="number" min="1" max="365" value="30" required></label>
+          <label>سبب المنحة<input id="adminGrantReason" maxlength="500" placeholder="مثال: تجربة خاصة لعميل"></label>
+        </div>
+        <button type="submit" class="primary">منح الاشتراك المجاني</button>
+        <p id="adminGrantMessage" class="message" aria-live="polite"></p>
+      </form>
       <form id="adminSubscriptionEditForm" class="compact hidden admin-subscription-form">
         <h3 id="adminSubscriptionEditTitle">تعديل الاشتراك</h3>
         <input type="hidden" id="adminEditSubscriptionId">

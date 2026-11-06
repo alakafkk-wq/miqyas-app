@@ -306,7 +306,7 @@ async function handleSession(session) {
   await loadOrganizations();
 }
 async function loadOrganizations() {
-  const {data,error}=await supabase.from("organizations").select("id,name,industry,created_at").order("created_at",{ascending:true});
+  const {data,error}=await supabase.from("organizations").select("id,name,industry,business_type,created_at").order("created_at",{ascending:true});
   if(error) throw error;
   if(!data?.length){show("#orgView");return;}
   currentOrg=data[0];
@@ -315,14 +315,37 @@ async function loadOrganizations() {
 $("#orgForm").addEventListener("submit",async e=>{
   e.preventDefault(); const btn=e.submitter; setBusy(btn,true);
   try {
+    const phoneRaw=$("#ownerPhone").value.trim().replace(/[\\s-]/g,"");
+    const phone=phoneRaw.startsWith("+")?phoneRaw:(phoneRaw.startsWith("05")?"+966"+phoneRaw.slice(1):(phoneRaw.startsWith("966")?"+"+phoneRaw:""));
+    if(!/^\\+9665\\d{8}$/.test(phone)) throw new Error("أدخل رقم جوال سعودي صحيحاً مثل 05XXXXXXXX.");
+    const {error:phoneError}=await supabase.auth.updateUser({data:{contact_phone:phone}});
+    if(phoneError) throw phoneError;
     const {data,error}=await supabase.rpc("create_organization",{org_name:$("#orgName").value.trim(),org_industry:$("#industry").value});
     if(error) throw error;
-    const {data:org,error:readError}=await supabase.from("organizations").select("id,name,industry").eq("id",data).single();
+    const {data:org,error:readError}=await supabase.from("organizations").select("id,name,industry,business_type").eq("id",data).single();
     if(readError) throw readError;
     currentOrg=org; await loadWorkspace(); toast("تم إنشاء مساحة المنشأة");
   } catch(err){message("#orgMessage",err.message||"تعذر إنشاء المنشأة.",true);}
   finally{setBusy(btn,false);}
 });
+$("#adminFreeGrantForm")?.addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(!isPlatformAdmin){message("#adminGrantMessage","هذه الصلاحية لمدير المنصة فقط.",true);return;}
+  const btn=e.submitter;setBusy(btn,true);
+  try{
+    const {data,error}=await supabase.rpc("platform_grant_free_subscription",{
+      p_organization_id:$("#adminGrantOrg").value,
+      p_plan_code:$("#adminGrantPlan").value,
+      p_duration_days:Number($("#adminGrantDays").value),
+      p_reason:$("#adminGrantReason").value.trim()||null
+    });
+    if(error)throw error;
+    message("#adminGrantMessage","تم منح الاشتراك المجاني بنجاح. رقم الاشتراك: "+data,false);
+    await loadAdminSubscriptions();await loadAdminSubscriptionAudit();
+  }catch(err){message("#adminGrantMessage",err.message||"تعذر منح الاشتراك.",true);}
+  finally{setBusy(btn,false);}
+});
+
 async function loadWorkspace() {
   $("#orgTitle").textContent=currentOrg.name;
   show("#appView");
@@ -363,7 +386,7 @@ function showSubscriptionSetupError(err){
 async function loadSubscriptionData(){
   try{
     const [plansRes,subRes,reqRes,adminRes]=await Promise.all([
-      supabase.from("subscription_plans").select("code,name,price_sar,billing_period_months,branch_limit,max_users,features").eq("is_active",true).order("price_sar"),
+      supabase.from("subscription_plans").select("code,name,price_sar,billing_period_months,branch_limit,max_users,features,business_type").eq("is_active",true).order("price_sar"),
       supabase.from("organization_subscriptions").select("id,plan_code,status,starts_at,ends_at,payment_method").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(1),
       supabase.from("subscription_payment_requests").select("id,plan_code,amount_sar,payment_method,status,transfer_reference,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(20),
       supabase.rpc("is_platform_admin")
@@ -372,7 +395,7 @@ async function loadSubscriptionData(){
     if(subRes.error) throw subRes.error;
     if(reqRes.error) throw reqRes.error;
     if(adminRes.error) throw adminRes.error;
-    subscriptionPlans=plansRes.data||[];
+    subscriptionPlans=(plansRes.data||[]).filter(p=>(p.business_type||"branches")===(currentOrg.business_type||getBusinessType()));
     currentSubscription=subRes.data?.[0]||null;
     subscriptionRequests=reqRes.data||[];
     isPlatformAdmin=adminRes.data===true;
@@ -406,7 +429,7 @@ function highlightSelectedPlan(){
   });
 }
 function isCurrentSubscriptionActive(){
-  if(!currentSubscription||currentSubscription.status!=="active") return false;
+  if(!currentSubscription||!["active","trial"].includes(currentSubscription.status)) return false;
   const now=Date.now();
   const starts=currentSubscription.starts_at?new Date(currentSubscription.starts_at).getTime():0;
   const ends=currentSubscription.ends_at?new Date(currentSubscription.ends_at).getTime():Infinity;
@@ -428,13 +451,13 @@ function applySubscriptionGate(){
 }
 function renderSubscription(){
   const active=isCurrentSubscriptionActive();
-  $("#subscriptionStatus").textContent=active?"اشتراك نشط":"لا يوجد اشتراك نشط";
+  $("#subscriptionStatus").textContent=active?(currentSubscription.status==="trial"?"فترة تجريبية":"اشتراك نشط"):"لا يوجد اشتراك نشط";
   $("#subscriptionStatus").classList.toggle("active",!!active);
   $("#currentPlanName").textContent=active?`باقة ${planLabels[currentSubscription.plan_code]||currentSubscription.plan_code}`:"لا يوجد اشتراك نشط";
   $("#currentPlanDates").textContent=active?`بدأ في ${new Date(currentSubscription.starts_at).toLocaleDateString("ar-SA")}`:"اختر الباقة المناسبة للبدء";
   $("#subscriptionExpiry").textContent=active&&currentSubscription.ends_at?`ينتهي ${new Date(currentSubscription.ends_at).toLocaleDateString("ar-SA")}`:"—";
 
-  $("#subscriptionPlans").innerHTML=subscriptionPlans.map(p=>`<article class="plan-card ${p.code==="professional"?"featured":""}" data-plan-card="${escapeHtml(p.code)}"><h3>${escapeHtml(p.name)}</h3><strong>${Number(p.price_sar)>0?`${Number(p.price_sar).toLocaleString("ar-SA")} ر.س <small>/ شهرياً</small>`:"حسب الاتفاق"}</strong><p>حتى ${Number(p.branch_limit||0)} ${Number(p.branch_limit)===1?"فرع":"فروع"} · ${Number(p.max_users||0)} مستخدمين</p><small>${escapeHtml(Array.isArray(p.features)?p.features.join(" • "):"")}</small><button type="button" class="outline plan-select-btn" data-select-plan="${escapeHtml(p.code)}">اختيار هذه الباقة</button></article>`).join("");
+  $("#subscriptionPlans").innerHTML=subscriptionPlans.map(p=>`<article class="plan-card ${p.code==="professional"?"featured":""}" data-plan-card="${escapeHtml(p.code)}"><h3>${escapeHtml(p.name)}</h3><strong>${Number(p.price_sar)>0?`${Number(p.price_sar).toLocaleString("ar-SA")} ر.س <small>/ شهرياً</small>`:"حسب الاتفاق"}</strong><p>حتى ${Number(p.branch_limit||0)} ${p.business_type==="ecommerce"?(Number(p.branch_limit)===1?"متجر":"متاجر"):(Number(p.branch_limit)===1?"فرع":"فروع")} · ${Number(p.max_users||0)} مستخدمين</p><small>${escapeHtml(Array.isArray(p.features)?p.features.join(" • "):"")}</small><button type="button" class="outline plan-select-btn" data-select-plan="${escapeHtml(p.code)}">اختيار هذه الباقة</button></article>`).join("");
   const planSelect=$("#subscriptionPlan");
   if(planSelect && !planSelect.dataset.selectionBound){
     planSelect.dataset.selectionBound="1";
@@ -566,6 +589,24 @@ async function loadAdminOrganizations(){
   const {data,error}=await supabase.from("organizations").select("id,name,industry,created_at").order("created_at",{ascending:false});
   if(error){body.innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
   const rows=data||[];
+  const grantOrg=$("#adminGrantOrg");
+  if(grantOrg) grantOrg.innerHTML='<option value="">اختر المنشأة</option>'+rows.map(o=>`<option value="${o.id}" data-type="${o.business_type||"branches"}">${escapeHtml(o.name||"منشأة")}</option>`).join("");
+  const grantPlan=$("#adminGrantPlan");
+  if(grantPlan){
+    const {data:allGrantPlans,error:grantPlansError}=await supabase.from("subscription_plans").select("code,name,price_sar,business_type").eq("is_active",true).order("price_sar");
+    if(grantPlansError){grantPlan.innerHTML='<option value="">تعذر تحميل الباقات</option>';}
+    else grantPlan.dataset.allPlans=JSON.stringify(allGrantPlans||[]);
+    grantPlan.innerHTML='<option value="">اختر المنشأة أولاً</option>';
+  }
+  if(grantOrg&&!grantOrg.dataset.bound){
+    grantOrg.dataset.bound="1";
+    grantOrg.addEventListener("change",()=>{
+      const type=grantOrg.selectedOptions[0]?.dataset.type||"branches";
+      const allPlans=JSON.parse(grantPlan?.dataset.allPlans||"[]");
+      const opts=allPlans.filter(p=>(p.business_type||"branches")===type);
+      if(grantPlan) grantPlan.innerHTML='<option value="">اختر الباقة</option>'+opts.map(p=>`<option value="${escapeHtml(p.code)}">${escapeHtml(p.name)} – ${Number(p.price_sar)} ريال</option>`).join("");
+    });
+  }
   body.innerHTML=rows.length?rows.map(o=>`<tr>
     <td>${escapeHtml(o.name||"—")}</td><td>${escapeHtml(o.industry||"—")}</td>
     <td>${adminDate(o.created_at)}</td><td>${o.id===currentOrg?.id?"المنشأة الحالية":"—"}</td>
