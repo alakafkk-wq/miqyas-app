@@ -816,15 +816,19 @@ function openBranchQr(branch, purpose){
   if(purpose==="maps"){
     if(!validGoogleMapsUrl(branch.google_maps_url)||!branch.google_maps_url){toast("أضف رابط Google Maps صحيحاً لهذا الفرع أولاً.");return;}
     url=branch.google_maps_url;
-    $("#qrDialogTitle").textContent="رمز موقع الفرع على Google Maps";
-    $("#qrHint").textContent="امسح الرمز لفتح موقع الفرع مباشرةً على Google Maps.";
+    $("#qrDialogTitle").textContent="رمز تقييم الفرع على Google Maps";
+    $("#qrPromoTitle").textContent="يسعدنا تقييمك على Google 💚";
+    $("#qrPromoText").textContent="هل زرتنا اليوم؟ شاركنا رأيك على Google Maps وساعد الآخرين على التعرف على تجربتك.";
+    $("#qrHint").textContent="امسح الرمز لفتح صفحة الفرع على Google Maps وإضافة تقييمك.";
     $("#copyFeedbackLink").textContent="نسخ رابط Google Maps";
   }else{
     if(!branch.public_token){toast("رمز الفرع غير متاح. نفّذ تحديث قاعدة البيانات أولاً.");return;}
     const feedbackUrl=new URL(window.location.href); feedbackUrl.search=""; feedbackUrl.searchParams.set("feedback",branch.public_token);
     url=feedbackUrl.toString();
     $("#qrDialogTitle").textContent="رمز تقييم الفرع";
-    $("#qrHint").textContent="اطبع الرمز وضعه في الفرع ليتمكن العملاء من تقييم تجربتهم.";
+    $("#qrPromoTitle").textContent="رأيك يصنع الفرق 💚";
+    $("#qrPromoText").textContent="نسعد بخدمتك، ونطمح دائماً للأفضل. امسح الرمز وشاركنا تجربتك؛ لن يستغرق التقييم سوى دقيقة.";
+    $("#qrHint").textContent="امسح الرمز وشاركنا رأيك بكل صراحة. شكراً لمساعدتنا على التطور.";
     $("#copyFeedbackLink").textContent="نسخ رابط التقييم";
   }
   activeQrUrl=url; activeQrPurpose=purpose;
@@ -844,6 +848,10 @@ $("#branchList").addEventListener("click",e=>{
   openBranchQr(branch,mapBtn?"maps":"feedback");
 });
 $("#closeQr").addEventListener("click",()=>$("#qrDialog").close());
+$("#printQrCard").addEventListener("click",()=>{
+  if(!$("#qrCanvas").querySelector("canvas,#qrCanvas img") && !$("#qrCanvas").querySelector("img")){toast("رمز QR غير جاهز للطباعة بعد.");return;}
+  window.print();
+});
 $("#copyFeedbackLink").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(activeQrUrl);toast(activeQrPurpose==="maps"?"تم نسخ رابط Google Maps":"تم نسخ رابط التقييم");}catch(e){toast("انسخ الرابط يدوياً من النص الظاهر");}});
 $("#branchList").addEventListener("click",async e=>{
   const btn=e.target.closest("[data-delete-branch]");

@@ -102,3 +102,19 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
 
 /* MIQYAS v1.19 ecommerce analytics */
 .ecom-dashboard{margin:18px 0;padding:18px;background:#f8fbf9;border:1px solid var(--line);border-radius:18px}.ecom-report-head,.ecom-report-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.ecom-report-head h3{margin:0 0 5px}.ecom-report-head p{margin:0}.ecom-filters{display:grid;grid-template-columns:repeat(3,minmax(130px,1fr)) auto;gap:10px;align-items:end;margin:18px 0}.ecom-filters label{display:grid;gap:6px;font-size:13px}.ecom-filters input,.ecom-filters select{width:100%;min-height:42px;border:1px solid var(--line);border-radius:10px;padding:8px;background:white;color:var(--ink)}.ecom-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:14px 0}.ecom-kpi,.ecom-chart-card{background:white;border:1px solid var(--line);border-radius:14px;padding:14px}.ecom-kpi span{display:block;color:var(--muted);font-size:12px;min-height:34px}.ecom-kpi strong{font-size:25px;color:var(--green);display:block;margin-top:7px}.ecom-report-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.ecom-chart-card h4{margin:0 0 14px}.ecom-bars{display:grid;gap:12px}.ecom-bar-row{display:grid;grid-template-columns:105px 1fr 45px;align-items:center;gap:8px;font-size:12px}.ecom-bar-track{height:10px;background:#edf2ef;border-radius:20px;overflow:hidden}.ecom-bar-fill{height:100%;background:var(--green);border-radius:20px}.ecom-report-foot{margin-top:14px;color:var(--muted);font-size:12px}@media(max-width:760px){.ecom-filters{grid-template-columns:1fr 1fr}.ecom-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ecom-report-grid{grid-template-columns:1fr}.ecom-report-head .outline{width:100%}.ecom-report-foot{align-items:stretch}.ecom-report-foot button{width:100%}}
+
+/* Printable branch QR card */
+.qr-print-card{text-align:center;border:1px solid var(--line);border-radius:18px;padding:18px 16px;background:#fff;margin-top:12px}
+.qr-brand{font-weight:700;color:var(--green);font-size:19px;letter-spacing:.4px}.qr-brand span{color:var(--ink);margin-inline-start:6px}
+.qr-branch-title{font-size:18px;font-weight:700;margin:10px 0;color:var(--ink)}
+.qr-print-card h3{font-size:20px;color:var(--green);margin:10px 0 5px}.qr-promo-text{font-size:14px;line-height:1.8;color:var(--muted);margin:0 auto 12px;max-width:330px}
+.qr-thanks{font-weight:700;color:var(--green);margin:10px 0 0}.qr-print-card .qr-canvas{border:0;min-height:0;padding:10px}.qr-url{overflow-wrap:anywhere}
+@media print{
+  @page{size:A5 portrait;margin:12mm}
+  body *{visibility:hidden!important}
+  #qrDialog,#qrDialog *{visibility:visible!important}
+  #qrDialog{display:block!important;position:absolute!important;inset:0!important;margin:0!important;padding:0!important;width:100%!important;max-width:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important}
+  #qrDialog::backdrop{display:none!important}.qr-actions,.qr-screen-action,.qr-url{display:none!important}
+  #qrPrintCard{display:block!important;border:2px solid #08734f!important;border-radius:18px!important;padding:22px!important;margin:0 auto!important;max-width:125mm!important;break-inside:avoid}
+  #qrCanvas{min-height:0!important}.qr-print-card .qr-canvas canvas,.qr-print-card .qr-canvas img{width:62mm!important;height:62mm!important;max-width:100%!important}
+}

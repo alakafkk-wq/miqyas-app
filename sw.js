@@ -1,4 +1,4 @@
-const CACHE="miqyas-v1-18-9-business-type-persistence";
+const CACHE="miqyas-v1-19-1-branch-qr-print";
 const ASSETS=["./","./index.html","./app.js","./style.css","./config.js","./manifest.webmanifest","./icon.svg"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));
