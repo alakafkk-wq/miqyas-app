@@ -339,7 +339,13 @@ $("#orgForm").addEventListener("submit",async e=>{
     const {data:org,error:readError}=await supabase.from("organizations").select("id,name,industry,business_type").eq("id",data).single();
     if(readError) throw readError;
     currentOrg=org; await loadWorkspace(); toast("تم إنشاء مساحة المنشأة");
-  } catch(err){message("#orgMessage",err.message||"تعذر إنشاء المنشأة.",true);}
+  } catch(err){
+    const raw=String(err?.message||"");
+    const friendly=raw.includes("لديه منشأة مسجلة بالفعل")
+      ? "هذا البريد الإلكتروني مرتبط بمنشأة مسجلة بالفعل. يرجى تسجيل الدخول إلى حسابك الحالي. لإنشاء منشأة إضافية، يرجى التواصل مع مدير المنصة."
+      : (raw||"تعذر إنشاء المنشأة.");
+    message("#orgMessage",friendly,true);
+  }
   finally{setBusy(btn,false);}
 });
 $("#adminFreeGrantForm")?.addEventListener("submit",async e=>{

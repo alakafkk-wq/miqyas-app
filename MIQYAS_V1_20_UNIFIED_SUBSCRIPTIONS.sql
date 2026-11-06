@@ -74,6 +74,16 @@ declare
 begin
  if (select auth.uid()) is null then raise exception 'Authentication required'; end if;
  if nullif(trim(org_name),'') is null then raise exception 'Organization name is required'; end if;
+ -- Serialize organization creation per authenticated account to prevent duplicate workspaces.
+ perform pg_advisory_xact_lock(hashtextextended((select auth.uid())::text, 0));
+ if exists (
+   select 1 from public.organization_members m
+   where m.user_id = (select auth.uid())
+ ) then
+   raise exception using
+     errcode = 'P0001',
+     message = 'هذا الحساب لديه منشأة مسجلة بالفعل. يرجى تسجيل الدخول إلى المنشأة الحالية. لإنشاء منشأة إضافية، يرجى التواصل مع مدير المنصة.';
+ end if;
  v_type := case when (select auth.jwt()->'user_metadata'->>'business_type')='ecommerce' then 'ecommerce' else 'branches' end;
  v_plan := case when v_type='ecommerce' then 'ecom_basic' else 'basic' end;
  insert into public.organizations(name,industry,business_type) values(trim(org_name),coalesce(org_industry,'other'),v_type) returning id into v_org;
