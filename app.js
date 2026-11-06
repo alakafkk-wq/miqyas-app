@@ -268,7 +268,14 @@ $("#authForm").addEventListener("submit",async e=>{
       pendingSignupBusinessType=businessType;
       const {data,error}=await supabase.auth.signUp({email,password,options:{data:{business_type:businessType}}});
       if(error) throw error;
-      if(!data.session) message("#authMessage","تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتأكيد الحساب، ثم ارجع وسجّل الدخول.");
+      // Supabase may return a success-shaped response for an existing email
+      // when email confirmations are enabled. An empty identities array
+      // indicates that the account already exists; do not show a false success.
+      if(data.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
+        message("#authMessage","هذا البريد الإلكتروني مسجل مسبقاً. يرجى تسجيل الدخول أو استخدام خيار نسيت كلمة المرور.",true);
+        return;
+      }
+      if(!data.session) message("#authMessage","تم إرسال رسالة تأكيد إلى بريدك الإلكتروني إذا كان التسجيل جديداً. تحقق من بريدك، ثم ارجع وسجّل الدخول.");
       else {
         // Re-assert the selected activity on the authenticated profile before creating the workspace.
         const {error:metaError}=await supabase.auth.updateUser({data:{business_type:businessType}});
