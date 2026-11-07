@@ -869,7 +869,18 @@ function render() {
   $("#googleMapsReports").innerHTML=branches.filter(b=>b.google_maps_url).map(b=>{
     const s=latestGoogleSnapshots.get(b.id);
     const reviews=Array.isArray(s?.reviews)?s.reviews:[];
-    return `<div class="branchitem"><div><b>${escapeHtml(b.name)}</b><small>${s?`تقييم ${escapeHtml(s.rating??"—")} من 5 · ${Number(s.user_rating_count||0)} تقييماً · آخر تحديث ${new Date(s.fetched_at).toLocaleString("ar-SA")}`:"لم يتم سحب البيانات بعد"}</small>${s?reviews.map(r=>`<div class="review-item"><b>${"★".repeat(Math.max(0,Math.min(5,Number(r.rating)||0)))}</b> ${escapeHtml(r.author_name||"مستخدم Google")} · ${escapeHtml(r.relative_time_description||"")}<p>${escapeHtml(r.text||"لا يوجد نص للتعليق")}</p></div>`).join(""):""}</div><a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح الموقع ↗</a></div>`;
+    const rating=Number(s?.rating||0);
+    const stars=Array.from({length:5},(_,i)=>`<span class="${i<Math.round(rating)?"is-filled":""}">★</span>`).join("");
+    const count=Number(s?.user_rating_count||0);
+    const updated=s?.fetched_at?new Date(s.fetched_at).toLocaleString("ar-SA"):"لم يتم السحب بعد";
+    return `<article class="gm-card">
+      <div class="gm-card-head"><div><span class="gm-eyebrow">GOOGLE MAPS · MIQYAS</span><h3>${escapeHtml(b.name)}</h3><small>${escapeHtml([b.city,b.area].filter(Boolean).join(" · "))}</small></div><span class="gm-pin">📍</span></div>
+      ${s?`<div class="gm-score-row"><div class="gm-score">${rating.toFixed(1)}<small>/ 5</small></div><div class="gm-score-meta"><div class="gm-stars" aria-label="التقييم ${rating} من 5">${stars}</div><b>${count.toLocaleString("ar-SA")} تقييماً</b><small>آخر تحديث: ${escapeHtml(updated)}</small></div></div>
+      <div class="gm-progress"><span style="width:${Math.max(0,Math.min(100,rating/5*100))}%"></span></div>
+      <div class="gm-review-summary"><span>💬 ${reviews.length} تعليقات متاحة</span><span class="gm-live">● تم جلب البيانات</span></div>
+      <details class="gm-reviews"><summary>عرض التعليقات والتفاصيل</summary>${reviews.length?reviews.map(r=>`<div class="review-item"><div class="gm-review-head"><b>${"★".repeat(Math.max(0,Math.min(5,Number(r.rating)||0)))}</b><span>${escapeHtml(r.author_name||"مستخدم Google")}</span></div><small>${escapeHtml(r.relative_time_description||"")}</small><p>${escapeHtml(r.text||"لا يوجد نص للتعليق")}</p></div>`).join(""):`<p class="gm-no-reviews">لا توجد تعليقات متاحة في هذه اللقطة.</p>`}</details>`:`<div class="gm-empty">لم يتم سحب بيانات التقييم لهذا الفرع بعد.</div>`}
+      <div class="gm-card-actions"><a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح الموقع ↗</a><button class="outline" data-google-export="${escapeHtml(b.id)}" ${s?"":"disabled"}>تصدير Excel</button></div>
+    </article>`;
   }).join("")||"لا توجد فروع مرتبطة بروابط Google Maps.";
   $("#evalBranch").innerHTML=branches.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
   $("#saveEval").disabled=!branches.length;
@@ -931,6 +942,28 @@ $("#printQrCard").addEventListener("click",()=>{
   window.print();
 });
 $("#copyFeedbackLink").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(activeQrUrl);toast(activeQrPurpose==="maps"?"تم نسخ رابط Google Maps":"تم نسخ رابط التقييم");}catch(e){toast("انسخ الرابط يدوياً من النص الظاهر");}});
+function exportGoogleMapsBranchExcel(branchId){
+  const branch=branches.find(b=>b.id===branchId);
+  const snapshot=googleMapsSnapshots.find(s=>s.branch_id===branchId);
+  if(!branch||!snapshot){toast("لا توجد بيانات Google Maps لهذا الفرع بعد.");return;}
+  if(!window.XLSX){toast("تعذر تحميل مكتبة Excel. أعد تحميل الصفحة.");return;}
+  const reviews=Array.isArray(snapshot.reviews)?snapshot.reviews:[];
+  const summary=[["تقرير تقييمات Google Maps - MIQYAS"],["اسم الفرع",branch.name],["المدينة",branch.city||""],["المنطقة",branch.area||""],["رابط Google Maps",branch.google_maps_url||""],["اسم الموقع في Google",snapshot.place_name||""],["متوسط التقييم",snapshot.rating??""],["عدد تقييمات Google",snapshot.user_rating_count??0],["عدد التعليقات المرفقة",reviews.length],["تاريخ ووقت السحب",snapshot.fetched_at?new Date(snapshot.fetched_at).toLocaleString("ar-SA"):""],["ملاحظة","تعرض Google Places API مجموعة محدودة من المراجعات المختارة (حتى 5)، ولا تمثل كامل سجل التعليقات."]];
+  const comments=[["اسم صاحب التعليق","التقييم من 5","وقت النشر النسبي","تاريخ النشر","نص التعليق","رابط Google Maps"]];
+  reviews.forEach(r=>comments.push([r.author_name||"مستخدم Google",r.rating??"",r.relative_time_description||"",r.publish_time||"",r.text||"",r.google_maps_uri||branch.google_maps_url||""]));
+  const wb=XLSX.utils.book_new();
+  const ws1=XLSX.utils.aoa_to_sheet(summary); ws1["!cols"]=[{wch:28},{wch:65}];
+  const ws2=XLSX.utils.aoa_to_sheet(comments); ws2["!cols"]=[{wch:25},{wch:15},{wch:22},{wch:28},{wch:80},{wch:55}];
+  XLSX.utils.book_append_sheet(wb,ws1,"ملخص الفرع");
+  XLSX.utils.book_append_sheet(wb,ws2,"التعليقات المتاحة");
+  const safeName=String(branch.name||"branch").replace(/[\\/:*?"<>|]/g,"-").slice(0,40);
+  XLSX.writeFile(wb,`MIQYAS_Google_Maps_${safeName}.xlsx`);
+  toast("تم تجهيز تقرير Excel للفرع.");
+}
+$("#googleMapsReports").addEventListener("click",e=>{
+  const btn=e.target.closest("[data-google-export]");
+  if(btn) exportGoogleMapsBranchExcel(btn.dataset.googleExport);
+});
 $("#branchList").addEventListener("click",async e=>{
   const reviewBtn=e.target.closest("[data-google-reviews]");
   if(reviewBtn){

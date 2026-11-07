@@ -150,3 +150,24 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
 .legal-content p{margin:8px 0}
 .legal-content ul{padding-right:22px}
 @media(max-width:600px){.legal-dialog{padding:15px}.legal-content{max-height:65vh}}
+
+/* MIQYAS Google Maps score cards and per-branch Excel export */
+#googleMapsReports{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;align-items:stretch}
+.gm-card{background:linear-gradient(145deg,#fff 0%,#f7fbf8 100%);border:1px solid #dce9e1;border-radius:22px;padding:20px;box-shadow:0 8px 24px rgba(20,70,45,.06);min-width:0}
+.gm-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid #e4eee8}
+.gm-eyebrow{font-size:10px;letter-spacing:1.1px;color:#16815b;font-weight:800}
+.gm-card-head h3{font-size:20px;margin:5px 0;color:#173b2b}.gm-card-head small,.gm-score-meta small{color:#77877e;font-size:12px}
+.gm-pin{width:42px;height:42px;border-radius:14px;background:#e7f5ed;display:grid;place-items:center;font-size:20px}
+.gm-score-row{display:flex;align-items:center;gap:16px;padding:20px 0 12px}
+.gm-score{font-size:42px;font-weight:800;line-height:1;color:#146b49;letter-spacing:-1px}.gm-score small{font-size:14px;color:#809087;font-weight:600}
+.gm-score-meta{display:flex;flex-direction:column;gap:4px}.gm-score-meta b{font-size:13px;color:#31483b}
+.gm-stars{display:flex;gap:2px;color:#d8dfda;font-size:20px;line-height:1}.gm-stars .is-filled{color:#e0a62d}
+.gm-progress{height:7px;background:#e6eee9;border-radius:20px;overflow:hidden}.gm-progress span{display:block;height:100%;background:linear-gradient(90deg,#83c7a2,#087650);border-radius:20px}
+.gm-review-summary{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:13px 0;color:#63756a;font-size:12px}.gm-live{color:#16815b;font-weight:700}
+.gm-reviews{border-top:1px solid #e4eee8;padding-top:12px;margin-top:12px}.gm-reviews summary{cursor:pointer;color:#176b49;font-weight:700;font-size:13px}
+.gm-review-head{display:flex;justify-content:space-between;gap:8px;align-items:center}.gm-review-head b{color:#d69b20;letter-spacing:1px}.gm-review-head span{font-size:12px;color:#52665a}
+.gm-no-reviews,.gm-empty{color:#77877e;font-size:13px;line-height:1.8;padding:16px 0}
+.gm-card-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;flex-wrap:wrap}
+.gm-card-actions .maps-link{font-size:13px}.gm-card-actions button{background:#087650;color:#fff;border:0;border-radius:12px;padding:10px 15px;font-weight:700;cursor:pointer}
+.gm-card-actions button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:520px){.gm-card{padding:16px}.gm-score{font-size:36px}.gm-card-actions>*{flex:1;text-align:center}}
