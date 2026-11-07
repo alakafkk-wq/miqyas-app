@@ -44,6 +44,13 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 #signupBusinessType .business-type-option:focus-within{outline:2px solid #087650;outline-offset:2px}
 #signupBusinessType .business-type-help{display:block;margin-top:12px;color:#64748b;line-height:1.7}
 @media(max-width:420px){#signupBusinessType{padding:10px!important}#signupBusinessType .business-type-options{gap:8px}#signupBusinessType .business-type-option{min-height:116px;padding:8px!important;font-size:.95rem}}
+
+.admin-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:14px 0}
+.admin-kpi-grid .stat{min-width:0}.admin-export-tools{padding:14px;border:1px solid #dce7e2;border-radius:14px;background:#f8fbf9;margin:16px 0}
+.admin-export-tools .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.admin-export-tools input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}
+.admin-export-tools .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+@media(max-width:600px){.admin-export-tools .two{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -124,6 +131,17 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 
 <section id="appView" class="hidden">
   <div class="apphead"><div><span class="eyebrow">لوحة التحكم</span><h1 id="orgTitle">منشأتي</h1><p class="muted">متابعة مؤشرات الجودة وأداء الفروع</p></div><div class="actions"><button id="homeButton" class="outline" type="button">⌂ الرئيسية</button><button id="addBranchBtn" class="primary">＋ إضافة فرع</button></div></div>
+  <section class="panel hidden" id="ownerMembersPanel">
+    <div class="panelhead"><div><h2>إدارة مستخدمي المنشأة</h2><p>هذه الخدمة متاحة لمالك المنشأة فقط. تتم الدعوة إلى البريد الإلكتروني المسجل.</p></div><span class="sub-status" id="ownerMemberUsage">—</span></div>
+    <form id="ownerInviteForm" class="compact">
+      <label>البريد الإلكتروني للمستخدم<input id="ownerInviteEmail" type="email" required maxlength="254" autocomplete="email" placeholder="user@example.com"></label>
+      <label>اسم المستخدم<input id="ownerInviteName" required maxlength="100" placeholder="اسم الموظف"></label>
+      <label>الصلاحية<select id="ownerInviteRole"><option value="user">مستخدم</option><option value="supervisor">مشرف</option><option value="manager">مدير</option></select></label>
+      <button class="primary" id="ownerInviteSubmit" type="submit">إرسال دعوة المستخدم</button>
+      <p id="ownerInviteMessage" class="message" aria-live="polite">سيصل رابط إنشاء كلمة المرور إلى البريد الإلكتروني.</p>
+    </form>
+    <div class="tablewrap"><table><thead><tr><th>المستخدم</th><th>معرّف المستخدم</th><th>الصلاحية</th><th>تاريخ الإضافة</th></tr></thead><tbody id="ownerMemberRows"><tr><td colspan="4">جارٍ تحميل المستخدمين…</td></tr></tbody></table></div>
+  </section>
   <div class="stats" id="stats">
     <article class="stat"><span>الفروع</span><strong id="branchCount">0</strong><small>إجمالي الفروع</small></article>
     <article class="stat hidden"><span>سجلات الجودة</span><strong id="evalCount">0</strong><small>التقييمات الداخلية وسجلات الجودة</small></article>
@@ -137,7 +155,6 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
     <div class="service-grid">
       <article class="service-card service-active"><span class="service-state">متاحة الآن</span><h3>صوت العميل (VOC)</h3><p>استقبال تقييمات العملاء عبر QR ومتابعة مؤشرات الرضا والتقارير.</p></article>
       <article class="service-card service-soon" aria-disabled="true"><span class="service-state">قريباً</span><h3>إدارة الجودة</h3><p>ستتاح بعد اكتمال الربط والاختبارات.</p></article>
-      <article class="service-card service-soon" aria-disabled="true"><span class="service-state">قريباً</span><h3>المتسوق السري</h3><p>ستتاح بعد اكتمال الربط والاختبارات.</p></article>
       <article class="service-card service-soon" aria-disabled="true"><span class="service-state">قريباً</span><h3>الخدمات والتحليلات المتقدمة</h3><p>ستتاح تباعاً بعد اعتماد الربط.</p></article>
     </div>
   </section>
@@ -271,6 +288,35 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
         <div class="actions"><button type="submit" class="primary" id="saveAdminSubscription">حفظ التعديلات</button><button type="button" class="outline" id="cancelAdminSubscriptionEdit">إلغاء</button></div>
         <p id="adminSubscriptionEditMessage" class="message" aria-live="polite"></p>
       </form>
+      <hr>
+      <section class="admin-insights" aria-label="ملخص المنصة">
+        <div class="panelhead"><div><h2>ملخص المنصة والفروع والتقييمات</h2><p>مؤشرات مجمعة لجميع المنشآت المسجلة</p></div><button type="button" class="outline" id="refreshPlatformInsights">تحديث الملخص</button></div>
+        <div class="admin-kpi-grid">
+          <article class="stat"><span>إجمالي المنشآت</span><strong id="platformOrgCount">—</strong></article>
+          <article class="stat"><span>الاشتراكات النشطة</span><strong id="platformActiveCount">—</strong></article>
+          <article class="stat"><span>الاشتراكات التجريبية</span><strong id="platformTrialCount">—</strong></article>
+          <article class="stat"><span>الإيرادات المحصلة</span><strong id="platformRevenue">—</strong><small>من طلبات الدفع المؤكدة فقط</small></article>
+          <article class="stat"><span>عدد الفروع</span><strong id="platformBranchCount">—</strong></article>
+          <article class="stat"><span>تقييمات العملاء</span><strong id="platformFeedbackCount">—</strong></article>
+        </div>
+        <h3>متابعة الفروع وتقييمات المشتركين</h3>
+        <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الفرع</th><th>المدينة</th><th>عدد التقييمات</th><th>الإيجابي</th><th>المحايد</th><th>السلبي</th><th>آخر تقييم</th></tr></thead><tbody id="platformBranchMonitoringRows"><tr><td colspan="8">جارٍ تحميل المتابعة...</td></tr></tbody></table></div>
+      </section>
+      <hr>
+      <section class="admin-export-tools">
+        <h2>تصدير تقارير المنصة إلى Excel</h2>
+        <p>حدد فترة التقرير. يتم استخدام التاريخ الميلادي.</p>
+        <div class="two">
+          <label>من تاريخ<input type="date" id="adminExportStart"></label>
+          <label>إلى تاريخ<input type="date" id="adminExportEnd"></label>
+        </div>
+        <div class="actions">
+          <button type="button" class="outline" id="exportSubscribersExcel">تصدير المشتركين</button>
+          <button type="button" class="outline" id="exportSubscriptionOpsExcel">تصدير عمليات الاشتراكات</button>
+          <button type="button" class="outline" id="exportUserActivityExcel">تصدير حركة المستخدمين</button>
+        </div>
+        <p id="adminExportMessage" class="message" aria-live="polite"></p>
+      </section>
       <div class="subscription-history">
         <hr>
       <div class="panelhead"><div><h2>إدارة جميع المنشآت</h2><p>حذف نهائي للمنشأة وبياناتها التابعة. حسابات الدخول لا تُحذف تلقائياً.</p></div><button type="button" class="outline" id="refreshAdminOrganizations">تحديث المنشآت</button></div>
@@ -292,7 +338,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <div id="googleMapsReports" class="list empty">أضف رابط Google Maps للفرع ثم اضغط «تحديث تقييمات Google Maps» من بطاقة الفرع.</div>
       <p class="muted">يعرض Google Places API حتى 5 مراجعات مختارة للموقع، وليس كامل سجل المراجعات. لاستخدام جميع مراجعات منشأتك يلزم ربط Google Business Profile بصلاحية الإدارة.</p>
     </section>
-    <section class="panel hidden" id="manualAssessmentPanel"><div class="panelhead"><div><h2>إضافة تقييم</h2><p>سجل صوت العميل أو المتسوق السري</p></div></div>
+    <section class="panel hidden" id="manualAssessmentPanel"><div class="panelhead"><div><h2>إضافة تقييم</h2><p>سجل صوت العميل</p></div></div>
       <form id="evalForm" class="compact">
         <label>الفرع<select id="evalBranch" required></select></label>
         <label>نوع التقييم<select id="evalType"><option value="voc">صوت العميل VOC</option></select></label>

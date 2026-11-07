@@ -24,6 +24,8 @@ let adminRequestsChannel = null;
 let subscriptionAccessActive = false;
 let subscriptionAccessError = false;
 let pendingSignupBusinessType = null;
+let currentMembershipRole = null;
+let currentUserLimit = null;
 
 function toast(msg) {
   const el = $("#toast"); el.textContent = msg; el.classList.add("show");
@@ -397,10 +399,47 @@ $("#adminFreeGrantForm")?.addEventListener("submit",async e=>{
   finally{setBusy(btn,false);}
 });
 
+async function loadOwnerMembers(){
+  const panel=$("#ownerMembersPanel"); if(!panel||!currentOrg||!currentUser) return;
+  try{
+    const {data:membership,error:membershipError}=await supabase.from("organization_members").select("role").eq("organization_id",currentOrg.id).eq("user_id",currentUser.id).maybeSingle();
+    if(membershipError) throw membershipError;
+    currentMembershipRole=membership?.role||null;
+    if(currentMembershipRole!=="owner"){panel.classList.add("hidden");return;}
+    panel.classList.remove("hidden");
+    const [membersRes,planRes]=await Promise.all([
+      supabase.from("organization_members").select("user_id,role,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:true}),
+      supabase.from("subscription_plans").select("max_users").eq("code",currentSubscription?.plan_code|| (getBusinessType()==="ecommerce"?"ecom_basic":"basic")).maybeSingle()
+    ]);
+    if(membersRes.error) throw membersRes.error;
+    if(planRes.error) throw planRes.error;
+    const members=membersRes.data||[]; currentUserLimit=Number(planRes.data?.max_users||3);
+    $("#ownerMemberUsage").textContent=`${members.length} من ${currentUserLimit} مستخدمين`;
+    $("#ownerInviteSubmit").disabled=members.length>=currentUserLimit;
+    $("#ownerMemberRows").innerHTML=members.map(m=>`<tr><td>${m.user_id===currentUser.id?"أنت (مالك المنشأة)":"مستخدم المنشأة"}</td><td>${escapeHtml(String(m.user_id||"").slice(0,8))}…</td><td>${({owner:"مالك المنشأة",manager:"مدير",supervisor:"مشرف",user:"مستخدم"}[m.role]||escapeHtml(m.role))}</td><td>${adminDate(m.created_at)}</td></tr>`).join("")||'<tr><td colspan="4">لا يوجد مستخدمون</td></tr>';
+  }catch(err){panel.classList.add("hidden");console.warn("Owner members panel:",err);}
+}
+$("#ownerInviteForm")?.addEventListener("submit",async e=>{
+  e.preventDefault(); const btn=$("#ownerInviteSubmit");
+  if(currentMembershipRole!=="owner"){message("#ownerInviteMessage","إضافة المستخدمين متاحة لمالك المنشأة فقط.",true);return;}
+  setBusy(btn,true,"جارٍ إرسال الدعوة…");
+  try{
+    const {data:{session}}=await supabase.auth.getSession();
+    if(!session?.access_token) throw new Error("انتهت جلسة الدخول. سجل الدخول مجدداً.");
+    const response=await fetch(`${cfg.SUPABASE_URL}/functions/v1/owner-manage-members`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${session.access_token}`,"apikey":cfg.SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify({organization_id:currentOrg.id,email:$("#ownerInviteEmail").value.trim(),full_name:$("#ownerInviteName").value.trim(),role:$("#ownerInviteRole").value})});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||"تعذر إرسال الدعوة.");
+    message("#ownerInviteMessage","تم إرسال دعوة المستخدم إلى البريد الإلكتروني.",false);
+    $("#ownerInviteForm").reset(); await loadOwnerMembers();
+  }catch(err){message("#ownerInviteMessage",err.message||"تعذر إرسال الدعوة.",true);}
+  finally{setBusy(btn,false);}
+});
+
 async function loadWorkspace() {
   $("#orgTitle").textContent=currentOrg.name;
   show("#appView");
   await loadSubscriptionData();
+  await loadOwnerMembers();
   applySubscriptionGate();
   if(subscriptionAccessActive){
     await refreshData();
@@ -461,6 +500,7 @@ async function loadSubscriptionData(){
       await loadAdminSubscriptions();
       await loadAdminOrganizations();
       await loadActivityAudit();
+      await loadPlatformInsights();
       startAdminRequestNotifications();
     }
     return subscriptionAccessActive;
@@ -507,10 +547,10 @@ function renderSubscription(){
   $("#subscriptionStatus").textContent=active?(currentSubscription.status==="trial"?"فترة تجريبية":"اشتراك نشط"):"لا يوجد اشتراك نشط";
   $("#subscriptionStatus").classList.toggle("active",!!active);
   $("#currentPlanName").textContent=active?`باقة ${planLabels[currentSubscription.plan_code]||currentSubscription.plan_code}`:"لا يوجد اشتراك نشط";
-  $("#currentPlanDates").textContent=active?`بدأ في ${new Date(currentSubscription.starts_at).toLocaleDateString("ar-SA")}`:"اختر الباقة المناسبة للبدء";
-  $("#subscriptionExpiry").textContent=active&&currentSubscription.ends_at?`ينتهي ${new Date(currentSubscription.ends_at).toLocaleDateString("ar-SA")}`:"—";
+  $("#currentPlanDates").textContent=active?`بدأ في ${new Date(currentSubscription.starts_at).toLocaleDateString("ar-SA-u-ca-gregory")}`:"اختر الباقة المناسبة للبدء";
+  $("#subscriptionExpiry").textContent=active&&currentSubscription.ends_at?`ينتهي ${new Date(currentSubscription.ends_at).toLocaleDateString("ar-SA-u-ca-gregory")}`:"—";
 
-  $("#subscriptionPlans").innerHTML=subscriptionPlans.map(p=>`<article class="plan-card ${p.code==="professional"?"featured":""}" data-plan-card="${escapeHtml(p.code)}"><h3>${escapeHtml(p.name)}</h3><strong>${Number(p.price_sar)>0?`${Number(p.price_sar).toLocaleString("ar-SA")} ر.س <small>/ شهرياً</small>`:"حسب الاتفاق"}</strong><p>حتى ${Number(p.branch_limit||0)} ${p.business_type==="ecommerce"?(Number(p.branch_limit)===1?"متجر":"متاجر"):(Number(p.branch_limit)===1?"فرع":"فروع")} · ${Number(p.max_users||0)} مستخدمين</p><small>${escapeHtml(Array.isArray(p.features)?p.features.join(" • "):"")}</small><button type="button" class="outline plan-select-btn" data-select-plan="${escapeHtml(p.code)}">اختيار هذه الباقة</button></article>`).join("");
+  $("#subscriptionPlans").innerHTML=subscriptionPlans.map(p=>`<article class="plan-card ${p.code==="professional"?"featured":""}" data-plan-card="${escapeHtml(p.code)}"><h3>${escapeHtml(p.name)}</h3><strong>${Number(p.price_sar)>0?`${Number(p.price_sar).toLocaleString("ar-SA-u-ca-gregory")} ر.س <small>/ شهرياً</small>`:"حسب الاتفاق"}</strong><p>حتى ${Number(p.branch_limit||0)} ${p.business_type==="ecommerce"?(Number(p.branch_limit)===1?"متجر":"متاجر"):(Number(p.branch_limit)===1?"فرع":"فروع")} · ${Number(p.max_users||0)} مستخدمين</p><small>${escapeHtml(Array.isArray(p.features)?p.features.join(" • "):"")}</small><button type="button" class="outline plan-select-btn" data-select-plan="${escapeHtml(p.code)}">اختيار هذه الباقة</button></article>`).join("");
   const planSelect=$("#subscriptionPlan");
   if(planSelect && !planSelect.dataset.selectionBound){
     planSelect.dataset.selectionBound="1";
@@ -524,7 +564,7 @@ function renderSubscription(){
     });
   }
   highlightSelectedPlan();
-  $("#subscriptionRequestRows").innerHTML=subscriptionRequests.length?subscriptionRequests.map(r=>`<tr><td>${new Date(r.created_at).toLocaleDateString("ar-SA")}</td><td>${planLabels[r.plan_code]||escapeHtml(r.plan_code)}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA")} ر.س</td><td>${r.payment_method==="bank_transfer"?"تحويل بنكي":"إلكتروني"}</td><td>${requestStatusLabels[r.status]||escapeHtml(r.status)}</td></tr>`).join(""):'<tr><td colspan="5" class="muted">لا توجد طلبات بعد</td></tr>';
+  $("#subscriptionRequestRows").innerHTML=subscriptionRequests.length?subscriptionRequests.map(r=>`<tr><td>${new Date(r.created_at).toLocaleDateString("ar-SA-u-ca-gregory")}</td><td>${planLabels[r.plan_code]||escapeHtml(r.plan_code)}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA-u-ca-gregory")} ر.س</td><td>${r.payment_method==="bank_transfer"?"تحويل بنكي":"إلكتروني"}</td><td>${requestStatusLabels[r.status]||escapeHtml(r.status)}</td></tr>`).join(""):'<tr><td colspan="5" class="muted">لا توجد طلبات بعد</td></tr>';
   $("#platformAdminPanel").classList.toggle("hidden",!isPlatformAdmin);
 }
 $("#subscriptionRequestForm").addEventListener("submit",async e=>{
@@ -564,7 +604,7 @@ async function loadAdminSubscriptionRequests(){
   if(!isPlatformAdmin)return;
   const {data,error}=await supabase.from("subscription_payment_requests").select("id,organization_id,plan_code,amount_sar,payment_method,status,created_at,organizations(name)").eq("status","pending").order("created_at",{ascending:true});
   if(error){$("#adminSubscriptionRows").innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
-  $("#adminSubscriptionRows").innerHTML=(data||[]).length?data.map(r=>`<tr><td>${escapeHtml(r.organizations?.name||"منشأة")}</td><td>${planLabels[r.plan_code]||r.plan_code}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA")} ر.س</td><td>${escapeHtml(requestStatusLabels[r.status]||r.status)}</td><td><button class="primary" data-approve-sub="${r.id}">اعتماد</button> <button class="outline" data-reject-sub="${r.id}">رفض</button></td></tr>`).join(""):'<tr><td colspan="5">لا توجد طلبات معلقة</td></tr>';
+  $("#adminSubscriptionRows").innerHTML=(data||[]).length?data.map(r=>`<tr><td>${escapeHtml(r.organizations?.name||"منشأة")}</td><td>${planLabels[r.plan_code]||r.plan_code}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA-u-ca-gregory")} ر.س</td><td>${escapeHtml(requestStatusLabels[r.status]||r.status)}</td><td><button class="primary" data-approve-sub="${r.id}">اعتماد</button> <button class="outline" data-reject-sub="${r.id}">رفض</button></td></tr>`).join(""):'<tr><td colspan="5">لا توجد طلبات معلقة</td></tr>';
 }
 function startAdminRequestNotifications(){
   if(!isPlatformAdmin || adminRequestsChannel) return;
@@ -573,7 +613,7 @@ function startAdminRequestNotifications(){
       const request=payload.new||{};
       if(!request.id) return;
       const plan=planLabels[request.plan_code]||"باقة جديدة";
-      const amount=Number(request.amount_sar||0).toLocaleString("ar-SA");
+      const amount=Number(request.amount_sar||0).toLocaleString("ar-SA-u-ca-gregory");
       const notice=`وصل طلب اشتراك جديد: ${plan} بقيمة ${amount} ريال.`;
       toast(notice);
       if("Notification" in window && Notification.permission==="granted"){
@@ -593,7 +633,7 @@ $("#enableAdminNotifications")?.addEventListener("click",async()=>{
 });
 function adminDate(value){
   if(!value)return "—";
-  const d=new Date(value); return Number.isNaN(d.getTime())?"—":d.toLocaleDateString("ar-SA");
+  const d=new Date(value); return Number.isNaN(d.getTime())?"—":d.toLocaleDateString("ar-SA-u-ca-gregory");
 }
 function toDateInput(value){
   if(!value)return "";
@@ -639,7 +679,7 @@ async function loadAdminOrganizations(){
   const body=$("#adminOrganizationsRows");
   if(!body)return;
   body.innerHTML='<tr><td colspan="5">جارٍ تحميل المنشآت...</td></tr>';
-  const {data,error}=await supabase.from("organizations").select("id,name,industry,created_at").order("created_at",{ascending:false});
+  const {data,error}=await supabase.from("organizations").select("id,name,industry,business_type,created_at").order("created_at",{ascending:false});
   if(error){body.innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
   const rows=data||[];
   const grantOrg=$("#adminGrantOrg");
@@ -707,7 +747,7 @@ async function loadAdminSubscriptionAudit(){
   const requestRows=(requestsRes.data||[]).map(r=>{
     const details=[
       `الباقة: ${planName(r.plan_code)}`,
-      `المبلغ: ${Number(r.amount_sar||0).toLocaleString("ar-SA")} ر.س`,
+      `المبلغ: ${Number(r.amount_sar||0).toLocaleString("ar-SA-u-ca-gregory")} ر.س`,
       `الدفع: ${paymentLabels[r.payment_method]||r.payment_method||"—"}`,
       `الحالة: ${statusLabels[r.status]||r.status||"—"}`,
       r.transfer_reference?`مرجع التحويل: ${r.transfer_reference}`:"",
@@ -736,6 +776,128 @@ async function loadAdminSubscriptionAudit(){
     <td>${escapeHtml(r.actor)}</td>
   </tr>`).join(""):'<tr><td colspan="5">لا توجد عمليات اشتراك مسجلة بعد</td></tr>';
 }
+
+function adminDateRangeQuery(query, column="created_at"){
+  const start=$("#adminExportStart")?.value;
+  const end=$("#adminExportEnd")?.value;
+  if(start) query=query.gte(column,`${start}T00:00:00`);
+  if(end) query=query.lte(column,`${end}T23:59:59.999`);
+  return query;
+}
+function exportAdminRows(rows, sheetName, fileName){
+  if(!window.XLSX){message("#adminExportMessage","تعذر تحميل مكتبة Excel. حدّث الصفحة وحاول مجدداً.",true);return;}
+  const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{ملاحظة:"لا توجد بيانات ضمن الفترة المحددة"}]);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,sheetName.slice(0,31));
+  XLSX.writeFile(wb,fileName);
+  message("#adminExportMessage",`تم تجهيز ملف ${fileName}`,false);
+}
+function adminRangeFileSuffix(){
+  const start=$("#adminExportStart")?.value||"";
+  const end=$("#adminExportEnd")?.value||"";
+  if(start&&end&&start>end)throw new Error("تاريخ البداية يجب أن يسبق تاريخ النهاية.");
+  return `${start||"من_البداية"}_${end||"حتى_الآن"}`;
+}
+async function exportAdminSubscribers(){
+  if(!isPlatformAdmin)return;
+  try{adminRangeFileSuffix();}catch(e){message("#adminExportMessage",e.message,true);return;}
+  message("#adminExportMessage","جارٍ تجهيز تقرير المشتركين...",false);
+  let q=supabase.from("organization_subscriptions")
+    .select("organization_id,plan_code,status,starts_at,ends_at,payment_method,created_at,organizations(name,business_type),subscription_plans(name,price_sar,max_users,branch_limit)")
+    .order("created_at",{ascending:false});
+  q=adminDateRangeQuery(q);
+  const {data,error}=await q;
+  if(error){message("#adminExportMessage",error.message,true);return;}
+  const rows=(data||[]).map(x=>({
+    "المنشأة":x.organizations?.name||"",
+    "نوع النشاط":x.organizations?.business_type==="ecommerce"?"متجر إلكتروني":"فروع",
+    "الباقة":x.subscription_plans?.name||x.plan_code,
+    "السعر الشهري":x.subscription_plans?.price_sar??"",
+    "حد الفروع/المتاجر":x.subscription_plans?.branch_limit??"",
+    "حد المستخدمين":x.subscription_plans?.max_users??"",
+    "الحالة":subscriptionStatusLabels[x.status]||x.status,
+    "تاريخ البداية":adminDate(x.starts_at),
+    "تاريخ النهاية":adminDate(x.ends_at),
+    "طريقة الدفع":x.payment_method||"",
+    "تاريخ التسجيل":adminDate(x.created_at)
+  }));
+  exportAdminRows(rows,"المشتركون",`MIQYAS_Subscribers_${adminRangeFileSuffix()}.xlsx`);
+}
+async function exportAdminSubscriptionOps(){
+  if(!isPlatformAdmin)return;
+  try{adminRangeFileSuffix();}catch(e){message("#adminExportMessage",e.message,true);return;}
+  message("#adminExportMessage","جارٍ تجهيز سجل عمليات الاشتراكات...",false);
+  let q1=supabase.from("subscription_payment_requests")
+    .select("created_at,organization_id,plan_code,amount_sar,payment_method,status,gateway_checkout_id,transfer_reference,reviewed_at,reviewed_by,organizations(name)")
+    .order("created_at",{ascending:false});
+  let q2=supabase.from("organization_subscriptions")
+    .select("created_at,organization_id,plan_code,status,starts_at,ends_at,payment_method,organizations(name)")
+    .order("created_at",{ascending:false});
+  q1=adminDateRangeQuery(q1);q2=adminDateRangeQuery(q2);
+  const [a,b]=await Promise.all([q1,q2]);
+  if(a.error||b.error){message("#adminExportMessage",(a.error||b.error).message,true);return;}
+  const rows=[
+    ...(a.data||[]).map(x=>({"التاريخ":adminDate(x.created_at),"المنشأة":x.organizations?.name||"","نوع العملية":"طلب دفع/اشتراك","الباقة":planLabels[x.plan_code]||x.plan_code,"المبلغ":Number(x.amount_sar||0),"الحالة":requestStatusLabels[x.status]||x.status,"طريقة الدفع":x.payment_method||"","رقم العملية":x.gateway_checkout_id||x.transfer_reference||"","تاريخ المراجعة":adminDate(x.reviewed_at)})),
+    ...(b.data||[]).map(x=>({"التاريخ":adminDate(x.created_at),"المنشأة":x.organizations?.name||"","نوع العملية":"تسجيل اشتراك","الباقة":planLabels[x.plan_code]||x.plan_code,"المبلغ":"","الحالة":subscriptionStatusLabels[x.status]||x.status,"طريقة الدفع":x.payment_method||"","رقم العملية":"","تاريخ المراجعة":""}))
+  ].sort((x,y)=>String(y["التاريخ"]).localeCompare(String(x["التاريخ"])));
+  exportAdminRows(rows,"عمليات الاشتراكات",`MIQYAS_Subscription_Operations_${adminRangeFileSuffix()}.xlsx`);
+}
+async function exportAdminUserActivity(){
+  if(!isPlatformAdmin)return;
+  try{adminRangeFileSuffix();}catch(e){message("#adminExportMessage",e.message,true);return;}
+  message("#adminExportMessage","جارٍ تجهيز سجل حركة المستخدمين...",false);
+  let q=supabase.from("platform_activity_audit")
+    .select("created_at,actor_email,organization_name,action,table_name,record_id,details")
+    .order("created_at",{ascending:false});
+  q=adminDateRangeQuery(q);
+  const {data,error}=await q;
+  if(error){message("#adminExportMessage",`${error.message} — تحقق من تنفيذ MIQYAS_ACTIVITY_AUDIT.sql`,true);return;}
+  const labels={INSERT:"إضافة",UPDATE:"تعديل",DELETE:"حذف",LOGIN:"تسجيل دخول"};
+  const rows=(data||[]).map(x=>({
+    "التاريخ والوقت":x.created_at?new Date(x.created_at).toLocaleString("ar-SA-u-ca-gregory"):"",
+    "المستخدم":x.actor_email||"غير معروف",
+    "المنشأة":x.organization_name||"",
+    "العملية":labels[x.action]||x.action,
+    "الجدول":x.table_name||"",
+    "رقم السجل":x.record_id||"",
+    "التفاصيل":x.details?JSON.stringify(x.details):""
+  }));
+  exportAdminRows(rows,"حركة المستخدمين",`MIQYAS_User_Activity_${adminRangeFileSuffix()}.xlsx`);
+}
+async function loadPlatformInsights(){
+  if(!isPlatformAdmin)return;
+  const set=(id,value)=>{const el=$("#"+id);if(el)el.textContent=value;};
+  const body=$("#platformBranchMonitoringRows");
+  if(body)body.innerHTML='<tr><td colspan="8">جارٍ تحميل بيانات الفروع والتقييمات...</td></tr>';
+  const [orgs,subs,payments,branches,feedback]=await Promise.all([
+    supabase.from("organizations").select("id,name,business_type"),
+    supabase.from("organization_subscriptions").select("id,status"),
+    supabase.from("subscription_payment_requests").select("amount_sar,status"),
+    supabase.from("branches").select("id,organization_id,name,city"),
+    supabase.from("customer_feedback").select("branch_id,rating,created_at")
+  ]);
+  const err=[orgs,subs,payments,branches,feedback].find(x=>x.error);
+  if(err){if(body)body.innerHTML=`<tr><td colspan="8">${escapeHtml(err.error.message)}</td></tr>`;return;}
+  const orgRows=orgs.data||[], subRows=subs.data||[], payRows=payments.data||[], branchRows=branches.data||[], fbRows=feedback.data||[];
+  set("platformOrgCount",orgRows.length.toLocaleString("ar-SA-u-ca-gregory"));
+  set("platformActiveCount",subRows.filter(x=>x.status==="active").length.toLocaleString("ar-SA-u-ca-gregory"));
+  set("platformTrialCount",subRows.filter(x=>x.status==="trial").length.toLocaleString("ar-SA-u-ca-gregory"));
+  const collected=payRows.filter(x=>["paid","approved"].includes(x.status)).reduce((n,x)=>n+Number(x.amount_sar||0),0);
+  set("platformRevenue",`${collected.toLocaleString("ar-SA-u-ca-gregory")} ريال`);
+  set("platformBranchCount",branchRows.length.toLocaleString("ar-SA-u-ca-gregory"));
+  set("platformFeedbackCount",fbRows.length.toLocaleString("ar-SA-u-ca-gregory"));
+  const orgMap=new Map(orgRows.map(x=>[x.id,x.name||"منشأة"]));
+  const rows=branchRows.map(b=>{
+    const fs=fbRows.filter(f=>f.branch_id===b.id);
+    return `<tr><td>${escapeHtml(orgMap.get(b.organization_id)||"—")}</td><td>${escapeHtml(b.name||"—")}</td><td>${escapeHtml(b.city||"—")}</td><td>${fs.length}</td><td>${fs.filter(x=>x.rating==="positive").length}</td><td>${fs.filter(x=>x.rating==="neutral").length}</td><td>${fs.filter(x=>x.rating==="negative").length}</td><td>${fs.length?adminDate(fs.reduce((a,x)=>new Date(x.created_at)>new Date(a.created_at)?x:a).created_at):"—"}</td></tr>`;
+  });
+  if(body)body.innerHTML=rows.length?rows.join(""):'<tr><td colspan="8">لا توجد فروع مسجلة</td></tr>';
+}
+$("#exportSubscribersExcel")?.addEventListener("click",exportAdminSubscribers);
+$("#exportSubscriptionOpsExcel")?.addEventListener("click",exportAdminSubscriptionOps);
+$("#exportUserActivityExcel")?.addEventListener("click",exportAdminUserActivity);
+$("#refreshPlatformInsights")?.addEventListener("click",loadPlatformInsights);
+
 function openAdminSubscriptionEdit(id){
   if(!isPlatformAdmin)return;
   const s=adminSubscriptions.find(x=>x.id===id); if(!s)return;
@@ -895,10 +1057,10 @@ function render() {
     const rating=Number(s?.rating||0);
     const stars=Array.from({length:5},(_,i)=>`<span class="${i<Math.round(rating)?"is-filled":""}">★</span>`).join("");
     const count=Number(s?.user_rating_count||0);
-    const updated=s?.fetched_at?new Date(s.fetched_at).toLocaleString("ar-SA"):"لم يتم السحب بعد";
+    const updated=s?.fetched_at?new Date(s.fetched_at).toLocaleString("ar-SA-u-ca-gregory"):"لم يتم السحب بعد";
     return `<article class="gm-card">
       <div class="gm-card-head"><div><span class="gm-eyebrow">GOOGLE MAPS · MIQYAS</span><h3>${escapeHtml(b.name)}</h3><small>${escapeHtml([b.city,b.area].filter(Boolean).join(" · "))}</small></div><span class="gm-pin">📍</span></div>
-      ${s?`<div class="gm-score-row"><div class="gm-score">${rating.toFixed(1)}<small>/ 5</small></div><div class="gm-score-meta"><div class="gm-stars" aria-label="التقييم ${rating} من 5">${stars}</div><b>${count.toLocaleString("ar-SA")} تقييماً</b><small>آخر تحديث: ${escapeHtml(updated)}</small></div></div>
+      ${s?`<div class="gm-score-row"><div class="gm-score">${rating.toFixed(1)}<small>/ 5</small></div><div class="gm-score-meta"><div class="gm-stars" aria-label="التقييم ${rating} من 5">${stars}</div><b>${count.toLocaleString("ar-SA-u-ca-gregory")} تقييماً</b><small>آخر تحديث: ${escapeHtml(updated)}</small></div></div>
       <div class="gm-progress"><span style="width:${Math.max(0,Math.min(100,rating/5*100))}%"></span></div>
       <div class="gm-review-summary"><span>💬 ${reviews.length} تعليقات متاحة</span><span class="gm-live">● تم جلب البيانات</span></div>
       <details class="gm-reviews"><summary>عرض التعليقات والتفاصيل</summary>${reviews.length?reviews.map(r=>`<div class="review-item"><div class="gm-review-head"><b>${"★".repeat(Math.max(0,Math.min(5,Number(r.rating)||0)))}</b><span>${escapeHtml(r.author_name||"مستخدم Google")}</span></div><small>${escapeHtml(r.relative_time_description||"")}</small><p>${escapeHtml(r.text||"لا يوجد نص للتعليق")}</p></div>`).join(""):`<p class="gm-no-reviews">لا توجد تعليقات متاحة في هذه اللقطة.</p>`}</details>`:`<div class="gm-empty">لم يتم سحب بيانات التقييم لهذا الفرع بعد.</div>`}
@@ -910,13 +1072,13 @@ function render() {
 
   const qualityRows=filteredAssessments.map(x=>{
     const b=branches.find(z=>z.id===x.branch_id);
-    const types={voc:"صوت العميل (يدوي)",mystery_shopper:"المتسوق السري",internal:"تقييم داخلي"};
-    return {created_at:x.created_at,html:`<tr><td>${x.created_at?new Date(x.created_at).toLocaleString("ar-SA"):"—"}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>${types[x.assessment_type]||escapeHtml(x.assessment_type)}</td><td>${Number(x.positive_count||0)}</td><td>${Number(x.neutral_count||0)}</td><td>${Number(x.negative_count||0)}</td><td>${Math.round(Number(x.score)||0)}%</td><td>${escapeHtml(x.notes||"—")}</td></tr>`};
+    const types={voc:"صوت العميل (يدوي)",mystery_shopper:"سجل تاريخي غير متاح",internal:"تقييم داخلي"};
+    return {created_at:x.created_at,html:`<tr><td>${x.created_at?new Date(x.created_at).toLocaleString("ar-SA-u-ca-gregory"):"—"}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>${types[x.assessment_type]||escapeHtml(x.assessment_type)}</td><td>${Number(x.positive_count||0)}</td><td>${Number(x.neutral_count||0)}</td><td>${Number(x.negative_count||0)}</td><td>${Math.round(Number(x.score)||0)}%</td><td>${escapeHtml(x.notes||"—")}</td></tr>`};
   });
   const feedbackRows=filteredFeedback.map(x=>{
     const b=branches.find(z=>z.id===x.branch_id);
     const ratingLabel={positive:"إيجابي",neutral:"محايد",negative:"سلبي"};
-    return {created_at:x.created_at,html:`<tr><td>${x.created_at?new Date(x.created_at).toLocaleString("ar-SA"):"—"}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>QR</td><td>${x.rating==="positive"?1:0}</td><td>${x.rating==="neutral"?1:0}</td><td>${x.rating==="negative"?1:0}</td><td>${ratingLabel[x.rating]||"—"}</td><td>${escapeHtml(x.comment||"—")}</td></tr>`};
+    return {created_at:x.created_at,html:`<tr><td>${x.created_at?new Date(x.created_at).toLocaleString("ar-SA-u-ca-gregory"):"—"}</td><td>${escapeHtml(b?.name||"فرع")}</td><td>QR</td><td>${x.rating==="positive"?1:0}</td><td>${x.rating==="neutral"?1:0}</td><td>${x.rating==="negative"?1:0}</td><td>${ratingLabel[x.rating]||"—"}</td><td>${escapeHtml(x.comment||"—")}</td></tr>`};
   });
   qualityRows.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   feedbackRows.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
@@ -971,7 +1133,7 @@ function exportGoogleMapsBranchExcel(branchId){
   if(!branch||!snapshot){toast("لا توجد بيانات Google Maps لهذا الفرع بعد.");return;}
   if(!window.XLSX){toast("تعذر تحميل مكتبة Excel. أعد تحميل الصفحة.");return;}
   const reviews=Array.isArray(snapshot.reviews)?snapshot.reviews:[];
-  const summary=[["تقرير تقييمات Google Maps - MIQYAS"],["اسم الفرع",branch.name],["المدينة",branch.city||""],["المنطقة",branch.area||""],["رابط Google Maps",branch.google_maps_url||""],["اسم الموقع في Google",snapshot.place_name||""],["متوسط التقييم",snapshot.rating??""],["عدد تقييمات Google",snapshot.user_rating_count??0],["عدد التعليقات المرفقة",reviews.length],["تاريخ ووقت السحب",snapshot.fetched_at?new Date(snapshot.fetched_at).toLocaleString("ar-SA"):""],["ملاحظة","تعرض Google Places API مجموعة محدودة من المراجعات المختارة (حتى 5)، ولا تمثل كامل سجل التعليقات."]];
+  const summary=[["تقرير تقييمات Google Maps - MIQYAS"],["اسم الفرع",branch.name],["المدينة",branch.city||""],["المنطقة",branch.area||""],["رابط Google Maps",branch.google_maps_url||""],["اسم الموقع في Google",snapshot.place_name||""],["متوسط التقييم",snapshot.rating??""],["عدد تقييمات Google",snapshot.user_rating_count??0],["عدد التعليقات المرفقة",reviews.length],["تاريخ ووقت السحب",snapshot.fetched_at?new Date(snapshot.fetched_at).toLocaleString("ar-SA-u-ca-gregory"):""],["ملاحظة","تعرض Google Places API مجموعة محدودة من المراجعات المختارة (حتى 5)، ولا تمثل كامل سجل التعليقات."]];
   const comments=[["اسم صاحب التعليق","التقييم من 5","وقت النشر النسبي","تاريخ النشر","نص التعليق","رابط Google Maps"]];
   reviews.forEach(r=>comments.push([r.author_name||"مستخدم Google",r.rating??"",r.relative_time_description||"",r.publish_time||"",r.text||"",r.google_maps_uri||branch.google_maps_url||""]));
   const wb=XLSX.utils.book_new();
@@ -1114,7 +1276,7 @@ function exportExcelReport() {
   const qualityRows=[["التاريخ","الفرع","المنطقة / الحي","نوع سجل الجودة","إيجابي","محايد","سلبي","النتيجة / التصنيف","الملاحظات"]];
   filteredAssessments.forEach(x=>{
     const b=branches.find(y=>y.id===x.branch_id);
-    qualityRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"",({voc:"صوت العميل (يدوي)",mystery_shopper:"المتسوق السري",internal:"تقييم داخلي"})[x.assessment_type]||x.assessment_type,Number(x.positive_count||0),Number(x.neutral_count||0),Number(x.negative_count||0),`${Number(x.score||0)}%`,x.notes||""]);
+    qualityRows.push([x.created_at?new Date(x.created_at):"",b?.name||"",b?.area||"",({voc:"صوت العميل (يدوي)",mystery_shopper:"سجل تاريخي غير متاح",internal:"تقييم داخلي"})[x.assessment_type]||x.assessment_type,Number(x.positive_count||0),Number(x.neutral_count||0),Number(x.negative_count||0),`${Number(x.score||0)}%`,x.notes||""]);
   });
   const wb=XLSX.utils.book_new();
   const addSheet=(rows,name)=>{const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=rows[0].map((_,i)=>({wch:Math.min(38,Math.max(14,...rows.slice(0,80).map(r=>String(r[i]??"").length+2)))}));XLSX.utils.book_append_sheet(wb,ws,name);};
