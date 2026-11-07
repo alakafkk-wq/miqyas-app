@@ -27,6 +27,25 @@ let pendingSignupBusinessType = null;
 let currentMembershipRole = null;
 let currentUserLimit = null;
 
+
+// Header notifications: compact accessible popover. The existing realtime admin request
+// channel remains the source of live events; this UI does not invent notifications.
+function setNotificationNotice(text){
+  const box=$("#notificationItems");
+  if(box) box.innerHTML=`<p>${escapeHtml(text)}</p>`;
+}
+$("#notificationBell")?.addEventListener("click",()=>{
+  const pop=$("#notificationPopover"), bell=$("#notificationBell");
+  if(!pop||!bell)return;
+  const opening=pop.classList.contains("hidden");
+  pop.classList.toggle("hidden",!opening);
+  bell.setAttribute("aria-expanded",String(opening));
+});
+$("#closeNotifications")?.addEventListener("click",()=>{
+  $("#notificationPopover")?.classList.add("hidden");
+  $("#notificationBell")?.setAttribute("aria-expanded","false");
+});
+
 function toast(msg) {
   const el = $("#toast"); el.textContent = msg; el.classList.add("show");
   setTimeout(() => el.classList.remove("show"), 2600);
@@ -415,6 +434,7 @@ async function loadOwnerMembers(){
     if(planRes.error) throw planRes.error;
     const members=membersRes.data||[]; currentUserLimit=Number(planRes.data?.max_users||3);
     $("#ownerMemberUsage").textContent=`${members.length} من ${currentUserLimit} مستخدمين`;
+    const summaryCount=$("#ownerMemberSummaryCount"); if(summaryCount) summaryCount.textContent=`${members.length} من ${currentUserLimit} مستخدمين`;
     $("#ownerInviteSubmit").disabled=members.length>=currentUserLimit;
     $("#ownerMemberRows").innerHTML=members.map(m=>`<tr><td>${m.user_id===currentUser.id?"أنت (مالك المنشأة)":"مستخدم المنشأة"}</td><td>${escapeHtml(String(m.user_id||"").slice(0,8))}…</td><td>${({owner:"مالك المنشأة",manager:"مدير",supervisor:"مشرف",user:"مستخدم"}[m.role]||escapeHtml(m.role))}</td><td>${adminDate(m.created_at)}</td></tr>`).join("")||'<tr><td colspan="4">لا يوجد مستخدمون</td></tr>';
   }catch(err){panel.classList.add("hidden");console.warn("Owner members panel:",err);}
@@ -808,8 +828,15 @@ async function exportAdminSubscribers(){
   q=adminDateRangeQuery(q);
   const {data,error}=await q;
   if(error){message("#adminExportMessage",error.message,true);return;}
+  const phoneResult=await supabase.rpc("miqyas_admin_subscriber_phones");
+  if(phoneResult.error){
+    message("#adminExportMessage","تعذر جلب أرقام الجوال. شغّل ملف MIQYAS_SUBSCRIBER_PHONE_EXPORT.sql في Supabase ثم أعد التصدير.",true);
+    return;
+  }
+  const phoneByOrg=new Map((phoneResult.data||[]).map(x=>[x.organization_id,x.contact_phone||""]));
   const rows=(data||[]).map(x=>({
     "المنشأة":x.organizations?.name||"",
+    "رقم الجوال":phoneByOrg.get(x.organization_id)||"",
     "نوع النشاط":x.organizations?.business_type==="ecommerce"?"متجر إلكتروني":"فروع",
     "الباقة":x.subscription_plans?.name||x.plan_code,
     "السعر الشهري":x.subscription_plans?.price_sar??"",

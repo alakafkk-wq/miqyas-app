@@ -51,12 +51,44 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 .admin-export-tools input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}
 .admin-export-tools .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 @media(max-width:600px){.admin-export-tools .two{grid-template-columns:1fr}}
+
+/* Owner user management compact disclosure */
+.owner-members-panel{padding:0!important;overflow:hidden}
+.owner-members-details>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;list-style:none;cursor:pointer;padding:18px 20px;background:#f7fbf8}
+.owner-members-details>summary::-webkit-details-marker{display:none}
+.owner-members-details>summary:after{content:"＋";font-size:1.25rem;color:#087650;font-weight:700}
+.owner-members-details[open]>summary:after{content:"−"}
+.owner-members-details>summary strong{display:block;font-size:1.05rem}
+.owner-members-details>summary small{display:block;color:#718078;margin-top:4px}
+.owner-member-summary-count{background:#eaf6ef;color:#087650;padding:8px 12px;border-radius:22px;white-space:nowrap;font-size:.88rem}
+.owner-members-content{padding:18px 20px 22px}
+.owner-members-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.owner-members-intro p{margin:0;color:#718078}
+.owner-members-content .compact{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:760px){.owner-members-content .compact{grid-template-columns:repeat(2,minmax(0,1fr))}.owner-members-content .compact button,.owner-members-content .compact .message{grid-column:1/-1}}
+.notification-wrap{position:relative}
+.notification-bell{position:relative;border:1px solid #dce7e2;background:#fff;color:#087650;border-radius:50%;width:42px;height:42px;font-size:22px;cursor:pointer}
+.notification-badge{position:absolute;top:-5px;right:-5px;background:#d92d20;color:#fff;border-radius:20px;min-width:18px;height:18px;font-size:11px;line-height:18px}
+.notification-popover{position:absolute;z-index:1000;top:50px;left:0;width:min(340px,calc(100vw - 40px));padding:14px;background:#fff;border:1px solid #dce7e2;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.14)}
+.notification-popover-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e5ece8;padding-bottom:10px;margin-bottom:10px}
+.notification-popover p{margin:8px 0;line-height:1.7}
+
 </style>
 </head>
 <body>
 <header class="topbar">
   <div class="brand"><img class="logo-img" src="icon.svg" alt="شعار مقياس"><div><b>مقياس <span class="brand-en">MIQYAS</span></b><small>منصة قياس الجودة وتجربة العميل</small></div></div>
-  <div class="top-actions"><span id="connection" class="status">غير متصل</span><button id="signOut" class="ghost hidden">تسجيل الخروج</button></div>
+  <div class="top-actions">
+    <span id="connection" class="status">غير متصل</span>
+    <div class="notification-wrap">
+      <button id="notificationBell" class="notification-bell hidden" type="button" aria-label="الإشعارات" aria-expanded="false" title="الإشعارات">♧<span id="notificationBadge" class="notification-badge hidden">0</span></button>
+      <div id="notificationPopover" class="notification-popover hidden" role="dialog" aria-label="الإشعارات">
+        <div class="notification-popover-head"><strong>الإشعارات</strong><button id="closeNotifications" type="button" class="ghost">إغلاق</button></div>
+        <div id="notificationItems"><p class="muted">لا توجد إشعارات جديدة.</p></div>
+      </div>
+    </div>
+    <button id="signOut" class="ghost hidden">تسجيل الخروج</button>
+  </div>
 </header>
 
 <main class="wrap">
@@ -131,8 +163,8 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 
 <section id="appView" class="hidden">
   <div class="apphead"><div><span class="eyebrow">لوحة التحكم</span><h1 id="orgTitle">منشأتي</h1><p class="muted">متابعة مؤشرات الجودة وأداء الفروع</p></div><div class="actions"><button id="homeButton" class="outline" type="button">⌂ الرئيسية</button><button id="addBranchBtn" class="primary">＋ إضافة فرع</button></div></div>
-  <section class="panel hidden" id="ownerMembersPanel">
-    <div class="panelhead"><div><h2>إدارة مستخدمي المنشأة</h2><p>هذه الخدمة متاحة لمالك المنشأة فقط. تتم الدعوة إلى البريد الإلكتروني المسجل.</p></div><span class="sub-status" id="ownerMemberUsage">—</span></div>
+  <section class="panel hidden owner-members-panel" id="ownerMembersPanel"><details class="owner-members-details"><summary><span><strong>إدارة مستخدمي المنشأة</strong><small>إضافة المستخدمين ومراجعة الصلاحيات</small></span><span class="owner-member-summary-count" id="ownerMemberSummaryCount">إدارة المستخدمين</span></summary><div class="owner-members-content">
+    <div class="owner-members-intro"><p>هذه الخدمة متاحة لمالك المنشأة فقط. تتم الدعوة إلى البريد الإلكتروني المسجل.</p><span class="sub-status" id="ownerMemberUsage">—</span></div>
     <form id="ownerInviteForm" class="compact">
       <label>البريد الإلكتروني للمستخدم<input id="ownerInviteEmail" type="email" required maxlength="254" autocomplete="email" placeholder="user@example.com"></label>
       <label>اسم المستخدم<input id="ownerInviteName" required maxlength="100" placeholder="اسم الموظف"></label>
@@ -141,7 +173,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <p id="ownerInviteMessage" class="message" aria-live="polite">سيصل رابط إنشاء كلمة المرور إلى البريد الإلكتروني.</p>
     </form>
     <div class="tablewrap"><table><thead><tr><th>المستخدم</th><th>معرّف المستخدم</th><th>الصلاحية</th><th>تاريخ الإضافة</th></tr></thead><tbody id="ownerMemberRows"><tr><td colspan="4">جارٍ تحميل المستخدمين…</td></tr></tbody></table></div>
-  </section>
+  </div></details></section>
   <div class="stats" id="stats">
     <article class="stat"><span>الفروع</span><strong id="branchCount">0</strong><small>إجمالي الفروع</small></article>
     <article class="stat hidden"><span>سجلات الجودة</span><strong id="evalCount">0</strong><small>التقييمات الداخلية وسجلات الجودة</small></article>
