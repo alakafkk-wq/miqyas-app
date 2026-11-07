@@ -259,6 +259,23 @@ $("#forgotPasswordBtn")?.addEventListener("click",async()=>{
 $("#passwordRecoveryForm")?.addEventListener("submit",async e=>{e.preventDefault();const p=$("#newPassword").value,c=$("#confirmNewPassword").value;if(p.length<8){message("#recoveryMessage","كلمة المرور يجب ألا تقل عن 8 أحرف.",true);return;}if(p!==c){message("#recoveryMessage","كلمتا المرور غير متطابقتين.",true);return;}const btn=$("#saveNewPasswordBtn");setBusy(btn,true,"جارٍ الحفظ...");try{const {error}=await supabase.auth.updateUser({password:p});if(error)throw error;message("#recoveryMessage","تم تحديث كلمة المرور بنجاح.");$("#passwordRecoveryForm").classList.add("hidden");setTimeout(()=>{show("#authView");history.replaceState({},document.title,location.pathname);},1800);}catch(err){message("#recoveryMessage",err.message||"تعذر تحديث كلمة المرور. افتح رابط الاستعادة من البريد مرة أخرى.",true);}finally{setBusy(btn,false);}});
 supabase.auth.onAuthStateChange((event)=>{if(event==="PASSWORD_RECOVERY")show("#passwordRecoveryView");});
 if(new URLSearchParams(location.search).has("reset-password"))show("#passwordRecoveryView");
+$("#googleSignInBtn")?.addEventListener("click",async()=>{
+  const btn=$("#googleSignInBtn");
+  setBusy(btn,true,"جارٍ التحويل إلى Google...");
+  try{
+    const selectedType=document.querySelector('input[name="businessType"]:checked')?.value||"branches";
+    const redirectTo=new URL(location.pathname,location.origin);
+    redirectTo.searchParams.set("oauth_business_type",selectedType);
+    const {error}=await supabase.auth.signInWithOAuth({
+      provider:"google",
+      options:{redirectTo:redirectTo.toString(),queryParams:{prompt:"select_account"}}
+    });
+    if(error)throw error;
+  }catch(err){
+    message("#authMessage",err.message||"تعذر بدء تسجيل الدخول باستخدام Google.",true);
+    setBusy(btn,false);
+  }
+});
 $("#authForm").addEventListener("submit",async e=>{
   e.preventDefault();
   const btn=$("#authSubmit"); setBusy(btn,true);
@@ -295,6 +312,12 @@ $("#authForm").addEventListener("submit",async e=>{
 });
 async function handleSession(session) {
   currentUser=session?.user||null;
+  const oauthType=new URLSearchParams(location.search).get("oauth_business_type");
+  if(oauthType==="branches"||oauthType==="ecommerce"){
+    if(!currentUser?.user_metadata?.business_type) pendingSignupBusinessType=oauthType;
+    const cleanUrl=new URL(location.href);cleanUrl.searchParams.delete("oauth_business_type");
+    history.replaceState({},document.title,cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+  }
   if(!currentUser){show("#authView");return;}
   // Fetch the authoritative Supabase user metadata rather than relying on a stale session snapshot.
   try {

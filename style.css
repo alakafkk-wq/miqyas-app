@@ -171,3 +171,11 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
 .gm-card-actions .maps-link{font-size:13px}.gm-card-actions button{background:#087650;color:#fff;border:0;border-radius:12px;padding:10px 15px;font-weight:700;cursor:pointer}
 .gm-card-actions button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:520px){.gm-card{padding:16px}.gm-score{font-size:36px}.gm-card-actions>*{flex:1;text-align:center}}
+
+/* Google OAuth sign-in */
+.auth-divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--muted);font-size:13px}
+.auth-divider:before,.auth-divider:after{content:"";height:1px;background:var(--line);flex:1}
+.google-signin-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 16px;border:1px solid #dadce0;border-radius:12px;background:#fff;color:#3c4043;font-weight:600;font-size:15px;cursor:pointer;transition:background .15s,box-shadow .15s}
+.google-signin-btn:hover{background:#f8faff;box-shadow:0 1px 3px #0002}
+.google-signin-btn:disabled{opacity:.6;cursor:wait}
+.google-signin-btn svg{width:20px;height:20px;flex:0 0 20px}
