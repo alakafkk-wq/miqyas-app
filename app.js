@@ -939,6 +939,21 @@ $("#adminSubscriptionEditForm").addEventListener("submit",async e=>{
   finally{setBusy(btn,false);}
 });
 
+// Platform owner dashboard navigation: keep all existing controls and listeners intact.
+const adminTabButtons = [...document.querySelectorAll("[data-admin-tab]")];
+const adminTabPanels = [...document.querySelectorAll("[data-admin-panel]")];
+function activateAdminTab(name){
+  adminTabButtons.forEach(button=>{
+    const active=button.dataset.adminTab===name;
+    button.classList.toggle("active",active);
+    button.setAttribute("aria-selected",String(active));
+    button.tabIndex=active?0:-1;
+  });
+  adminTabPanels.forEach(panel=>{panel.hidden=panel.dataset.adminPanel!==name;});
+}
+adminTabButtons.forEach(button=>button.addEventListener("click",()=>activateAdminTab(button.dataset.adminTab)));
+if(adminTabButtons.length)activateAdminTab("overview");
+
 $("#platformAdminPanel").addEventListener("click",async e=>{
   const deleteOrg=e.target.closest("[data-delete-organization]");
   if(deleteOrg){

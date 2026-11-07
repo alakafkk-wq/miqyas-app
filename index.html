@@ -257,6 +257,15 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الباقة</th><th>المبلغ</th><th>طريقة الدفع</th><th>الحالة</th></tr></thead><tbody id="subscriptionRequestRows"><tr><td colspan="5">لا توجد طلبات بعد</td></tr></tbody></table></div>
     </div>
     <div id="platformAdminPanel" class="platform-admin hidden">
+      <nav class="admin-tabs" aria-label="أقسام إدارة المنصة" role="tablist">
+        <button type="button" class="admin-tab active" role="tab" aria-selected="true" data-admin-tab="overview">نظرة عامة</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="subscriptions">الاشتراكات والمشتركون</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="branches">الفروع والتقييمات</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="reports">التقارير والتصدير</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="organizations">المنشآت</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="logs">سجلات الحركة</button>
+      </nav>
+      <div class="admin-tab-panel" data-admin-panel="subscriptions">
       <div class="panelhead"><div><h2>إدارة طلبات الاشتراك</h2><p>مراجعة طلبات المنشآت وتفعيل الاشتراكات</p></div><div class="actions"><button type="button" class="outline" id="enableAdminNotifications">تفعيل إشعارات الطلبات</button><button type="button" class="outline" id="refreshSubscriptionRequests">تحديث الطلبات</button></div></div>
       <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody id="adminSubscriptionRows"><tr><td colspan="5">لا توجد طلبات معلقة</td></tr></tbody></table></div>
       <hr>
@@ -288,7 +297,8 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
         <div class="actions"><button type="submit" class="primary" id="saveAdminSubscription">حفظ التعديلات</button><button type="button" class="outline" id="cancelAdminSubscriptionEdit">إلغاء</button></div>
         <p id="adminSubscriptionEditMessage" class="message" aria-live="polite"></p>
       </form>
-      <hr>
+      </div>
+      <div class="admin-tab-panel" data-admin-panel="overview">
       <section class="admin-insights" aria-label="ملخص المنصة">
         <div class="panelhead"><div><h2>ملخص المنصة والفروع والتقييمات</h2><p>مؤشرات مجمعة لجميع المنشآت المسجلة</p></div><button type="button" class="outline" id="refreshPlatformInsights">تحديث الملخص</button></div>
         <div class="admin-kpi-grid">
@@ -299,10 +309,15 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
           <article class="stat"><span>عدد الفروع</span><strong id="platformBranchCount">—</strong></article>
           <article class="stat"><span>تقييمات العملاء</span><strong id="platformFeedbackCount">—</strong></article>
         </div>
+      </section>
+      </div>
+      <div class="admin-tab-panel" data-admin-panel="branches">
+        <section class="admin-insights admin-branch-insights" aria-label="متابعة الفروع والتقييمات">
         <h3>متابعة الفروع وتقييمات المشتركين</h3>
         <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الفرع</th><th>المدينة</th><th>عدد التقييمات</th><th>الإيجابي</th><th>المحايد</th><th>السلبي</th><th>آخر تقييم</th></tr></thead><tbody id="platformBranchMonitoringRows"><tr><td colspan="8">جارٍ تحميل المتابعة...</td></tr></tbody></table></div>
-      </section>
-      <hr>
+        </section>
+      </div>
+      <div class="admin-tab-panel" data-admin-panel="reports">
       <section class="admin-export-tools">
         <h2>تصدير تقارير المنصة إلى Excel</h2>
         <p>حدد فترة التقرير. يتم استخدام التاريخ الميلادي.</p>
@@ -317,15 +332,18 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
         </div>
         <p id="adminExportMessage" class="message" aria-live="polite"></p>
       </section>
+      </div>
+      <div class="admin-tab-panel" data-admin-panel="organizations">
       <div class="subscription-history">
-        <hr>
-      <div class="panelhead"><div><h2>إدارة جميع المنشآت</h2><p>حذف نهائي للمنشأة وبياناتها التابعة. حسابات الدخول لا تُحذف تلقائياً.</p></div><button type="button" class="outline" id="refreshAdminOrganizations">تحديث المنشآت</button></div>
+        <div class="panelhead"><div><h2>إدارة جميع المنشآت</h2><p>حذف نهائي للمنشأة وبياناتها التابعة. حسابات الدخول لا تُحذف تلقائياً.</p></div><button type="button" class="outline" id="refreshAdminOrganizations">تحديث المنشآت</button></div>
       <div class="tablewrap"><table><thead><tr><th>اسم المنشأة</th><th>النشاط</th><th>تاريخ التسجيل</th><th>ملاحظة</th><th>الإجراء</th></tr></thead><tbody id="adminOrganizationsRows"><tr><td colspan="5">جارٍ تحميل المنشآت...</td></tr></tbody></table></div>
-      <hr>
+      </div>
+      <div class="admin-tab-panel" data-admin-panel="logs">
       <div class="panelhead"><div><h2>سجل حركة المستخدمين</h2><p>متابعة عمليات الإضافة والتعديل والحذف وتسجيل الدخول على مستوى المنصة</p></div><button type="button" class="outline" id="refreshActivityAudit">تحديث السجل</button></div>
       <div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>المنشأة</th><th>العملية</th><th>الجدول</th><th>التفاصيل</th></tr></thead><tbody id="activityAuditRows"><tr><td colspan="6">نفّذ ملف SQL الخاص بسجل الحركة أولاً</td></tr></tbody></table></div>
       <h3>سجل عمليات الاشتراكات</h3>
         <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>المنشأة</th><th>العملية</th><th>التفاصيل</th><th>المنفذ</th></tr></thead><tbody id="adminSubscriptionAuditRows"><tr><td colspan="5">لا توجد عمليات بعد</td></tr></tbody></table></div>
+      </div>
       </div>
     </div>
   </section>

@@ -179,3 +179,19 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
 .google-signin-btn:hover{background:#f8faff;box-shadow:0 1px 3px #0002}
 .google-signin-btn:disabled{opacity:.6;cursor:wait}
 .google-signin-btn svg{width:20px;height:20px;flex:0 0 20px}
+
+
+/* Platform owner dashboard tabs */
+.admin-tabs{display:flex;gap:8px;overflow-x:auto;padding:8px 2px 14px;margin:0 0 20px;border-bottom:1px solid var(--line);scrollbar-width:thin;position:sticky;top:66px;background:#fff;z-index:4}
+.admin-tab{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;background:#f7faf8;color:var(--muted);padding:10px 16px;font-weight:600;white-space:nowrap;transition:.15s}
+.admin-tab.active{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 4px 12px #08734f20}
+.admin-tab:focus-visible{outline:3px solid #08734f44;outline-offset:2px}
+.admin-tab-panel{min-width:0;animation:adminTabIn .18s ease}
+.admin-tab-panel[hidden]{display:none!important}
+.admin-tab-panel>.panelhead:first-child{margin-top:4px}
+.admin-tab-panel .admin-insights{margin:0}
+.admin-tab-panel .admin-branch-insights{padding-top:4px}
+.admin-tab-panel .admin-export-tools{background:#f8fbf9;border:1px solid var(--line);border-radius:18px;padding:20px}
+.admin-tab-panel .admin-export-tools .actions{display:flex;flex-wrap:wrap;gap:10px}
+@keyframes adminTabIn{from{opacity:.65;transform:translateY(3px)}to{opacity:1;transform:none}}
+@media(max-width:680px){.admin-tabs{top:66px;margin-inline:-3px;padding-inline:3px}.admin-tab{padding:9px 13px;font-size:13px}.admin-tab-panel .admin-export-tools{padding:15px}.admin-tab-panel .panelhead{align-items:flex-start;gap:10px}}
