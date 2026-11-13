@@ -201,17 +201,18 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <option value="subscription">الاشتراك والباقات</option>
     </select>
   </section>
-  <section class="panel service-page hidden" id="ecommerceService">
-    <div class="panelhead"><div><h2>تقييم المتاجر الإلكترونية</h2><p>اربط متجرك عبر Webhook موحد أو API، ثم اجمع تقييمات ما بعد التسليم.</p></div><span class="sub-status">تكامل موحد</span></div>
-    <div class="service-grid">
-      <article class="service-card"><h3>المنصات المدعومة عبر Webhook/API</h3><p>سلة، زد، Shopify، WooCommerce، والمتاجر المبرمجة خصيصاً. يتطلب كل متجر إعداد Webhook أو موصل API معتمد.</p></article>
-      <article class="service-card"><h3>رحلة التقييم</h3><p>طلب مكتمل ← تأكيد التسليم ← دعوة تقييم ← تقييم العميل ← مؤشرات الأداء.</p></article>
-      <article class="service-card"><h3>معايير القياس</h3><p>جودة المنتج، التوصيل، التغليف، سهولة الشراء، خدمة العملاء، والرضا العام.</p></article>
+  <section class="ecommerce-workspace panel service-page hidden" id="ecommerceService">
+    <div class="ecom-welcome">
+      <div><span class="eyebrow">MIQYAS · E-COMMERCE</span><h2>إدارة تجربة متجرك</h2><p>تابع الطلبات والتقييمات واربط متاجرك من مكان واحد.</p></div>
+      <div class="ecom-welcome-mark" aria-hidden="true">↗</div>
+    </div>
+    <div class="ecom-journey-strip" aria-label="رحلة التقييم">
+      <span>الطلبات</span><b>←</b><span>التسليم</span><b>←</b><span>دعوة التقييم</span><b>←</b><span>رأي العميل</span>
     </div>
     <section class="ecom-dashboard" id="ecommerceReports" aria-labelledby="ecommerceReportsTitle">
       <div class="ecom-report-head">
-        <div><h3 id="ecommerceReportsTitle">تقارير المتاجر الإلكترونية</h3><p class="muted">لوحة موحدة لجميع المتاجر مع إمكانية اختيار متجر وفترة محددة</p></div>
-        <button type="button" class="outline" id="refreshEcommerceReports">تحديث التقارير</button>
+        <div><span class="ecom-section-kicker">لوحة الأداء</span><h3 id="ecommerceReportsTitle">ملخص أداء المتاجر</h3><p class="muted">الأرقام المعروضة مستمدة من السجلات الفعلية في حسابك.</p></div>
+        <button type="button" class="outline" id="refreshEcommerceReports">↻ تحديث البيانات</button>
       </div>
       <div class="ecom-filters">
         <label>المتجر<select id="ecomReportStore"><option value="">جميع المتاجر</option></select></label>
@@ -221,11 +222,11 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       </div>
       <p id="ecomReportMessage" class="message" aria-live="polite">تعرض اللوحة البيانات المسجلة فعلياً في MIQYAS.</p>
       <div class="ecom-kpis">
-        <article class="ecom-kpi"><span>إجمالي الطلبات</span><strong id="ecomOrdersKpi">0</strong></article>
-        <article class="ecom-kpi"><span>دعوات التقييم</span><strong id="ecomInvitesKpi">0</strong></article>
-        <article class="ecom-kpi"><span>التقييمات المستلمة</span><strong id="ecomReviewsKpi">0</strong></article>
-        <article class="ecom-kpi"><span>متوسط رضا العملاء</span><strong id="ecomSatisfactionKpi">—</strong></article>
-        <article class="ecom-kpi"><span>نسبة الاستجابة</span><strong id="ecomResponseKpi">—</strong></article>
+        <article class="ecom-kpi"><span>إجمالي الطلبات</span><strong id="ecomOrdersKpi">0</strong><small>الطلبات المسجلة</small></article>
+        <article class="ecom-kpi"><span>دعوات التقييم</span><strong id="ecomInvitesKpi">0</strong><small>الدعوات المنشأة</small></article>
+        <article class="ecom-kpi"><span>التقييمات المستلمة</span><strong id="ecomReviewsKpi">0</strong><small>آراء العملاء</small></article>
+        <article class="ecom-kpi"><span>متوسط رضا العملاء</span><strong id="ecomSatisfactionKpi">—</strong><small>من إجمالي خمس درجات</small></article>
+        <article class="ecom-kpi"><span>نسبة الاستجابة</span><strong id="ecomResponseKpi">—</strong><small>التقييمات إلى الدعوات</small></article>
       </div>
       <div class="ecom-report-grid">
         <article class="ecom-chart-card"><h4>تقييم عناصر التجربة</h4><div id="ecomQualityBars" class="ecom-bars"><p class="muted">لا توجد تقييمات بعد</p></div></article>
@@ -233,32 +234,33 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       </div>
       <div class="ecom-report-foot"><span id="ecomReportPeriod">الفترة: كل الفترات</span><button type="button" class="primary" id="exportEcommerceExcel">تصدير تقرير Excel</button></div>
     </section>
-    <div class="panel" style="margin-top:14px">
-      <h3>إضافة متجر</h3>
-      <form id="storeConnectForm" class="compact">
+    <section class="ecom-section-card">
+      <div class="ecom-section-heading"><div><span class="ecom-section-kicker">إدارة الربط</span><h3>متاجري المرتبطة</h3><p>تابع حالة الاتصال بكل منصة.</p></div><button type="button" class="outline" id="refreshStores">تحديث</button></div>
+      <div class="ecom-store-table tablewrap"><table><thead><tr><th>المتجر</th><th>المنصة</th><th>الحالة</th><th>تاريخ الإضافة</th><th>الإجراء</th></tr></thead><tbody id="ecommerceStoreRows"><tr><td colspan="5">لا توجد متاجر مضافة</td></tr></tbody></table></div>
+    </section>
+    <section class="ecom-section-card ecom-add-card">
+      <div class="ecom-section-heading"><div><span class="ecom-section-kicker">ابدأ الربط</span><h3>إضافة متجر جديد</h3><p>أدخل بيانات متجرك لبدء إعداد التكامل.</p></div><div class="ecom-add-icon" aria-hidden="true">＋</div></div>
+      <form id="storeConnectForm" class="compact ecom-add-form">
         <label>اسم المتجر<input id="storeName" required maxlength="120" placeholder="مثال: متجري الإلكتروني"></label>
         <label>منصة المتجر<select id="storePlatform" required><option value="salla">سلة</option><option value="zid">زد</option><option value="shopify">Shopify</option><option value="woocommerce">WooCommerce</option><option value="custom">متجر مبرمج / API خاص</option></select></label>
-        <label>رابط المتجر<input id="storeUrl" type="url" required placeholder="https://store.example"></label>
+        <label class="ecom-url-field">رابط المتجر<input id="storeUrl" type="url" required placeholder="https://store.example"></label>
         <button class="primary" type="submit" id="addStoreBtn">إضافة المتجر</button>
-        <p class="fine">بعد الإضافة ستظهر تعليمات إعداد Webhook. لا تضع مفاتيح API السرية في هذه الصفحة أو في ملفات JavaScript العامة.</p>
+        <p class="fine ecom-security-note">لا تضع مفاتيح API السرية في هذه الصفحة أو في ملفات JavaScript العامة.</p>
         <p id="storeMessage" class="message" aria-live="polite"></p>
       </form>
-    </div>
-    <div class="panel" style="margin-top:14px">
-      <div class="panelhead"><div><h3>متاجري المرتبطة</h3><p>حالة الربط وعدد دعوات التقييم</p></div><button type="button" class="outline" id="refreshStores">تحديث</button></div>
-      <div class="tablewrap"><table><thead><tr><th>المتجر</th><th>المنصة</th><th>الحالة</th><th>تاريخ الإضافة</th><th>الإجراء</th></tr></thead><tbody id="ecommerceStoreRows"><tr><td colspan="5">لا توجد متاجر مضافة</td></tr></tbody></table></div>
-    </div>
-    <div class="panel" style="margin-top:14px">
-      <h3>طريقة الربط</h3>
-      <ol>
-        <li>أضف المتجر أعلاه.</li>
-        <li>من لوحة المنصة أنشئ Webhook لأحداث الطلبات المكتملة أو المسلّمة.</li>
-        <li>وجّه الحدث إلى نقطة الاستقبال التي ستُفعّل بعد نشر Supabase Edge Function.</li>
-        <li>أرسل معرف الطلب وحالته وبريداً أو رقم تواصل للعميل وفق موافقته وسياسة الخصوصية.</li>
-        <li>يُنشئ مقياس دعوة تقييم مرتبطة بالطلب، ويمنع تكرار تقييم الطلب نفسه.</li>
-      </ol>
-      <p class="fine">هذه الحزمة تجهّز قاعدة التكامل وإدارة المتاجر. تفعيل استقبال Webhooks والإرسال الآلي يتطلب نشر الدالة وإعداد سرّ الربط وموفر الرسائل، ثم اختبار كل منصة على حدة.</p>
-    </div>
+    </section>
+    <details class="ecom-help-card">
+      <summary><span><strong>طريقة الربط والتكامل</strong><small>خطوات إعداد Webhook وحماية بيانات المتجر</small></span><b>＋</b></summary>
+      <div class="ecom-help-content">
+        <div class="service-grid">
+          <article class="service-card"><h3>المنصات المدعومة</h3><p>سلة، زد، Shopify، WooCommerce، والمتاجر المبرمجة عبر API أو Webhook بحسب إعداد كل منصة.</p></article>
+          <article class="service-card"><h3>رحلة التقييم</h3><p>طلب مكتمل ← تأكيد التسليم ← انتظار 24 ساعة ← دعوة تقييم ← تقييم العميل.</p></article>
+          <article class="service-card"><h3>معايير القياس</h3><p>جودة المنتج، التوصيل، التغليف، سهولة الشراء، خدمة العملاء، والرضا العام.</p></article>
+        </div>
+        <ol><li>أضف المتجر أعلاه.</li><li>من لوحة المنصة أنشئ Webhook لأحداث الطلبات المكتملة أو المسلّمة.</li><li>وجّه الحدث إلى نقطة الاستقبال المخصصة بعد إعداد التكامل.</li><li>تُرسل دعوة التقييم بعد تأكيد وقت التسليم الفعلي وانقضاء 24 ساعة، مع استبعاد الطلبات الملغاة.</li></ol>
+        <p class="fine">يجب اختبار كل منصة قبل تفعيل الدعوات التلقائية للعملاء.</p>
+      </div>
+    </details>
   </section>
   <section class="panel subscription-panel" id="subscriptionPanel">
     <div class="panelhead"><div><h2>الاشتراك والباقات</h2><p>اختر الباقة المناسبة لمنشأتك وأرسل طلب الاشتراك</p></div><span id="subscriptionStatus" class="sub-status">جارٍ التحقق...</span></div>

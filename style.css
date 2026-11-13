@@ -195,3 +195,61 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
 .admin-tab-panel .admin-export-tools .actions{display:flex;flex-wrap:wrap;gap:10px}
 @keyframes adminTabIn{from{opacity:.65;transform:translateY(3px)}to{opacity:1;transform:none}}
 @media(max-width:680px){.admin-tabs{top:66px;margin-inline:-3px;padding-inline:3px}.admin-tab{padding:9px 13px;font-size:13px}.admin-tab-panel .admin-export-tools{padding:15px}.admin-tab-panel .panelhead{align-items:flex-start;gap:10px}}
+
+/* MIQYAS ecommerce subscriber workspace redesign */
+.ecommerce-workspace{border:0;background:transparent;box-shadow:none;padding:0;overflow:visible}
+.ecom-welcome{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:25px 26px;margin:0 0 14px;border-radius:22px;background:linear-gradient(125deg,#07583f,#087a55);color:#fff;box-shadow:0 12px 30px #07583f20}
+.ecom-welcome .eyebrow{color:#bce9d3}.ecom-welcome h2{font-size:26px;margin:8px 0}.ecom-welcome p{margin:0;color:#d5eee2;line-height:1.7}
+.ecom-welcome-mark{width:56px;height:56px;display:grid;place-items:center;border:1px solid #ffffff55;border-radius:18px;font-size:34px;color:#fff;flex:none}
+.ecom-journey-strip{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;padding:13px 16px;margin-bottom:16px;background:#eaf5ef;border:1px solid #dcece2;border-radius:15px;color:#176a4d;font-size:13px;font-weight:600}
+.ecom-journey-strip b{color:#91b6a2}
+.ecommerce-workspace .ecom-dashboard{margin:0 0 16px;padding:21px;background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}
+.ecom-section-kicker{display:block;color:var(--green);font-size:11px;font-weight:700;letter-spacing:.3px;margin-bottom:5px}
+.ecommerce-workspace .ecom-report-head{align-items:center}
+.ecommerce-workspace .ecom-report-head h3,.ecom-section-heading h3{font-size:20px;margin:0 0 4px}
+.ecommerce-workspace .ecom-report-head p,.ecom-section-heading p{margin:0;color:var(--muted);font-size:13px;line-height:1.7}
+.ecommerce-workspace .ecom-kpi{padding:15px 14px;border-radius:15px;background:#f8fbf9;border-color:#e7eee9;min-width:0}
+.ecommerce-workspace .ecom-kpi span{min-height:0;line-height:1.5}
+.ecommerce-workspace .ecom-kpi strong{font-size:27px;margin:8px 0 3px}
+.ecommerce-workspace .ecom-kpi small{font-size:11px;color:var(--muted)}
+.ecommerce-workspace .ecom-chart-card{padding:17px;border-radius:15px}
+.ecom-section-card,.ecom-help-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:20px;margin:0 0 16px;box-shadow:var(--shadow)}
+.ecom-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
+.ecom-store-table{border:1px solid #edf1ee;border-radius:13px}
+.ecom-store-table table{min-width:600px}
+.ecom-add-card{background:linear-gradient(180deg,#fff,#fbfdfb)}
+.ecom-add-icon{width:45px;height:45px;display:grid;place-items:center;border-radius:14px;background:#eaf6ef;color:var(--green);font-size:27px;flex:none}
+.ecom-add-form{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
+.ecom-add-form label{margin:6px 0}
+.ecom-add-form .ecom-url-field,.ecom-add-form .ecom-security-note,.ecom-add-form #storeMessage{grid-column:1/-1}
+.ecom-add-form button{grid-column:1/-1;min-height:48px}
+.ecom-security-note{margin:0}
+.ecom-help-card{padding:0;overflow:hidden}
+.ecom-help-card>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;cursor:pointer}
+.ecom-help-card>summary::-webkit-details-marker{display:none}
+.ecom-help-card>summary strong,.ecom-help-card>summary small{display:block}
+.ecom-help-card>summary strong{font-size:16px}
+.ecom-help-card>summary small{color:var(--muted);margin-top:4px;font-size:12px}
+.ecom-help-card>summary>b{font-size:22px;color:var(--green)}
+.ecom-help-card[open]>summary{border-bottom:1px solid var(--line);background:#f8fbf9}
+.ecom-help-content{padding:18px 20px}
+.ecom-help-content ol{line-height:2.1;padding-inline-start:22px}
+@media(max-width:760px){
+ .ecommerce-workspace .ecom-dashboard{padding:15px;border-radius:17px}
+ .ecom-welcome{padding:20px 18px;border-radius:18px}
+ .ecom-welcome h2{font-size:22px}
+ .ecom-welcome-mark{width:46px;height:46px;font-size:28px}
+ .ecom-journey-strip{gap:7px;font-size:11px;padding:11px 8px}
+ .ecommerce-workspace .ecom-report-head{align-items:stretch}
+ .ecommerce-workspace .ecom-report-head .outline{width:100%}
+ .ecommerce-workspace .ecom-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .ecommerce-workspace .ecom-kpi{padding:13px 11px}
+ .ecommerce-workspace .ecom-kpi strong{font-size:24px}
+ .ecom-section-card{padding:15px;border-radius:17px}
+ .ecom-add-form{grid-template-columns:1fr;gap:2px}
+ .ecom-add-form .ecom-url-field,.ecom-add-form .ecom-security-note,.ecom-add-form #storeMessage,.ecom-add-form button{grid-column:1}
+ .ecom-section-heading{align-items:flex-start}
+ .ecom-section-heading .outline{padding:9px 12px}
+ .ecom-help-content{padding:14px}
+}
+@media(max-width:390px){.ecom-journey-strip{font-size:10px;gap:5px}.ecom-welcome-mark{display:none}}
