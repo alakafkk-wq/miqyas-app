@@ -121,7 +121,7 @@ async function loadEcommerceStores(){
     .select("id,store_name,platform,store_url,connection_status,created_at")
     .eq("organization_id",currentOrg.id).order("created_at",{ascending:false});
   if(error){body.innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
-  body.innerHTML=(data||[]).length?data.map(s=>`<tr><td>${escapeHtml(s.store_name)}</td><td>${escapeHtml(({salla:"سلة",zid:"زد",shopify:"Shopify",woocommerce:"WooCommerce",custom:"متجر خاص"})[s.platform]||s.platform)}</td><td>${s.connection_status==="connected"?"متصل":"بانتظار اختبار الربط"}</td><td>${adminDate(s.created_at)}</td><td><button type="button" class="danger" data-owner-delete-store="${s.id}" data-store-name="${escapeHtml(s.store_name)}">حذف</button></td></tr>`).join(""):'<tr><td colspan="5">لم تتم إضافة متاجر بعد</td></tr>';
+  body.innerHTML=(data||[]).length?data.map(s=>{const connect=s.platform==="salla"&&s.connection_status!=="connected"?`<a class="primary" style="display:inline-block;padding:7px 10px;border-radius:8px;text-decoration:none" href="https://s.salla.sa/apps/install/8658" target="_blank" rel="noopener noreferrer">ربط سلة</a>`:"";return `<tr><td>${escapeHtml(s.store_name)}</td><td>${escapeHtml(({salla:"سلة",zid:"زد",shopify:"Shopify",woocommerce:"WooCommerce",custom:"متجر خاص"})[s.platform]||s.platform)}</td><td>${s.connection_status==="connected"?"متصل":"بانتظار الربط"}</td><td>${adminDate(s.created_at)}</td><td>${connect} <button type="button" class="danger" data-owner-delete-store="${s.id}" data-store-name="${escapeHtml(s.store_name)}">حذف</button></td></tr>`;}).join(""):'<tr><td colspan="5">لم تتم إضافة متاجر بعد</td></tr>';
 }
 
 // MIQYAS v1.19: ecommerce reporting reads existing tables only; no schema or RLS changes.
@@ -201,13 +201,14 @@ $("#storeConnectForm")?.addEventListener("submit",async e=>{
   const btn=$("#addStoreBtn");setBusy(btn,true,"جارٍ إضافة المتجر...");
   try{
     const url=$("#storeUrl").value.trim();
+    const platform=$("#storePlatform").value;
     const parsed=new URL(url);if(parsed.protocol!=="https:")throw new Error("يجب أن يبدأ رابط المتجر بـ https://");
     const {error}=await supabase.from("ecommerce_stores").insert({
       organization_id:currentOrg.id,store_name:$("#storeName").value.trim(),
-      platform:$("#storePlatform").value,store_url:url,connection_status:"pending"
+      platform,store_url:url,connection_status:"pending"
     });
     if(error)throw error;
-    e.target.reset();message("#storeMessage","تم تسجيل المتجر. يلزم إعداد Webhook ونشر نقطة الاستقبال ثم اختبار الربط.");
+    e.target.reset();message("#storeMessage",platform==="salla"?"تم تسجيل المتجر. اضغط (ربط سلة) من قائمة المتاجر، ثم وافق على تثبيت تطبيق MIQYAS في سلة.":"تم تسجيل المتجر. سيتم تفعيل الربط بعد إعداد التكامل الخاص بالمنصة.");
     await loadEcommerceStores();
   }catch(err){message("#storeMessage",err.message||"تعذرت إضافة المتجر.",true);}
   finally{setBusy(btn,false);}
@@ -705,49 +706,38 @@ async function loadAdminSubscriptions(){
     await loadAdminSubscriptionAudit();
   }catch(err){
     if(timeoutId)clearTimeout(timeoutId);
-    body.innerHTML=`<tr><td colspan="8">${escapeHtml(err?.message||"تعذر تحميل المشتركين. أعد المحاولة.")}</td></tr>`;
+    body.innerHTML=`<tr><td colspan="6">${escapeHtml(err?.message||"تعذر تحميل المشتركين. أعد المحاولة.")}</td></tr>`;
   }
-}
-async function fetchAllAdminRows(makeQuery,pageSize=1000){
-  const all=[];let from=0;
-  while(true){
-    const {data,error}=await makeQuery().range(from,from+pageSize-1);
-    if(error)throw error;
-    const page=data||[];all.push(...page);
-    if(page.length<pageSize)break;
-    from+=pageSize;
-  }
-  return all;
 }
 async function loadAdminInventoryCounts(){
   if(!isPlatformAdmin)return;
-  const [branchRows,storeRows,feedbackRows]=await Promise.all([
-    fetchAllAdminRows(()=>supabase.from('branches').select('id,organization_id').order('id')),
-    fetchAllAdminRows(()=>supabase.from('ecommerce_stores').select('id,organization_id').order('id')),
-    fetchAllAdminRows(()=>supabase.from('customer_feedback').select('branch_id').order('branch_id'))
+  const [b,s,r]=await Promise.all([
+    supabase.from('branches').select('id,organization_id'),
+    supabase.from('ecommerce_stores').select('id,organization_id'),
+    supabase.from('customer_feedback').select('branch_id')
   ]);
+  const err=[b,s,r].find(x=>x.error);if(err)throw err.error;
   adminOrgInventory=new Map();
-  branchRows.forEach(x=>{const c=adminOrgInventory.get(x.organization_id)||{branches:0,stores:0,branchReviews:0};c.branches++;adminOrgInventory.set(x.organization_id,c);});
-  storeRows.forEach(x=>{const c=adminOrgInventory.get(x.organization_id)||{branches:0,stores:0,branchReviews:0};c.stores++;adminOrgInventory.set(x.organization_id,c);});
-  const branchOrg=new Map(branchRows.map(x=>[x.id,x.organization_id]));
-  feedbackRows.forEach(x=>{const org=branchOrg.get(x.branch_id);if(!org)return;const c=adminOrgInventory.get(org)||{branches:0,stores:0,branchReviews:0};c.branchReviews++;adminOrgInventory.set(org,c);});
+  (b.data||[]).forEach(x=>{const c=adminOrgInventory.get(x.organization_id)||{branches:0,stores:0,branchReviews:0};c.branches++;adminOrgInventory.set(x.organization_id,c);});
+  (s.data||[]).forEach(x=>{const c=adminOrgInventory.get(x.organization_id)||{branches:0,stores:0,branchReviews:0};c.stores++;adminOrgInventory.set(x.organization_id,c);});
+  const branchOrg=new Map((b.data||[]).map(x=>[x.id,x.organization_id]));
+  (r.data||[]).forEach(x=>{const org=branchOrg.get(x.branch_id);if(!org)return;const c=adminOrgInventory.get(org)||{branches:0,stores:0,branchReviews:0};c.branchReviews++;adminOrgInventory.set(org,c);});
 }
 async function exploreSubscriber(orgId){
   if(!isPlatformAdmin||!orgId)return;
   activeExplorerOrg=orgId;
   const msg=$('#adminExplorerMessage');if(msg)msg.textContent='جارٍ تحميل تفاصيل المنشأة...';
-  try{
-    const orgResult=await supabase.from('organizations').select('id,name,business_type').eq('id',orgId).single();
-    if(orgResult.error)throw orgResult.error;
-    const [branchRows,feedbackRows,storeRows,orderRows,reviewRows]=await Promise.all([
-      fetchAllAdminRows(()=>supabase.from('branches').select('id,name,city,created_at').eq('organization_id',orgId).order('created_at',{ascending:false})),
-      fetchAllAdminRows(()=>supabase.from('customer_feedback').select('id,branch_id,rating,comment,created_at').eq('organization_id',orgId).order('created_at',{ascending:false})),
-      fetchAllAdminRows(()=>supabase.from('ecommerce_stores').select('id,store_name,platform,connection_status,store_url,created_at').eq('organization_id',orgId).order('created_at',{ascending:false})),
-      fetchAllAdminRows(()=>supabase.from('ecommerce_orders').select('id,store_id,order_status,created_at,delivered_at').eq('organization_id',orgId).order('created_at',{ascending:false})),
-      fetchAllAdminRows(()=>supabase.from('ecommerce_reviews').select('id,store_id,product_quality,delivery_rating,packaging_rating,checkout_rating,support_rating,overall_rating,comment,created_at').eq('organization_id',orgId).order('created_at',{ascending:false}))
-    ]);
-    activeExplorerData={organization:orgResult.data,branches:branchRows,branchFeedback:feedbackRows,stores:storeRows,orders:orderRows,reviews:reviewRows};
-  }catch(err){if(msg)msg.textContent=`تعذر الاستعراض: ${err.message||'خطأ غير معروف'}`;return;}
+  const [org,b,f,stores,orders,reviews]=await Promise.all([
+    supabase.from('organizations').select('id,name,business_type').eq('id',orgId).single(),
+    supabase.from('branches').select('id,name,city').eq('organization_id',orgId).order('created_at',{ascending:false}),
+    supabase.from('customer_feedback').select('id,branch_id,rating,comment,created_at').eq('organization_id',orgId).order('created_at',{ascending:false}).limit(5000),
+    supabase.from('ecommerce_stores').select('id,store_name,platform,connection_status,store_url,created_at').eq('organization_id',orgId).order('created_at',{ascending:false}),
+    supabase.from('ecommerce_orders').select('id,store_id,order_status,created_at,delivered_at').eq('organization_id',orgId).order('created_at',{ascending:false}).limit(5000),
+    supabase.from('ecommerce_reviews').select('id,store_id,product_quality,delivery_rating,packaging_rating,checkout_rating,support_rating,overall_rating,comment,created_at').eq('organization_id',orgId).order('created_at',{ascending:false}).limit(5000)
+  ]);
+  const err=[org,b,f,stores,orders,reviews].find(x=>x.error);
+  if(err){if(msg)msg.textContent=`تعذر الاستعراض: ${err.error.message}`;return;}
+  activeExplorerData={organization:org.data,branches:b.data||[],branchFeedback:f.data||[],stores:stores.data||[],orders:orders.data||[],reviews:reviews.data||[]};
   const d=activeExplorerData,branchName=new Map(d.branches.map(x=>[x.id,x.name||'فرع'])),storeName=new Map(d.stores.map(x=>[x.id,x.store_name]));
   $('#explorerBranchCount').textContent=d.branches.length;$('#explorerStoreCount').textContent=d.stores.length;
   $('#explorerBranchReviews').textContent=d.branchFeedback.length;$('#explorerStoreReviews').textContent=d.reviews.length;
@@ -759,8 +749,7 @@ async function exploreSubscriber(orgId){
   $('#adminSubscriberExplorer')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function exportSelectedSubscriberExcel(){
-  if(!isPlatformAdmin||!activeExplorerData)return;
-  if(!window.XLSX){toast('مكتبة Excel غير متاحة. أعد تحميل الصفحة وحاول مجدداً.');return;}
+  if(!isPlatformAdmin||!activeExplorerData||!window.XLSX)return;
   const d=activeExplorerData,wb=XLSX.utils.book_new(),add=(name,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{ملاحظة:'لا توجد بيانات'}]),name.slice(0,31));
   const bName=new Map(d.branches.map(x=>[x.id,x.name||'فرع'])),sName=new Map(d.stores.map(x=>[x.id,x.store_name]));
   add('ملخص',[{المنشأة:d.organization.name,الفروع:d.branches.length,المتاجر:d.stores.length,تقييمات_الفروع:d.branchFeedback.length,تقييمات_المتاجر:d.reviews.length}]);
@@ -776,7 +765,7 @@ async function loadAdminOrganizations(){
   if(!isPlatformAdmin)return;
   const body=$("#adminOrganizationsRows");
   if(!body)return;
-  body.innerHTML='<tr><td colspan="7">جارٍ تحميل المنشآت...</td></tr>';
+  body.innerHTML='<tr><td colspan="5">جارٍ تحميل المنشآت...</td></tr>';
   const {data,error}=await supabase.from("organizations").select("id,name,industry,business_type,created_at").order("created_at",{ascending:false});
   if(error){body.innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
   const rows=data||[];
