@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta name="domain-verification" content="0af8286764c3a7b245a51bb22518c76be13b271e04637105062af030821654cf">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#086b4b">
@@ -247,7 +246,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
     </div>
     <div class="panel" style="margin-top:14px">
       <div class="panelhead"><div><h3>متاجري المرتبطة</h3><p>حالة الربط وعدد دعوات التقييم</p></div><button type="button" class="outline" id="refreshStores">تحديث</button></div>
-      <div class="tablewrap"><table><thead><tr><th>المتجر</th><th>المنصة</th><th>الحالة</th><th>تاريخ الإضافة</th></tr></thead><tbody id="ecommerceStoreRows"><tr><td colspan="4">لا توجد متاجر مضافة</td></tr></tbody></table></div>
+      <div class="tablewrap"><table><thead><tr><th>المتجر</th><th>المنصة</th><th>الحالة</th><th>تاريخ الإضافة</th><th>الإجراء</th></tr></thead><tbody id="ecommerceStoreRows"><tr><td colspan="5">لا توجد متاجر مضافة</td></tr></tbody></table></div>
     </div>
     <div class="panel" style="margin-top:14px">
       <h3>طريقة الربط</h3>
@@ -303,7 +302,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody id="adminSubscriptionRows"><tr><td colspan="5">لا توجد طلبات معلقة</td></tr></tbody></table></div>
       <hr>
       <div class="panelhead"><div><h2>إدارة المشتركين</h2><p>عرض الاشتراكات وتعديلها أو إيقافها أو إعادة تفعيلها أو حذف الاشتراك فقط مع الاحتفاظ ببيانات المنشأة.</p></div><button type="button" class="outline" id="refreshAdminSubscriptions">تحديث المشتركين</button></div>
-      <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>الحالة</th><th>بداية الاشتراك</th><th>نهاية الاشتراك</th><th>الإجراءات</th></tr></thead><tbody id="adminSubscribersRows"><tr><td colspan="6">جارٍ تحميل المشتركين...</td></tr></tbody></table></div>
+      <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>الحالة</th><th>بداية الاشتراك</th><th>نهاية الاشتراك</th><th>الفروع</th><th>المتاجر</th><th>الإجراءات</th></tr></thead><tbody id="adminSubscribersRows"><tr><td colspan="8">جارٍ تحميل المشتركين...</td></tr></tbody></table></div>
       <form id="adminFreeGrantForm" class="compact admin-subscription-form">
         <h3>منح اشتراك مجاني</h3>
         <div class="two">
@@ -340,6 +339,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
           <article class="stat"><span>الاشتراكات التجريبية</span><strong id="platformTrialCount">—</strong></article>
           <article class="stat"><span>الإيرادات المحصلة</span><strong id="platformRevenue">—</strong><small>من طلبات الدفع المؤكدة فقط</small></article>
           <article class="stat"><span>عدد الفروع</span><strong id="platformBranchCount">—</strong></article>
+          <article class="stat"><span>عدد المتاجر الإلكترونية</span><strong id="platformStoreCount">—</strong></article>
           <article class="stat"><span>تقييمات العملاء</span><strong id="platformFeedbackCount">—</strong></article>
         </div>
       </section>
@@ -369,7 +369,26 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <div class="admin-tab-panel" data-admin-panel="organizations">
       <div class="subscription-history">
         <div class="panelhead"><div><h2>إدارة جميع المنشآت</h2><p>حذف نهائي للمنشأة وبياناتها التابعة. حسابات الدخول لا تُحذف تلقائياً.</p></div><button type="button" class="outline" id="refreshAdminOrganizations">تحديث المنشآت</button></div>
-      <div class="tablewrap"><table><thead><tr><th>اسم المنشأة</th><th>النشاط</th><th>تاريخ التسجيل</th><th>ملاحظة</th><th>الإجراء</th></tr></thead><tbody id="adminOrganizationsRows"><tr><td colspan="5">جارٍ تحميل المنشآت...</td></tr></tbody></table></div>
+      <div class="tablewrap"><table><thead><tr><th>اسم المنشأة</th><th>النشاط</th><th>تاريخ التسجيل</th><th>الفروع</th><th>المتاجر</th><th>التقييمات</th><th>الإجراء</th></tr></thead><tbody id="adminOrganizationsRows"><tr><td colspan="7">جارٍ تحميل المنشآت...</td></tr></tbody></table></div>
+      <section class="panel" id="adminSubscriberExplorer" style="margin-top:18px">
+        <div class="panelhead"><div><h2>استعراض بيانات المشترك</h2><p>اختر استعراضاً من قائمة المنشآت لعرض الفروع والمتاجر والتقييمات وإصدار تقرير Excel.</p></div></div>
+        <p id="adminExplorerMessage" class="message" aria-live="polite">لم يتم اختيار منشأة بعد.</p>
+        <div class="admin-kpi-grid">
+          <article class="stat"><span>الفروع</span><strong id="explorerBranchCount">—</strong></article>
+          <article class="stat"><span>المتاجر</span><strong id="explorerStoreCount">—</strong></article>
+          <article class="stat"><span>تقييمات الفروع</span><strong id="explorerBranchReviews">—</strong></article>
+          <article class="stat"><span>تقييمات المتاجر</span><strong id="explorerStoreReviews">—</strong></article>
+        </div>
+        <div class="actions" style="margin:12px 0">
+          <button type="button" class="outline" id="exportSelectedSubscriberExcel" disabled>إصدار تقرير المشترك Excel</button>
+        </div>
+        <h3>الفروع وتقييماتها</h3>
+        <div class="tablewrap"><table><thead><tr><th>الفرع</th><th>المدينة</th><th>عدد التقييمات</th><th>آخر تقييم</th></tr></thead><tbody id="explorerBranchRows"><tr><td colspan="4">اختر منشأة للاستعراض</td></tr></tbody></table></div>
+        <h3>المتاجر الإلكترونية وتقييماتها</h3>
+        <div class="tablewrap"><table><thead><tr><th>المتجر</th><th>المنصة</th><th>الحالة</th><th>الطلبات</th><th>التقييمات</th><th>الإجراء</th></tr></thead><tbody id="explorerStoreRows"><tr><td colspan="6">اختر منشأة للاستعراض</td></tr></tbody></table></div>
+        <h3>آخر تقييمات المتاجر</h3>
+        <div class="tablewrap"><table><thead><tr><th>المتجر</th><th>جودة المنتج</th><th>التوصيل</th><th>التغليف</th><th>سهولة الشراء</th><th>خدمة العملاء</th><th>الرضا العام</th><th>التعليق</th><th>التاريخ</th></tr></thead><tbody id="explorerEcomReviewRows"><tr><td colspan="9">اختر منشأة للاستعراض</td></tr></tbody></table></div>
+      </section>
       </div>
       <div class="admin-tab-panel" data-admin-panel="logs">
       <div class="panelhead"><div><h2>سجل حركة المستخدمين</h2><p>متابعة عمليات الإضافة والتعديل والحذف وتسجيل الدخول على مستوى المنصة</p></div><button type="button" class="outline" id="refreshActivityAudit">تحديث السجل</button></div>

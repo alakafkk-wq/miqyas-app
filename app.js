@@ -19,6 +19,9 @@ let subscriptionPlans = [];
 let currentSubscription = null;
 let subscriptionRequests = [];
 let adminSubscriptions = [];
+let adminOrgInventory = new Map();
+let activeExplorerOrg = null;
+let activeExplorerData = null;
 let isPlatformAdmin = false;
 let adminRequestsChannel = null;
 let subscriptionAccessActive = false;
@@ -113,12 +116,12 @@ function setServiceView(name){
 }
 async function loadEcommerceStores(){
   const body=$("#ecommerceStoreRows"); if(!body||!currentOrg)return;
-  body.innerHTML='<tr><td colspan="4">جارٍ تحميل المتاجر...</td></tr>';
+  body.innerHTML='<tr><td colspan="5">جارٍ تحميل المتاجر...</td></tr>';
   const {data,error}=await supabase.from("ecommerce_stores")
     .select("id,store_name,platform,store_url,connection_status,created_at")
     .eq("organization_id",currentOrg.id).order("created_at",{ascending:false});
-  if(error){body.innerHTML=`<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;return;}
-  body.innerHTML=(data||[]).length?data.map(s=>`<tr><td>${escapeHtml(s.store_name)}</td><td>${escapeHtml(({salla:"سلة",zid:"زد",shopify:"Shopify",woocommerce:"WooCommerce",custom:"متجر خاص"})[s.platform]||s.platform)}</td><td>${s.connection_status==="connected"?"متصل":"بانتظار اختبار الربط"}</td><td>${adminDate(s.created_at)}</td></tr>`).join(""):'<tr><td colspan="4">لم تتم إضافة متاجر بعد</td></tr>';
+  if(error){body.innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
+  body.innerHTML=(data||[]).length?data.map(s=>`<tr><td>${escapeHtml(s.store_name)}</td><td>${escapeHtml(({salla:"سلة",zid:"زد",shopify:"Shopify",woocommerce:"WooCommerce",custom:"متجر خاص"})[s.platform]||s.platform)}</td><td>${s.connection_status==="connected"?"متصل":"بانتظار اختبار الربط"}</td><td>${adminDate(s.created_at)}</td><td><button type="button" class="danger" data-owner-delete-store="${s.id}" data-store-name="${escapeHtml(s.store_name)}">حذف</button></td></tr>`).join(""):'<tr><td colspan="5">لم تتم إضافة متاجر بعد</td></tr>';
 }
 
 // MIQYAS v1.19: ecommerce reporting reads existing tables only; no schema or RLS changes.
@@ -183,6 +186,15 @@ $("#clearEcomReportFilters")?.addEventListener('click',()=>{$("#ecomReportStore"
 $("#serviceSelect")?.addEventListener("change",e=>setServiceView(e.target.value));
 $("#homeButton")?.addEventListener("click",()=>{const s=$("#serviceSelect");if(s){s.value="dashboard";setServiceView("dashboard");}window.scrollTo({top:0,behavior:"smooth"});});
 $("#refreshStores")?.addEventListener("click",loadEcommerceStores);
+$("#ecommerceStoreRows")?.addEventListener("click",async e=>{
+  const btn=e.target.closest('[data-owner-delete-store]');if(!btn)return;
+  if(!currentOrg||!currentUser)return;
+  const name=btn.dataset.storeName||'المتجر';
+  if(!confirm(`سيتم حذف متجر "${name}" مع طلباته ودعواته وتقييماته. لا يمكن التراجع. هل تريد المتابعة؟`))return;
+  const typed=prompt(`للتأكيد اكتب اسم المتجر كما هو:\n${name}`);if(typed===null)return;if(typed.trim()!==name){toast('اسم المتجر غير مطابق. لم يتم الحذف.');return;}
+  btn.disabled=true;const {data,error}=await supabase.rpc('platform_delete_ecommerce_store',{p_store_id:btn.dataset.ownerDeleteStore,p_confirm_name:typed.trim()});btn.disabled=false;
+  if(error){toast(error.message||'تعذر حذف المتجر');return;}toast(data||'تم حذف المتجر');await loadEcommerceStores();await loadEcommerceReports();
+});
 $("#storeConnectForm")?.addEventListener("submit",async e=>{
   e.preventDefault();
   if(!isPlatformAdmin&&!subscriptionAccessActive){message("#storeMessage","إضافة متجر إلكتروني تتطلب اشتراكاً فعالاً.",true);return;}
@@ -680,28 +692,95 @@ async function loadAdminSubscriptions(){
     const {data,error}=result;
     if(error)throw error;
     adminSubscriptions=data||[];
-    body.innerHTML=adminSubscriptions.length?adminSubscriptions.map(s=>`<tr>
+    await loadAdminInventoryCounts();
+    body.innerHTML=adminSubscriptions.length?adminSubscriptions.map(s=>{const c=adminOrgInventory.get(s.organization_id)||{};return `<tr>
       <td>${escapeHtml(s.organizations?.name||"منشأة")}</td>
       <td>${escapeHtml(s.subscription_plans?.name||planLabels[s.plan_code]||s.plan_code)}</td>
       <td>${escapeHtml(subscriptionStatusLabels[s.status]||s.status)}</td>
       <td>${adminDate(s.starts_at)}</td><td>${adminDate(s.ends_at)}</td>
-      <td><button type="button" class="outline" data-admin-sub-edit="${s.id}">تعديل</button>
+      <td>${Number(c.branches||0)}</td><td>${Number(c.stores||0)}</td>
+      <td><button type="button" class="outline" data-explore-organization="${s.organization_id}">استعراض</button> <button type="button" class="outline" data-admin-sub-edit="${s.id}">تعديل</button>
       ${s.status==="paused"||s.status==="cancelled"||s.status==="expired"?`<button type="button" class="primary" data-admin-sub-action="reactivate" data-id="${s.id}">تفعيل</button>`:`<button type="button" class="outline" data-admin-sub-action="pause" data-id="${s.id}">إيقاف</button>`}
-      <button type="button" class="danger" data-admin-sub-action="delete" data-id="${s.id}">حذف</button></td></tr>`).join(""):'<tr><td colspan="6">لا توجد اشتراكات مسجلة حالياً</td></tr>';
+      <button type="button" class="danger" data-admin-sub-action="delete" data-id="${s.id}">حذف</button></td></tr>`;}).join(""):'<tr><td colspan="8">لا توجد اشتراكات مسجلة حالياً</td></tr>';
     await loadAdminSubscriptionAudit();
   }catch(err){
     if(timeoutId)clearTimeout(timeoutId);
-    body.innerHTML=`<tr><td colspan="6">${escapeHtml(err?.message||"تعذر تحميل المشتركين. أعد المحاولة.")}</td></tr>`;
+    body.innerHTML=`<tr><td colspan="8">${escapeHtml(err?.message||"تعذر تحميل المشتركين. أعد المحاولة.")}</td></tr>`;
   }
 }
+async function fetchAllAdminRows(makeQuery,pageSize=1000){
+  const all=[];let from=0;
+  while(true){
+    const {data,error}=await makeQuery().range(from,from+pageSize-1);
+    if(error)throw error;
+    const page=data||[];all.push(...page);
+    if(page.length<pageSize)break;
+    from+=pageSize;
+  }
+  return all;
+}
+async function loadAdminInventoryCounts(){
+  if(!isPlatformAdmin)return;
+  const [branchRows,storeRows,feedbackRows]=await Promise.all([
+    fetchAllAdminRows(()=>supabase.from('branches').select('id,organization_id').order('id')),
+    fetchAllAdminRows(()=>supabase.from('ecommerce_stores').select('id,organization_id').order('id')),
+    fetchAllAdminRows(()=>supabase.from('customer_feedback').select('branch_id').order('branch_id'))
+  ]);
+  adminOrgInventory=new Map();
+  branchRows.forEach(x=>{const c=adminOrgInventory.get(x.organization_id)||{branches:0,stores:0,branchReviews:0};c.branches++;adminOrgInventory.set(x.organization_id,c);});
+  storeRows.forEach(x=>{const c=adminOrgInventory.get(x.organization_id)||{branches:0,stores:0,branchReviews:0};c.stores++;adminOrgInventory.set(x.organization_id,c);});
+  const branchOrg=new Map(branchRows.map(x=>[x.id,x.organization_id]));
+  feedbackRows.forEach(x=>{const org=branchOrg.get(x.branch_id);if(!org)return;const c=adminOrgInventory.get(org)||{branches:0,stores:0,branchReviews:0};c.branchReviews++;adminOrgInventory.set(org,c);});
+}
+async function exploreSubscriber(orgId){
+  if(!isPlatformAdmin||!orgId)return;
+  activeExplorerOrg=orgId;
+  const msg=$('#adminExplorerMessage');if(msg)msg.textContent='جارٍ تحميل تفاصيل المنشأة...';
+  try{
+    const orgResult=await supabase.from('organizations').select('id,name,business_type').eq('id',orgId).single();
+    if(orgResult.error)throw orgResult.error;
+    const [branchRows,feedbackRows,storeRows,orderRows,reviewRows]=await Promise.all([
+      fetchAllAdminRows(()=>supabase.from('branches').select('id,name,city,created_at').eq('organization_id',orgId).order('created_at',{ascending:false})),
+      fetchAllAdminRows(()=>supabase.from('customer_feedback').select('id,branch_id,rating,comment,created_at').eq('organization_id',orgId).order('created_at',{ascending:false})),
+      fetchAllAdminRows(()=>supabase.from('ecommerce_stores').select('id,store_name,platform,connection_status,store_url,created_at').eq('organization_id',orgId).order('created_at',{ascending:false})),
+      fetchAllAdminRows(()=>supabase.from('ecommerce_orders').select('id,store_id,order_status,created_at,delivered_at').eq('organization_id',orgId).order('created_at',{ascending:false})),
+      fetchAllAdminRows(()=>supabase.from('ecommerce_reviews').select('id,store_id,product_quality,delivery_rating,packaging_rating,checkout_rating,support_rating,overall_rating,comment,created_at').eq('organization_id',orgId).order('created_at',{ascending:false}))
+    ]);
+    activeExplorerData={organization:orgResult.data,branches:branchRows,branchFeedback:feedbackRows,stores:storeRows,orders:orderRows,reviews:reviewRows};
+  }catch(err){if(msg)msg.textContent=`تعذر الاستعراض: ${err.message||'خطأ غير معروف'}`;return;}
+  const d=activeExplorerData,branchName=new Map(d.branches.map(x=>[x.id,x.name||'فرع'])),storeName=new Map(d.stores.map(x=>[x.id,x.store_name]));
+  $('#explorerBranchCount').textContent=d.branches.length;$('#explorerStoreCount').textContent=d.stores.length;
+  $('#explorerBranchReviews').textContent=d.branchFeedback.length;$('#explorerStoreReviews').textContent=d.reviews.length;
+  $('#explorerBranchRows').innerHTML=d.branches.length?d.branches.map(x=>{const rr=d.branchFeedback.filter(f=>f.branch_id===x.id);return `<tr><td>${escapeHtml(x.name||'—')}</td><td>${escapeHtml(x.city||'—')}</td><td>${rr.length}</td><td>${rr.length?adminDate(rr[0].created_at):'—'}</td></tr>`;}).join(''):'<tr><td colspan="4">لا توجد فروع</td></tr>';
+  $('#explorerStoreRows').innerHTML=d.stores.length?d.stores.map(x=>`<tr><td>${escapeHtml(x.store_name)}</td><td>${escapeHtml(x.platform)}</td><td>${escapeHtml(x.connection_status)}</td><td>${d.orders.filter(o=>o.store_id===x.id).length}</td><td>${d.reviews.filter(r=>r.store_id===x.id).length}</td><td><button type="button" class="danger" data-admin-delete-store="${x.id}" data-store-name="${escapeHtml(x.store_name)}">حذف المتجر</button></td></tr>`).join(''):'<tr><td colspan="6">لا توجد متاجر</td></tr>';
+  $('#explorerEcomReviewRows').innerHTML=d.reviews.length?d.reviews.map(x=>`<tr><td>${escapeHtml(storeName.get(x.store_id)||'—')}</td><td>${x.product_quality}/5</td><td>${x.delivery_rating}/5</td><td>${x.packaging_rating}/5</td><td>${x.checkout_rating}/5</td><td>${x.support_rating}/5</td><td>${x.overall_rating}/5</td><td>${escapeHtml(x.comment||'—')}</td><td>${adminDate(x.created_at)}</td></tr>`).join(''):'<tr><td colspan="9">لا توجد تقييمات متاجر مسجلة</td></tr>';
+  $('#exportSelectedSubscriberExcel').disabled=false;
+  if(msg)msg.textContent=`استعراض منشأة: ${d.organization.name||'منشأة'} — تم تحميل بياناتها المسجلة.`;
+  $('#adminSubscriberExplorer')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function exportSelectedSubscriberExcel(){
+  if(!isPlatformAdmin||!activeExplorerData)return;
+  if(!window.XLSX){toast('مكتبة Excel غير متاحة. أعد تحميل الصفحة وحاول مجدداً.');return;}
+  const d=activeExplorerData,wb=XLSX.utils.book_new(),add=(name,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{ملاحظة:'لا توجد بيانات'}]),name.slice(0,31));
+  const bName=new Map(d.branches.map(x=>[x.id,x.name||'فرع'])),sName=new Map(d.stores.map(x=>[x.id,x.store_name]));
+  add('ملخص',[{المنشأة:d.organization.name,الفروع:d.branches.length,المتاجر:d.stores.length,تقييمات_الفروع:d.branchFeedback.length,تقييمات_المتاجر:d.reviews.length}]);
+  add('الفروع',d.branches.map(x=>({الفرع:x.name,المدينة:x.city,عدد_التقييمات:d.branchFeedback.filter(f=>f.branch_id===x.id).length})));
+  add('تقييمات الفروع',d.branchFeedback.map(x=>({الفرع:bName.get(x.branch_id),التقييم:x.rating,التعليق:x.comment,التاريخ:x.created_at})));
+  add('المتاجر',d.stores.map(x=>({المتجر:x.store_name,المنصة:x.platform,الحالة:x.connection_status,الطلبات:d.orders.filter(o=>o.store_id===x.id).length,التقييمات:d.reviews.filter(r=>r.store_id===x.id).length})));
+  add('تقييمات المتاجر',d.reviews.map(x=>({المتجر:sName.get(x.store_id),جودة_المنتج:x.product_quality,التوصيل:x.delivery_rating,التغليف:x.packaging_rating,سهولة_الشراء:x.checkout_rating,خدمة_العملاء:x.support_rating,الرضا_العام:x.overall_rating,التعليق:x.comment,التاريخ:x.created_at})));
+  XLSX.writeFile(wb,`MIQYAS_${String(d.organization.name||'Subscriber').replace(/[^\w\u0600-\u06FF-]+/g,'_')}_Report.xlsx`);
+}
+$('#exportSelectedSubscriberExcel')?.addEventListener('click',exportSelectedSubscriberExcel);
+
 async function loadAdminOrganizations(){
   if(!isPlatformAdmin)return;
   const body=$("#adminOrganizationsRows");
   if(!body)return;
-  body.innerHTML='<tr><td colspan="5">جارٍ تحميل المنشآت...</td></tr>';
+  body.innerHTML='<tr><td colspan="7">جارٍ تحميل المنشآت...</td></tr>';
   const {data,error}=await supabase.from("organizations").select("id,name,industry,business_type,created_at").order("created_at",{ascending:false});
   if(error){body.innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
   const rows=data||[];
+  try{await loadAdminInventoryCounts();}catch(countErr){console.warn('Inventory counts:',countErr);}
   const grantOrg=$("#adminGrantOrg");
   if(grantOrg) grantOrg.innerHTML='<option value="">اختر المنشأة</option>'+rows.map(o=>`<option value="${o.id}" data-type="${o.business_type||"branches"}">${escapeHtml(o.name||"منشأة")}</option>`).join("");
   const grantPlan=$("#adminGrantPlan");
@@ -720,11 +799,11 @@ async function loadAdminOrganizations(){
       if(grantPlan) grantPlan.innerHTML='<option value="">اختر الباقة</option>'+opts.map(p=>`<option value="${escapeHtml(p.code)}">${escapeHtml(p.name)} – ${Number(p.price_sar)} ريال</option>`).join("");
     });
   }
-  body.innerHTML=rows.length?rows.map(o=>`<tr>
+  body.innerHTML=rows.length?rows.map(o=>{const c=adminOrgInventory.get(o.id)||{};return `<tr>
     <td>${escapeHtml(o.name||"—")}</td><td>${escapeHtml(o.industry||"—")}</td>
-    <td>${adminDate(o.created_at)}</td><td>${o.id===currentOrg?.id?"المنشأة الحالية":"—"}</td>
-    <td><button type="button" class="danger" data-delete-organization="${o.id}" data-org-name="${escapeHtml(o.name||"")}">حذف نهائي</button></td>
-  </tr>`).join(""):'<tr><td colspan="5">لا توجد منشآت مسجلة</td></tr>';
+    <td>${adminDate(o.created_at)}</td><td>${Number(c.branches||0)}</td><td>${Number(c.stores||0)}</td><td>${Number(c.branchReviews||0)}</td>
+    <td><button type="button" class="outline" data-explore-organization="${o.id}">استعراض</button> <button type="button" class="danger" data-delete-organization="${o.id}" data-org-name="${escapeHtml(o.name||"")}">حذف نهائي</button></td>
+  </tr>`;}).join(""):'<tr><td colspan="7">لا توجد منشآت مسجلة</td></tr>';
 }
 async function loadActivityAudit(){
   if(!isPlatformAdmin)return;
@@ -896,14 +975,16 @@ async function loadPlatformInsights(){
   const set=(id,value)=>{const el=$("#"+id);if(el)el.textContent=value;};
   const body=$("#platformBranchMonitoringRows");
   if(body)body.innerHTML='<tr><td colspan="8">جارٍ تحميل بيانات الفروع والتقييمات...</td></tr>';
-  const [orgs,subs,payments,branches,feedback]=await Promise.all([
+  const [orgs,subs,payments,branches,feedback,stores,ecomReviews]=await Promise.all([
     supabase.from("organizations").select("id,name,business_type"),
     supabase.from("organization_subscriptions").select("id,status"),
     supabase.from("subscription_payment_requests").select("amount_sar,status"),
     supabase.from("branches").select("id,organization_id,name,city"),
-    supabase.from("customer_feedback").select("branch_id,rating,created_at")
+    supabase.from("customer_feedback").select("branch_id,rating,created_at"),
+    supabase.from("ecommerce_stores").select("id,organization_id"),
+    supabase.from("ecommerce_reviews").select("id,organization_id")
   ]);
-  const err=[orgs,subs,payments,branches,feedback].find(x=>x.error);
+  const err=[orgs,subs,payments,branches,feedback,stores,ecomReviews].find(x=>x.error);
   if(err){if(body)body.innerHTML=`<tr><td colspan="8">${escapeHtml(err.error.message)}</td></tr>`;return;}
   const orgRows=orgs.data||[], subRows=subs.data||[], payRows=payments.data||[], branchRows=branches.data||[], fbRows=feedback.data||[];
   set("platformOrgCount",orgRows.length.toLocaleString("ar-SA-u-ca-gregory"));
@@ -912,7 +993,8 @@ async function loadPlatformInsights(){
   const collected=payRows.filter(x=>["paid","approved"].includes(x.status)).reduce((n,x)=>n+Number(x.amount_sar||0),0);
   set("platformRevenue",`${collected.toLocaleString("ar-SA-u-ca-gregory")} ريال`);
   set("platformBranchCount",branchRows.length.toLocaleString("ar-SA-u-ca-gregory"));
-  set("platformFeedbackCount",fbRows.length.toLocaleString("ar-SA-u-ca-gregory"));
+  set("platformFeedbackCount",(fbRows.length+(ecomReviews.data||[]).length).toLocaleString("ar-SA-u-ca-gregory"));
+  const storeKpi=document.getElementById('platformStoreCount');if(storeKpi)storeKpi.textContent=(stores.data||[]).length.toLocaleString('ar-SA-u-ca-gregory');
   const orgMap=new Map(orgRows.map(x=>[x.id,x.name||"منشأة"]));
   const rows=branchRows.map(b=>{
     const fs=fbRows.filter(f=>f.branch_id===b.id);
@@ -982,6 +1064,18 @@ adminTabButtons.forEach(button=>button.addEventListener("click",()=>activateAdmi
 if(adminTabButtons.length)activateAdminTab("overview");
 
 $("#platformAdminPanel").addEventListener("click",async e=>{
+  const explore=e.target.closest('[data-explore-organization]');
+  if(explore){if(!isPlatformAdmin)return;await exploreSubscriber(explore.dataset.exploreOrganization);return;}
+  const deleteStore=e.target.closest('[data-admin-delete-store]');
+  if(deleteStore){
+    if(!isPlatformAdmin)return;
+    const storeId=deleteStore.dataset.adminDeleteStore,storeName=deleteStore.dataset.storeName||'المتجر';
+    if(!confirm(`سيتم حذف متجر "${storeName}" مع الطلبات والدعوات والتقييمات التابعة له. لا يمكن التراجع. هل تريد المتابعة؟`))return;
+    const typed=prompt(`للتأكيد اكتب اسم المتجر كما هو:\n${storeName}`);if(typed===null)return;if(typed.trim()!==storeName){toast('اسم المتجر غير مطابق. لم يتم الحذف.');return;}
+    deleteStore.disabled=true;const {data,error}=await supabase.rpc('platform_delete_ecommerce_store',{p_store_id:storeId,p_confirm_name:typed.trim()});deleteStore.disabled=false;
+    if(error){toast(error.message||'تعذر حذف المتجر');return;}
+    toast(data||'تم حذف المتجر');await exploreSubscriber(activeExplorerOrg);await loadAdminOrganizations();await loadAdminSubscriptions();return;
+  }
   const deleteOrg=e.target.closest("[data-delete-organization]");
   if(deleteOrg){
     if(!isPlatformAdmin)return;
