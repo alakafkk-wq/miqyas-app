@@ -35,3 +35,6 @@
 - تُحذف بيانات المنشأة المرتبطة عبر علاقات CASCADE.
 - لا تُحذف حسابات Auth تلقائياً؛ قد تكون مرتبطة بمنشآت أخرى.
 - ملف MIQYAS_ORGANIZATION_DELETE.sql يعيد إنشاء وظيفة الحذف فقط ولا يحذف بيانات عند تشغيله.
+
+
+Update v1.21.5: branch feedback anti-duplicate protection without OTP. See README_BRANCH_FEEDBACK_ANTI_DUPLICATE_AR.txt.

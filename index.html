@@ -95,6 +95,9 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 <section id="publicFeedbackView" class="auth-card hidden">
   <div class="auth-intro"><span class="eyebrow">MIQYAS CUSTOMER VOICE</span><h1>شاركنا رأيك</h1><p id="publicBranchName">رأيك يساعدنا على تحسين الخدمة.</p></div>
   <form id="publicFeedbackForm">
+    <label for="publicPhone">رقم الجوال</label>
+    <input id="publicPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" required placeholder="05xxxxxxxx" aria-describedby="publicPhoneHelp">
+    <small id="publicPhoneHelp" class="fine">يُستخدم الرقم لمنع تكرار التقييم فقط، ولا يظهر للمنشأة.</small>
     <label>كيف كانت تجربتك؟</label>
     <div class="rating-options">
       <label><input type="radio" name="publicRating" value="positive" required><span>😍 راضٍ</span></label>

@@ -12,3 +12,6 @@ The subscription form now invokes the deployed Supabase Edge Function named miqy
 The browser redirects to the checkout_url returned by that function.
 
 Important: this frontend patch is prepared but not yet tested end-to-end against a successful Moyasar sandbox payment. Test with Moyasar test mode first.
+
+
+Update v1.21.5: branch feedback anti-duplicate protection without OTP. See README_BRANCH_FEEDBACK_ANTI_DUPLICATE_AR.txt.

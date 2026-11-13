@@ -252,10 +252,23 @@ async function initPublicFeedback(){
     try{
       const rating=document.querySelector('input[name="publicRating"]:checked')?.value;
       if(!rating) throw new Error("اختر تقييمك أولاً.");
-      const {error}=await supabase.rpc("submit_public_feedback",{
-        p_token:activeFeedbackToken,p_rating:rating,p_comment:$("#publicComment").value.trim()||null
+      const phone=$("#publicPhone").value.trim();
+      if(!phone) throw new Error("يرجى إدخال رقم الجوال.");
+      let deviceId=localStorage.getItem("miqyas_feedback_device_id");
+      if(!deviceId){
+        if(crypto.randomUUID) deviceId=crypto.randomUUID();
+        else deviceId="xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==="x"?r:(r&3|8)).toString(16);});
+        localStorage.setItem("miqyas_feedback_device_id",deviceId);
+      }
+      const {data,error}=await supabase.functions.invoke("branch-public-feedback",{
+        body:{token:activeFeedbackToken,rating,comment:$("#publicComment").value.trim()||null,phone,device_id:deviceId}
       });
-      if(error) throw error;
+      if(error){
+        let serverMessage="";
+        try{const response=error.context; if(response?.json){const payload=await response.json();serverMessage=payload?.error||"";}}catch(e){}
+        throw new Error(serverMessage||error.message||"تعذر إرسال التقييم.");
+      }
+      if(!data?.success) throw new Error(data?.error||"تعذر إرسال التقييم.");
       $("#publicFeedbackForm").classList.add("hidden");
       message("#publicFeedbackMessage","شكراً لك! تم استلام تقييمك بنجاح.");
     }catch(err){message("#publicFeedbackMessage",err.message||"تعذر إرسال التقييم. حاول مرة أخرى.",true);}
