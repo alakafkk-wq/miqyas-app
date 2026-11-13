@@ -1,133 +1,58 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const headers = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" };
+const jsonHeaders = { "Content-Type": "application/json", "Cache-Control": "no-store" };
+function page(title: string, body: string, status = 200) { return new Response(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>*{box-sizing:border-box}body{margin:0;background:#f4f7f5;font-family:Arial,sans-serif;color:#17372c}.wrap{max-width:650px;margin:28px auto;padding:18px}.card{background:#fff;border:1px solid #e2ebe6;border-radius:18px;padding:24px;box-shadow:0 8px 28px #17372c0d}h1{font-size:24px;margin:0 0 8px}.muted{color:#687a72}.field{padding:14px 0;border-bottom:1px solid #edf1ef}.field:last-of-type{border:0}label{display:block;font-weight:700;margin-bottom:9px}.stars{display:flex;gap:9px;flex-wrap:wrap}.stars label{font-weight:400;margin:0;cursor:pointer}.stars input{accent-color:#087a50;width:18px;height:18px;vertical-align:middle}textarea{width:100%;min-height:100px;border:1px solid #ccd9d2;border-radius:10px;padding:12px;font:inherit}button{border:0;background:#087a50;color:white;padding:14px 22px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;width:100%;margin-top:18px}button:disabled{opacity:.6}.notice{padding:13px;border-radius:10px;background:#f1f7f3;margin-top:14px}.brand{font-size:13px;color:#718178;margin-bottom:16px}</style></head><body><main class="wrap"><section class="card">${body}</section></main></body></html>`, { status, headers }); }
+function json(data: unknown, status = 200) { return new Response(JSON.stringify(data), { status, headers: jsonHeaders }); }
+async function sha256(value: string): Promise<string> { const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)); return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join(""); }
+function esc(value: unknown): string { return String(value ?? "").replace(/[&<>\"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!)); }
+const fields: Array<[string, string]> = [["product_quality","جودة المنتج"],["delivery_rating","سرعة وجودة التوصيل"],["packaging_rating","التغليف"],["checkout_rating","سهولة إتمام الشراء"],["support_rating","خدمة العملاء"],["overall_rating","رضاك العام"]];
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-
   try {
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace(/^Bearer\s+/i, "");
-    if (!token) return json({ error: "يجب تسجيل الدخول أولاً." }, 401);
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const googleKey = Deno.env.get("GOOGLE_MAPS_API_KEY")!;
-    if (!googleKey) return json({ error: "لم يتم إعداد مفتاح Google Maps API على الخادم." }, 500);
-
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-      auth: { persistSession: false },
-    });
-    const { data: userData, error: userError } = await userClient.auth.getUser(token);
-    if (userError || !userData.user) return json({ error: "جلسة الدخول غير صالحة." }, 401);
-
-    const { branch_id } = await req.json();
-    if (!branch_id) return json({ error: "معرّف الفرع مطلوب." }, 400);
-
-    const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
-    const { data: branch, error: branchError } = await admin
-      .from("branches")
-      .select("id,organization_id,name,city,area,google_maps_url")
-      .eq("id", branch_id).maybeSingle();
-    if (branchError || !branch) return json({ error: "الفرع غير موجود." }, 404);
-
-    const { data: membership } = await admin
-      .from("organization_members")
-      .select("id")
-      .eq("organization_id", branch.organization_id)
-      .eq("user_id", userData.user.id)
-      .maybeSingle();
-    if (!membership) return json({ error: "ليس لديك صلاحية الوصول إلى هذا الفرع." }, 403);
-    if (!branch.google_maps_url) return json({ error: "لا يوجد رابط Google Maps مسجل لهذا الفرع." }, 400);
-
-    // Resolve short Maps links and extract a human-readable location hint from the final URL.
-    let mapUrlHint = "";
-    try {
-      const mapResponse = await fetch(branch.google_maps_url, { method: "GET", redirect: "follow" });
-      const finalUrl = new URL(mapResponse.url || branch.google_maps_url);
-      const queryHint = finalUrl.searchParams.get("q") || finalUrl.searchParams.get("query") ||
-        finalUrl.searchParams.get("destination") || "";
-      const pathHint = decodeURIComponent(finalUrl.pathname).replace(/[+_]/g, " ").replace(/\\//g, " ");
-      mapUrlHint = `${queryHint} ${pathHint}`.replace(/\\s+/g, " ").slice(0, 300);
-      await mapResponse.body?.cancel();
-    } catch (_) {
-      mapUrlHint = branch.google_maps_url;
+    const url = Deno.env.get("SUPABASE_URL"), key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return req.method === "GET" ? page("تعذر فتح التقييم", "<h1>تعذر فتح الصفحة</h1><p class='muted'>يرجى المحاولة لاحقاً.</p>", 500) : json({ error: "Server configuration missing" }, 500);
+    const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const requestUrl = new URL(req.url);
+    const token = requestUrl.searchParams.get("token") || (req.method === "POST" ? (await req.clone().json().catch(() => ({}))).token : null);
+    if (!token || typeof token !== "string" || token.length < 32 || token.length > 200) return req.method === "GET" ? page("رابط غير صالح", "<h1>الرابط غير صالح</h1><p class='muted'>يرجى استخدام رابط الدعوة المرسل إليك.</p>", 400) : json({ error: "Invalid token" }, 400);
+    const tokenHash = await sha256(token);
+    const { data: invite, error } = await supabase.from("ecommerce_review_invites")
+      .select("id,organization_id,store_id,order_id,invite_status,expires_at,ecommerce_stores(store_name),ecommerce_orders(order_status)")
+      .eq("token_hash", tokenHash).maybeSingle();
+    const linkedOrder = invite ? (Array.isArray(invite.ecommerce_orders) ? invite.ecommerce_orders[0] : invite.ecommerce_orders) : null;
+    const isCancelled = /(cancel|refund|ملغ|مسترد)/.test(String(linkedOrder?.order_status ?? "").toLowerCase());
+    if (error || !invite || isCancelled || new Date(invite.expires_at).getTime() < Date.now() || !["sent", "completed"].includes(invite.invite_status)) {
+      return req.method === "GET" ? page("انتهت صلاحية الرابط", "<h1>الرابط غير متاح</h1><p class='muted'>قد يكون الرابط منتهياً أو مستخدماً أو غير صحيح.</p>", 404) : json({ error: "Invite expired or invalid" }, 404);
     }
+    if (invite.invite_status === "completed") return req.method === "GET" ? page("شكراً لك", "<h1>شكراً لمشاركتك!</h1><p class='muted'>تم استلام تقييمك مسبقاً. نقدر وقتك.</p>") : json({ error: "Review already submitted" }, 409);
 
-    // Search using both the registered branch details and the actual Maps URL hint.
-    const textQuery = [mapUrlHint, branch.name, branch.area, branch.city, "Saudi Arabia"].filter(Boolean).join(", ");
-    const searchResponse = await fetch("https://places.googleapis.com/v1/places:searchText", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": googleKey,
-        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.reviews",
-      },
-      body: JSON.stringify({ textQuery, languageCode: "ar", regionCode: "SA", pageSize: 5 }),
-    });
-    const searchData = await searchResponse.json();
-    if (!searchResponse.ok) {
-      return json({ error: searchData.error?.message || "تعذر البحث عن الموقع في Google Places." }, 502);
+    if (req.method === "GET") {
+      const store = Array.isArray(invite.ecommerce_stores) ? invite.ecommerce_stores[0] : invite.ecommerce_stores;
+      const inputs = fields.map(([name, label]) => `<div class="field"><label>${label}</label><div class="stars">${[1,2,3,4,5].map((n) => `<label><input type="radio" name="${name}" value="${n}" ${n === 5 ? "checked" : ""} required> ${n} ★</label>`).join("")}</div></div>`).join("");
+      const body = `<div class="brand">MIQYAS مقياس</div><h1>قيّم تجربتك مع ${esc(store?.store_name || "المتجر")}</h1><p class="muted">رأيك يساعد المتجر على تحسين خدماته. اختر تقييماً من 1 إلى 5 لكل بند.</p><form id="review"><input type="hidden" name="token" value="${esc(token)}">${inputs}<div class="field"><label for="comment">ملاحظات إضافية (اختياري)</label><textarea id="comment" name="comment" maxlength="1500" placeholder="اكتب ملاحظتك هنا..."></textarea></div><button id="send" type="submit">إرسال التقييم</button><div id="msg" class="notice" hidden></div></form><script>const f=document.getElementById('review'),b=document.getElementById('send'),m=document.getElementById('msg');f.addEventListener('submit',async e=>{e.preventDefault();b.disabled=true;b.textContent='جارٍ إرسال تقييمك...';try{const d=Object.fromEntries(new FormData(f).entries());for(const k of ['product_quality','delivery_rating','packaging_rating','checkout_rating','support_rating','overall_rating'])d[k]=Number(d[k]);const r=await fetch(location.href,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});const j=await r.json();if(!r.ok)throw new Error(j.error||'تعذر الإرسال');f.innerHTML='<h1>شكراً لك!</h1><p class="muted">تم استلام تقييمك بنجاح.</p>'; }catch(x){m.hidden=false;m.textContent=x.message||'حدث خطأ، حاول مرة أخرى.';b.disabled=false;b.textContent='إرسال التقييم';}});</script>`;
+      return page("تقييم تجربة المتجر", body);
     }
-
-    const candidates = searchData.places || [];
-    if (!candidates.length) return json({ error: "لم يتم العثور على موقع مطابق. تحقق من اسم الفرع ورابط Google Maps والمدينة." }, 404);
-
-    // Prefer a candidate whose name appears in the registered Maps URL; otherwise use the top text-search match.
-    const urlText = decodeURIComponent(branch.google_maps_url).toLowerCase();
-    const matched = candidates.find((p: any) =>
-      (p.displayName?.text || "").toLowerCase().split(/\s+/).some((w: string) => w.length > 3 && urlText.includes(w))
-    ) || candidates[0];
-
-    const reviews = (matched.reviews || []).map((r: any) => ({
-      author_name: r.authorAttribution?.displayName || "مستخدم Google",
-      rating: r.rating || null,
-      text: r.text?.text || r.originalText?.text || "",
-      relative_time_description: r.relativePublishTimeDescription || "",
-      publish_time: r.publishTime || null,
-      google_maps_uri: r.googleMapsUri || null,
-    }));
-
-    const payload = {
-      organization_id: branch.organization_id,
-      branch_id: branch.id,
-      place_id: matched.id,
-      place_name: matched.displayName?.text || null,
-      rating: matched.rating ?? null,
-      user_rating_count: matched.userRatingCount || 0,
-      reviews,
-      fetched_at: new Date().toISOString(),
-    };
-
-    const { error: saveError } = await admin
-      .from("google_maps_review_snapshots")
-      .upsert(payload, { onConflict: "branch_id" });
-    if (saveError) return json({ error: saveError.message }, 500);
-
-    return json({
-      ok: true,
-      place_id: payload.place_id,
-      place_name: payload.place_name,
-      rating: payload.rating,
-      user_rating_count: payload.user_rating_count,
-      reviews_count: reviews.length,
-      reviews,
+    if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+    const body = await req.json().catch(() => null);
+    if (!body) return json({ error: "Invalid JSON" }, 400);
+    const ratings: Record<string, number> = {};
+    for (const [name] of fields) { const value = Number(body[name]); if (!Number.isInteger(value) || value < 1 || value > 5) return json({ error: `Invalid ${name}` }, 400); ratings[name] = value; }
+    const comment = typeof body.comment === "string" ? body.comment.trim().slice(0, 1500) : null;
+    const { error: insertError } = await supabase.from("ecommerce_reviews").insert({
+      organization_id: invite.organization_id, store_id: invite.store_id, order_id: invite.order_id,
+      product_quality: ratings.product_quality, delivery_rating: ratings.delivery_rating,
+      packaging_rating: ratings.packaging_rating, checkout_rating: ratings.checkout_rating,
+      support_rating: ratings.support_rating, overall_rating: ratings.overall_rating, comment: comment || null,
     });
-  } catch (error) {
-    return json({ error: error?.message || "حدث خطأ غير متوقع." }, 500);
+    if (insertError) {
+      if (insertError.code === "23505") return json({ error: "Review already submitted" }, 409);
+      return json({ error: "Could not save review" }, 500);
+    }
+    await supabase.from("ecommerce_review_invites").update({ invite_status: "completed" }).eq("id", invite.id).eq("invite_status", "sent");
+    await supabase.from("ecommerce_review_invite_logs").insert({ organization_id: invite.organization_id, store_id: invite.store_id, order_id: invite.order_id, invite_id: invite.id, event_type: "completed", message: "Customer submitted a review" });
+    return json({ success: true });
+  } catch (_error) {
+    return req.method === "GET" ? page("حدث خطأ", "<h1>حدث خطأ</h1><p class='muted'>يرجى المحاولة لاحقاً.</p>", 500) : json({ error: "Request failed" }, 500);
   }
 });
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
