@@ -656,13 +656,32 @@ function startAdminRequestNotifications(){
     })
     .subscribe();
 }
+function urlBase64ToUint8Array(value){
+  const padding="=".repeat((4-value.length%4)%4);
+  const base64=(value+padding).replace(/-/g,"+").replace(/_/g,"/");
+  const raw=atob(base64);const output=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++)output[i]=raw.charCodeAt(i);
+  return output;
+}
 $("#enableAdminNotifications")?.addEventListener("click",async()=>{
-  if(!isPlatformAdmin){toast("هذه الميزة متاحة لمدير المنصة فقط.");return;}
-  if(!("Notification" in window)){toast("المتصفح لا يدعم إشعارات النظام؛ ستظهر التنبيهات داخل المنصة عند فتحها.");return;}
+  if(!isPlatformAdmin||!currentUser){toast("هذه الصلاحية لمدير المنصة فقط.");return;}
+  if(!("Notification" in window)||!("serviceWorker" in navigator)||!("PushManager" in window)){
+    toast("الإشعارات غير مدعومة في هذا المتصفح. على الآيفون ثبّت MIQYAS على الشاشة الرئيسية وافتحه منها.");return;
+  }
+  if(!cfg.VAPID_PUBLIC_KEY||cfg.VAPID_PUBLIC_KEY.includes("PASTE_")){
+    toast("يلزم إعداد مفتاح Web Push العام في config.js أولاً.");return;
+  }
   try{
     const permission=await Notification.requestPermission();
-    toast(permission==="granted"?"تم تفعيل إشعارات طلبات الاشتراك.":"لم يتم السماح بالإشعارات؛ ستظل التنبيهات داخل المنصة متاحة عند فتحها.");
-  }catch(e){toast("تعذر طلب إذن الإشعارات من المتصفح.");}
+    if(permission!=="granted"){toast("لم يتم السماح بالإشعارات. يمكنك السماح بها من إعدادات المتصفح.");return;}
+    const registration=await navigator.serviceWorker.ready;
+    let pushSubscription=await registration.pushManager.getSubscription();
+    if(!pushSubscription){pushSubscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(cfg.VAPID_PUBLIC_KEY)});}
+    const subscriptionJson=pushSubscription.toJSON();
+    const {error}=await supabase.from("miqyas_push_subscriptions").upsert({user_id:currentUser.id,endpoint:subscriptionJson.endpoint,subscription:subscriptionJson,user_agent:navigator.userAgent,updated_at:new Date().toISOString()},{onConflict:"endpoint"});
+    if(error)throw error;
+    toast("تم تفعيل إشعارات MIQYAS على هذا الجهاز بنجاح.");
+  }catch(e){console.error("MIQYAS push subscription error",e);toast("تعذر تفعيل الإشعارات: "+(e?.message||"تحقق من إعدادات Supabase"));}
 });
 function adminDate(value){
   if(!value)return "—";
@@ -1231,6 +1250,7 @@ function openBranchQr(branch, purpose){
     $("#copyFeedbackLink").textContent="نسخ رابط التقييم";
   }
   activeQrUrl=url; activeQrPurpose=purpose;
+  $("#qrOrganizationName").textContent=currentOrg?.name||"اسم المنشأة";
   $("#qrBranchTitle").textContent=branch.name;
   $("#qrUrlText").textContent=url;
   $("#qrCanvas").innerHTML="";
