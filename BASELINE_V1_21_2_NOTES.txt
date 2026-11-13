@@ -1,0 +1,7 @@
+Baseline used for this unified release:
+- MIQYAS_v1_21_2_ADMIN_UPDATE.zip (complete source bundle)
+- index.html and app.js replaced with the corresponding latest files from MIQYAS_v1_21_2_ADMIN_EXPLORER_RC.zip, preserving the admin subscriber explorer updates.
+- Added Salla connect action to pending Salla stores using Salla App ID 8658.
+- Added three Supabase Edge Functions and additive ecommerce SQL/cron setup files.
+- No changes to existing branch QR public feedback function or route.
+- Review the README_ECOMMERCE_RELEASE_AR.txt before deployment.
