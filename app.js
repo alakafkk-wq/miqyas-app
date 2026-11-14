@@ -481,10 +481,46 @@ $("#ownerInviteForm")?.addEventListener("submit",async e=>{
   finally{setBusy(btn,false);}
 });
 
+
+// MIQYAS v1.21.6: count authenticated platform workspace visits only.
+// No email, phone, auth user ID, IP address, or page-level personal data is stored.
+function getOrCreateBrowserVisitorId(){
+  const key="miqyas_visitor_id_v1";
+  let id="";
+  try{id=localStorage.getItem(key)||"";}catch(_){}
+  if(!/^[0-9a-f-]{36}$/i.test(id)){
+    id=crypto.randomUUID();
+    try{localStorage.setItem(key,id);}catch(_){}
+  }
+  return id;
+}
+function getOrCreateVisitSessionId(){
+  const key="miqyas_visit_session_v1";
+  let id="";
+  try{id=sessionStorage.getItem(key)||"";}catch(_){}
+  if(!/^[0-9a-f-]{36}$/i.test(id)){
+    id=crypto.randomUUID();
+    try{sessionStorage.setItem(key,id);}catch(_){}
+  }
+  return id;
+}
+async function recordPlatformWorkspaceVisit(){
+  if(!currentUser||!currentOrg||isPlatformAdmin)return;
+  try{
+    const {error}=await supabase.rpc("miqyas_record_platform_visit",{
+      p_visitor_id:getOrCreateBrowserVisitorId(),
+      p_session_id:getOrCreateVisitSessionId(),
+      p_business_type:getBusinessType()
+    });
+    if(error)console.warn("MIQYAS visitor analytics:",error.message);
+  }catch(err){console.warn("MIQYAS visitor analytics unavailable:",err);}
+}
+
 async function loadWorkspace() {
   $("#orgTitle").textContent=currentOrg.name;
   show("#appView");
   await loadSubscriptionData();
+  await recordPlatformWorkspaceVisit();
   await loadOwnerMembers();
   applySubscriptionGate();
   if(subscriptionAccessActive){
@@ -547,6 +583,7 @@ async function loadSubscriptionData(){
       await loadAdminOrganizations();
       await loadActivityAudit();
       await loadPlatformInsights();
+      await loadPlatformVisitorStats();
       startAdminRequestNotifications();
     }
     return subscriptionAccessActive;
@@ -1023,6 +1060,77 @@ async function loadPlatformInsights(){
   });
   if(body)body.innerHTML=rows.length?rows.join(""):'<tr><td colspan="8">لا توجد فروع مسجلة</td></tr>';
 }
+
+function visitorDateRange(){
+  const start=$("#visitorReportStart")?.value||"";
+  const end=$("#visitorReportEnd")?.value||"";
+  if(start&&end&&start>end)throw new Error("تاريخ البداية يجب أن يسبق تاريخ النهاية.");
+  return {start:start||null,end:end||null};
+}
+let platformVisitorDailyCache=[];
+let platformVisitorSummaryCache=null;
+async function loadPlatformVisitorStats(){
+  if(!isPlatformAdmin)return;
+  const body=$("#platformVisitorDailyRows");
+  if(body)body.innerHTML='<tr><td colspan="3">جارٍ تحميل الإحصائيات...</td></tr>';
+  try{
+    const {start,end}=visitorDateRange();
+    const [daily,summary]=await Promise.all([
+      supabase.rpc("miqyas_admin_platform_visitor_daily",{p_start:start,p_end:end}),
+      supabase.rpc("miqyas_admin_platform_visitor_summary",{p_start:start,p_end:end})
+    ]);
+    if(daily.error)throw daily.error;
+    if(summary.error)throw summary.error;
+    platformVisitorDailyCache=daily.data||[];
+    platformVisitorSummaryCache=summary.data?.[0]||summary.data||{};
+    const s=platformVisitorSummaryCache;
+    const fmt=v=>Number(v||0).toLocaleString("ar-SA-u-ca-gregory");
+    $("#visitorTotalVisits").textContent=fmt(s.total_visits);
+    $("#visitorUniqueCount").textContent=fmt(s.unique_visitors);
+    $("#visitorReturningCount").textContent=fmt(s.returning_visitors);
+    body.innerHTML=platformVisitorDailyCache.length?platformVisitorDailyCache.map(r=>`<tr><td>${escapeHtml(r.visit_date)}</td><td>${fmt(r.visits)}</td><td>${fmt(r.unique_visitors)}</td></tr>`).join(""):'<tr><td colspan="3">لا توجد زيارات مسجلة ضمن الفترة المحددة. يبدأ التسجيل بعد نشر التحديث وتنفيذ SQL.</td></tr>';
+    message("#visitorReportMessage","تم تحديث إحصائيات زوار المنصة.",false);
+  }catch(err){
+    if(body)body.innerHTML=`<tr><td colspan="3">${escapeHtml(err.message||"تعذر تحميل الإحصائيات")}</td></tr>`;
+    message("#visitorReportMessage",`${err.message||"تعذر تحميل الإحصائيات"} — تحقق من تنفيذ MIQYAS_PLATFORM_VISITOR_ANALYTICS.sql`,true);
+  }
+}
+function exportPlatformVisitorsExcel(){
+  if(!isPlatformAdmin)return;
+  if(!window.XLSX){message("#visitorReportMessage","تعذر تحميل مكتبة Excel. حدّث الصفحة وحاول مجدداً.",true);return;}
+  try{visitorDateRange();}catch(err){message("#visitorReportMessage",err.message,true);return;}
+  const daily=platformVisitorDailyCache.map(r=>({
+    "التاريخ":r.visit_date,
+    "عدد الزيارات":Number(r.visits||0),
+    "الزوار الفريدون":Number(r.unique_visitors||0)
+  }));
+  const s=platformVisitorSummaryCache||{};
+  const summary=[
+    ["تقرير زوار منصة MIQYAS"],
+    ["من تاريخ",$("#visitorReportStart")?.value||"من بداية التسجيل"],
+    ["إلى تاريخ",$("#visitorReportEnd")?.value||"حتى الآن"],
+    ["إجمالي الزيارات",Number(s.total_visits||0)],
+    ["الزوار الفريدون",Number(s.unique_visitors||0)],
+    ["الزوار العائدون",Number(s.returning_visitors||0)],
+    ["نطاق القياس","مساحة المنصة بعد تسجيل الدخول فقط"],
+    ["ملاحظة","لا يشمل الموقع التعريفي أو روابط تقييم QR العامة. الزائر الفريد معرف متصفح مجهول وقد لا يساوي شخصاً واحداً."]
+  ];
+  const wb=XLSX.utils.book_new();
+  const ws1=XLSX.utils.aoa_to_sheet(summary);
+  ws1["!cols"]=[{wch:30},{wch:75}];
+  const ws2=XLSX.utils.json_to_sheet(daily.length?daily:[{"ملاحظة":"لا توجد زيارات ضمن الفترة المحددة"}]);
+  ws2["!cols"]=[{wch:20},{wch:18},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws1,"ملخص الزوار");
+  XLSX.utils.book_append_sheet(wb,ws2,"الزيارات اليومية");
+  const {start,end}=visitorDateRange();
+  XLSX.writeFile(wb,`MIQYAS_Platform_Visitors_${start||"all"}_${end||"today"}.xlsx`);
+  message("#visitorReportMessage","تم تجهيز تقرير زوار المنصة Excel.",false);
+}
+$("#refreshPlatformVisitors")?.addEventListener("click",loadPlatformVisitorStats);
+$("#exportPlatformVisitorsExcel")?.addEventListener("click",exportPlatformVisitorsExcel);
+$("#visitorReportStart")?.addEventListener("change",loadPlatformVisitorStats);
+$("#visitorReportEnd")?.addEventListener("change",loadPlatformVisitorStats);
+
 $("#exportSubscribersExcel")?.addEventListener("click",exportAdminSubscribers);
 $("#exportSubscriptionOpsExcel")?.addEventListener("click",exportAdminSubscriptionOps);
 $("#exportUserActivityExcel")?.addEventListener("click",exportAdminUserActivity);

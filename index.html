@@ -299,6 +299,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
         <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="subscriptions">الاشتراكات والمشتركون</button>
         <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="branches">الفروع والتقييمات</button>
         <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="reports">التقارير والتصدير</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="visitors">📊 إحصائيات الزوار</button>
         <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="organizations">المنشآت</button>
         <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="logs">سجلات الحركة</button>
       </nav>
@@ -370,6 +371,32 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
         </div>
         <p id="adminExportMessage" class="message" aria-live="polite"></p>
       </section>
+      </div>
+
+      <div class="admin-tab-panel" data-admin-panel="visitors">
+        <section class="admin-insights" aria-label="إحصائيات زوار منصة مقياس">
+          <div class="panelhead">
+            <div><h2>إحصائيات زوار منصة MIQYAS</h2><p>تُحتسب زيارات مساحة المنصة بعد تسجيل الدخول فقط. لا تشمل الموقع التعريفي أو روابط تقييم QR العامة.</p></div>
+            <button type="button" class="outline" id="refreshPlatformVisitors">تحديث الإحصائيات</button>
+          </div>
+          <div class="admin-export-tools">
+            <div class="two">
+              <label>من تاريخ<input type="date" id="visitorReportStart"></label>
+              <label>إلى تاريخ<input type="date" id="visitorReportEnd"></label>
+            </div>
+            <div class="admin-kpi-grid">
+              <article class="stat"><span>إجمالي الزيارات</span><strong id="visitorTotalVisits">—</strong></article>
+              <article class="stat"><span>الزوار الفريدون</span><strong id="visitorUniqueCount">—</strong></article>
+              <article class="stat"><span>الزوار العائدون</span><strong id="visitorReturningCount">—</strong></article>
+            </div>
+            <div class="actions">
+              <button type="button" class="primary" id="exportPlatformVisitorsExcel">تصدير تقرير الزوار Excel</button>
+            </div>
+            <p id="visitorReportMessage" class="message" aria-live="polite"></p>
+          </div>
+          <h3>الزيارات حسب اليوم</h3>
+          <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الزيارات</th><th>الزوار الفريدون</th></tr></thead><tbody id="platformVisitorDailyRows"><tr><td colspan="3">جارٍ تحميل الإحصائيات...</td></tr></tbody></table></div>
+        </section>
       </div>
       <div class="admin-tab-panel" data-admin-panel="organizations">
       <div class="subscription-history">
