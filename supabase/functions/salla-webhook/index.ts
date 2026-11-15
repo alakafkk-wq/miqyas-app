@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
     const customerPhone = first(data?.customer?.mobile, data?.customer?.phone, data?.customer?.mobile_code ? `${data.customer.mobile_code}${data.customer.mobile ?? ""}` : null);
 
     const { data: priorOrder } = await supabase.from("ecommerce_orders")
-      .select("id, delivered_at, customer_email, customer_phone")
+      .select("id, delivered_at, customer_email, customer_phone, order_status")
       .eq("store_id", store.id).eq("external_order_id", externalOrderId).maybeSingle();
     const previousIneligible = /(cancel|refund|ملغ|مسترد)/.test(String(priorOrder?.order_status ?? "").toLowerCase());
     const finalIneligible = cancelled || previousIneligible;
