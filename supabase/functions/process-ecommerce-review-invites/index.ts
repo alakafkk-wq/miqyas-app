@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
   if (!url || !key || !resendKey || !from) return json({ error: "Server configuration missing" }, 500);
 
   const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  const baseUrl = (Deno.env.get("PUBLIC_REVIEW_BASE_URL") || `${url}/functions/v1/ecommerce-public-review`).replace(/\/$/, "");
+  const reviewPageBase = Deno.env.get("PUBLIC_REVIEW_BASE_URL") || "https://tuhaysh01.sa/?ecommerce-review=";
   const now = new Date();
   const dueBefore = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     created++;
 
     const storeName = Array.isArray(order.ecommerce_stores) ? order.ecommerce_stores[0]?.store_name : order.ecommerce_stores?.store_name;
-    const reviewUrl = `${baseUrl}?token=${encodeURIComponent(rawToken)}`;
+    const reviewUrl = `${reviewPageBase}${encodeURIComponent(rawToken)}`;
     const html = `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.9;color:#183b3a"><h2>يسعدنا تقييم تجربتك مع ${escapeHtml(storeName || "المتجر")}</h2><p>نرغب في معرفة رأيك بكل شفافية لتحسين تجربتك.</p><p><a href="${reviewUrl}" style="display:inline-block;background:#16b89a;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none">قيّم تجربتك</a></p><p style="color:#667">رابط التقييم صالح لمدة 30 يوماً.</p></div>`;
     let sendResponse: Response;
     try {
