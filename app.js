@@ -1659,7 +1659,8 @@ renderContactInfo();
   if(!cfg.SUPABASE_URL||!cfg.SUPABASE_PUBLISHABLE_KEY||cfg.SUPABASE_PUBLISHABLE_KEY.includes("PASTE_")){
     message("#authMessage","أكمل إعداد config.js بإضافة Publishable Key الخاص بمشروعك.",true);return;
   }
-  if(await initPublicEcommerceReview()) return;\n  if(await initPublicFeedback()) return;
+  if(await initPublicEcommerceReview()) return;
+  if(await initPublicFeedback()) return;
   const {data:{session}}=await supabase.auth.getSession();
   if(session){try{await handleSession(session);}catch(e){message("#authMessage",e.message,true);}}
 })();
