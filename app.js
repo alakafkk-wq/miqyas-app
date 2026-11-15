@@ -245,7 +245,7 @@ async function initPublicEcommerceReview(){
   const params=new URLSearchParams(location.search);
   const token=params.get("ecommerce-review");
   if(!token)return false;
-  document.body.innerHTML=`
+  ["#authView","#orgView","#appView","#passwordRecoveryView"].forEach(selector=>document.querySelector(selector)?.classList.add("hidden"));\n  document.body.insertAdjacentHTML("afterbegin",`
     <main style="max-width:680px;margin:24px auto;padding:24px;font-family:system-ui,-apple-system,Arial,sans-serif;color:#173d39;direction:rtl">
       <section style="background:#fff;border:1px solid #e3ece9;border-radius:22px;padding:24px;box-shadow:0 12px 36px rgba(20,60,55,.08)">
         <div style="font-size:12px;letter-spacing:2px;color:#159d88;font-weight:700">MIQYAS · CUSTOMER EXPERIENCE</div>
