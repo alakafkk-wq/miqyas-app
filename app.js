@@ -278,7 +278,7 @@ async function initPublicEcommerceReview(){
         ${[1,2,3,4,5].map(n=>`<label style="text-align:center;border:1px solid #dce6e2;border-radius:10px;padding:9px 2px;font-size:13px"><input required type="radio" name="${key}" value="${n}" style="display:block;margin:0 auto 5px"><span>${n} ★</span></label>`).join("")}
       </div>
     </fieldset>`).join("");
-  const endpoint=`${String(cfg.SUPABASE_URL||"").replace(/\\/$/,"")}/functions/v1/ecommerce-public-review?token=${encodeURIComponent(token)}`;
+  const endpoint=`${String(cfg.SUPABASE_URL||"").replace(/\/+$/g,"")}/functions/v1/ecommerce-public-review?token=${encodeURIComponent(token)}`;
   const headers={"apikey":cfg.SUPABASE_PUBLISHABLE_KEY||"","Content-Type":"application/json"};
   const msg=document.querySelector("#ecomPublicMessage");
   try{
