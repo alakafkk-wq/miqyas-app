@@ -37,6 +37,14 @@ Deno.serve(async (req) => {
 
   let created = 0, sent = 0, skipped = 0, failed = 0;
   for (const order of orders ?? []) {
+    // Defensively exclude Arabic and English cancellation/refund statuses.
+    // SQL filters below are only an optimization; this check is authoritative.
+    const normalizedStatus = String(order.order_status ?? "").trim().toLowerCase();
+    const ineligibleStatus = /cancel|cancell?ed|refund|refunded|ملغ|إلغاء|الغاء|مسترد|استرداد/.test(normalizedStatus);
+    if (ineligibleStatus) {
+      skipped++;
+      continue;
+    }
     if (!order.customer_email || !order.delivered_at) { skipped++; continue; }
     const { data: existing } = await db.from("ecommerce_review_invites").select("id,invite_status")
       .eq("order_id", order.id).maybeSingle();
