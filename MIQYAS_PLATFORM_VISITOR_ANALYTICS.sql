@@ -140,3 +140,100 @@ revoke all on function public.miqyas_admin_platform_visitor_summary(date,date) f
 grant execute on function public.miqyas_record_platform_visit(uuid,uuid,text) to authenticated;
 grant execute on function public.miqyas_admin_platform_visitor_daily(date,date) to authenticated;
 grant execute on function public.miqyas_admin_platform_visitor_summary(date,date) to authenticated;
+
+
+-- MIQYAS v1.22.2: anonymous visits to the main MIQYAS platform URL.
+-- Separate from authenticated workspace visits. Stores random browser/session UUIDs only.
+create table if not exists public.platform_public_site_visits (
+  id uuid primary key default gen_random_uuid(),
+  visitor_id uuid not null,
+  session_id uuid not null unique,
+  visited_at timestamptz not null default now()
+);
+create index if not exists platform_public_site_visits_visited_at_idx
+  on public.platform_public_site_visits (visited_at desc);
+create index if not exists platform_public_site_visits_visitor_visited_idx
+  on public.platform_public_site_visits (visitor_id, visited_at desc);
+alter table public.platform_public_site_visits enable row level security;
+revoke all on table public.platform_public_site_visits from anon, authenticated;
+
+create or replace function public.miqyas_record_public_site_visit(
+  p_visitor_id uuid,
+  p_session_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_visitor_id is null or p_session_id is null then
+    raise exception 'معرف الزيارة غير صالح';
+  end if;
+  insert into public.platform_public_site_visits(visitor_id, session_id)
+  values (p_visitor_id, p_session_id)
+  on conflict (session_id) do nothing;
+  return true;
+end;
+$$;
+
+create or replace function public.miqyas_admin_public_site_visit_daily(
+  p_start date default null,
+  p_end date default null
+)
+returns table (visit_date date, visits bigint, unique_visitors bigint)
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if not coalesce(public.is_platform_admin(), false) then
+    raise exception 'غير مصرح: هذه الإحصائيات لمدير المنصة فقط';
+  end if;
+  return query
+  select (v.visited_at at time zone 'Asia/Riyadh')::date,
+         count(*)::bigint, count(distinct v.visitor_id)::bigint
+  from public.platform_public_site_visits v
+  where (p_start is null or (v.visited_at at time zone 'Asia/Riyadh')::date >= p_start)
+    and (p_end is null or (v.visited_at at time zone 'Asia/Riyadh')::date <= p_end)
+  group by (v.visited_at at time zone 'Asia/Riyadh')::date
+  order by 1 desc;
+end;
+$$;
+
+create or replace function public.miqyas_admin_public_site_visit_summary(
+  p_start date default null,
+  p_end date default null
+)
+returns table (total_visits bigint, unique_visitors bigint, returning_visitors bigint)
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if not coalesce(public.is_platform_admin(), false) then
+    raise exception 'غير مصرح: هذه الإحصائيات لمدير المنصة فقط';
+  end if;
+  return query
+  with period_events as (
+    select v.visitor_id, v.visited_at
+    from public.platform_public_site_visits v
+    where (p_start is null or (v.visited_at at time zone 'Asia/Riyadh')::date >= p_start)
+      and (p_end is null or (v.visited_at at time zone 'Asia/Riyadh')::date <= p_end)
+  ), counts as (
+    select pe.visitor_id, count(*) as period_visits, min(pe.visited_at) as first_period_visit
+    from period_events pe group by pe.visitor_id
+  ), classified as (
+    select c.visitor_id, c.period_visits,
+      exists(select 1 from public.platform_public_site_visits prior
+             where prior.visitor_id=c.visitor_id and prior.visited_at < c.first_period_visit) as visited_before_period
+    from counts c
+  )
+  select (select count(*)::bigint from period_events),
+         (select count(*)::bigint from classified),
+         (select count(*)::bigint from classified c where c.visited_before_period or c.period_visits > 1);
+end;
+$$;
+
+revoke all on function public.miqyas_record_public_site_visit(uuid,uuid) from public;
+revoke all on function public.miqyas_admin_public_site_visit_daily(date,date) from public, anon;
+revoke all on function public.miqyas_admin_public_site_visit_summary(date,date) from public, anon;
+grant execute on function public.miqyas_record_public_site_visit(uuid,uuid) to anon, authenticated;
+grant execute on function public.miqyas_admin_public_site_visit_daily(date,date) to authenticated;
+grant execute on function public.miqyas_admin_public_site_visit_summary(date,date) to authenticated;

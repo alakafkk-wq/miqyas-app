@@ -485,8 +485,8 @@ $("#ownerInviteForm")?.addEventListener("submit",async e=>{
 });
 
 
-// MIQYAS v1.21.6: count authenticated platform workspace visits only.
-// No email, phone, auth user ID, IP address, or page-level personal data is stored.
+// MIQYAS v1.22.2: anonymous main-platform URL visit tracking, separate from workspace visits.
+// Stores random browser/session UUIDs only; no name, contact details, account ID, or IP address.
 function getOrCreateBrowserVisitorId(){
   const key="miqyas_visitor_id_v1";
   let id="";
@@ -507,6 +507,16 @@ function getOrCreateVisitSessionId(){
   }
   return id;
 }
+async function recordPublicPlatformVisit(){
+  // Count the public platform URL before authentication, once per browser tab session.
+  try{
+    await supabase.rpc("miqyas_record_public_site_visit",{
+      p_visitor_id:getOrCreateBrowserVisitorId(),
+      p_session_id:getOrCreateVisitSessionId()
+    });
+  }catch(err){console.warn("MIQYAS public visitor analytics unavailable:",err);}
+}
+recordPublicPlatformVisit();
 async function recordPlatformWorkspaceVisit(){
   if(!currentUser||!currentOrg||isPlatformAdmin)return;
   try{
@@ -1136,8 +1146,8 @@ async function loadPlatformVisitorStats(){
   try{
     const {start,end}=visitorDateRange();
     const [daily,summary]=await Promise.all([
-      supabase.rpc("miqyas_admin_platform_visitor_daily",{p_start:start,p_end:end}),
-      supabase.rpc("miqyas_admin_platform_visitor_summary",{p_start:start,p_end:end})
+      supabase.rpc("miqyas_admin_public_site_visit_daily",{p_start:start,p_end:end}),
+      supabase.rpc("miqyas_admin_public_site_visit_summary",{p_start:start,p_end:end})
     ]);
     if(daily.error)throw daily.error;
     if(summary.error)throw summary.error;
@@ -1152,7 +1162,7 @@ async function loadPlatformVisitorStats(){
     message("#visitorReportMessage","تم تحديث إحصائيات زوار المنصة.",false);
   }catch(err){
     if(body)body.innerHTML=`<tr><td colspan="3">${escapeHtml(err.message||"تعذر تحميل الإحصائيات")}</td></tr>`;
-    message("#visitorReportMessage",`${err.message||"تعذر تحميل الإحصائيات"} — تحقق من تنفيذ MIQYAS_PLATFORM_VISITOR_ANALYTICS.sql`,true);
+    message("#visitorReportMessage",`${err.message||"تعذر تحميل الإحصائيات"} — تحقق من تنفيذ MIQYAS_PLATFORM_VISITOR_ANALYTICS.sql المحدّث`,true);
   }
 }
 function exportPlatformVisitorsExcel(){
@@ -1166,14 +1176,14 @@ function exportPlatformVisitorsExcel(){
   }));
   const s=platformVisitorSummaryCache||{};
   const summary=[
-    ["تقرير زوار منصة MIQYAS"],
+    ["تقرير زوار رابط منصة MIQYAS"],
     ["من تاريخ",$("#visitorReportStart")?.value||"من بداية التسجيل"],
     ["إلى تاريخ",$("#visitorReportEnd")?.value||"حتى الآن"],
     ["إجمالي الزيارات",Number(s.total_visits||0)],
     ["الزوار الفريدون",Number(s.unique_visitors||0)],
     ["الزوار العائدون",Number(s.returning_visitors||0)],
-    ["نطاق القياس","مساحة المنصة بعد تسجيل الدخول فقط"],
-    ["ملاحظة","لا يشمل الموقع التعريفي أو روابط تقييم QR العامة. الزائر الفريد معرف متصفح مجهول وقد لا يساوي شخصاً واحداً."]
+    ["نطاق القياس","فتح رابط منصة MIQYAS قبل تسجيل الدخول أو بعده"],
+    ["ملاحظة","يُحتسب فتح رابط منصة MIQYAS. الزائر الفريد معرف متصفح مجهول وقد لا يساوي شخصاً واحداً."]
   ];
   const wb=XLSX.utils.book_new();
   const ws1=XLSX.utils.aoa_to_sheet(summary);
