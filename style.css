@@ -308,3 +308,9 @@ label{display:block;font-size:14px;font-weight:600;margin:14px 0}input,select,te
 .subscription-billing-switch .fine{margin:0}
 .annual-saving{color:#087a55!important;font-weight:700;margin-bottom:2px!important}
 .old-price{text-decoration:line-through;color:#8a9690}
+
+/* MIQYAS v1.22.1 organization name editor */
+.org-name-editor{margin:.35rem 0 .65rem;max-width:360px}
+.org-name-editor>summary{cursor:pointer;color:var(--primary,#176b52);font-size:.9rem;font-weight:700}
+.org-name-editor form{display:grid;gap:.55rem;padding:.75rem;margin-top:.45rem;border:1px solid var(--border,#dce5df);border-radius:12px;background:var(--surface,#fff)}
+.org-name-editor input{width:100%;min-width:0}

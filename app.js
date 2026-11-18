@@ -519,6 +519,29 @@ async function recordPlatformWorkspaceVisit(){
   }catch(err){console.warn("MIQYAS visitor analytics unavailable:",err);}
 }
 
+
+async function saveOrganizationName(event){
+  event.preventDefault();
+  const input=$("#orgNameEditInput"), msg=$("#orgNameEditMessage"), button=event.submitter||$("#orgNameEditForm button[type='submit']");
+  const newName=(input?.value||"").trim();
+  if(!currentOrg?.id||!newName){if(msg)msg.textContent="يرجى إدخال اسم صحيح للمنشأة.";return;}
+  if(newName.length>120){if(msg)msg.textContent="اسم المنشأة يجب ألا يتجاوز 120 حرفاً.";return;}
+  if(button)button.disabled=true;
+  if(msg){msg.textContent="جارٍ حفظ الاسم...";msg.className="message";}
+  try{
+    const {data,error}=await supabase.rpc("miqyas_update_organization_name",{p_organization_id:currentOrg.id,p_new_name:newName});
+    if(error)throw error;
+    currentOrg.name=data||newName;
+    $("#orgTitle").textContent=currentOrg.name;
+    $("#qrOrganizationName")&&($("#qrOrganizationName").textContent=currentOrg.name);
+    if(msg){msg.textContent="تم تحديث اسم المنشأة بنجاح.";msg.className="message success";}
+    if(input)input.value=currentOrg.name;
+  }catch(err){
+    if(msg){msg.textContent=err.message||"تعذر تحديث اسم المنشأة. تحقق من تنفيذ ملف SQL الخاص بالتعديل.";msg.className="message error";}
+  }finally{if(button)button.disabled=false;}
+}
+$("#orgNameEditForm")?.addEventListener("submit",saveOrganizationName);
+
 async function loadWorkspace() {
   $("#orgTitle").textContent=currentOrg.name;
   show("#appView");
