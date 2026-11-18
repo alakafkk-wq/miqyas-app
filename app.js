@@ -112,6 +112,7 @@ function setServiceView(name){
   const all=["#stats","#subscriptionGate","#serviceStatusPanel","#workspaceFeatures","#ecommerceService","#subscriptionPanel"];
   all.forEach(sel=>{const el=$(sel);if(el)el.classList.add("hidden");});
   (map[name]||map.dashboard).forEach(sel=>{const el=$(sel);if(el)el.classList.remove("hidden");});
+  document.querySelectorAll("[data-service-tab]").forEach(tab=>{const active=tab.dataset.serviceTab===name;tab.classList.toggle("active",active);tab.setAttribute("aria-selected",String(active));});
   if(name==="ecommerce"){loadEcommerceStores();loadEcommerceReports();}
 }
 async function loadEcommerceStores(){
@@ -178,12 +179,14 @@ function exportEcommerceExcel(){
   add('تقييمات العملاء',[['المتجر','جودة المنتج','التوصيل','التغليف','سهولة الدفع','خدمة العملاء','الرضا العام','التاريخ'],...reviews.map(x=>[storeName(x.store_id),x.product_quality,x.delivery_rating,x.packaging_rating,x.checkout_rating,x.support_rating,x.overall_rating,x.created_at||''])]);
   add('الطلبات',[['المتجر','رقم داخلي','الحالة','تاريخ الإنشاء','تاريخ التسليم'],...orders.map(x=>[storeName(x.store_id),x.id,x.order_status,x.created_at||'',x.delivered_at||''])]);
   add('دعوات التقييم',[['المتجر','الحالة','تاريخ الإنشاء','تاريخ الإرسال'],...invites.map(x=>[storeName(x.store_id),x.invite_status,x.created_at||'',x.sent_at||''])]);
+  addExcelVisualSheet(wb,[{label:"إجمالي الطلبات",value:orders.length},{label:"دعوات التقييم",value:invites.length},{label:"التقييمات المستلمة",value:reviews.length},{label:"متوسط الرضا من 5",value:reviews.length?reviews.reduce((a,x)=>a+Number(x.overall_rating||0),0)/reviews.length:0},{label:"نسبة الاستجابة %",value:invites.length?reviews.length/invites.length*100:0}],"أداء المتاجر الإلكترونية");
   XLSX.writeFile(wb,`MIQYAS_Ecommerce_Report_${new Date().toISOString().slice(0,10)}.xlsx`);toast('تم تجهيز تقرير Excel');
 }
 $("#ecomReportStore")?.addEventListener('change',renderEcommerceReports);$("#ecomReportStart")?.addEventListener('change',renderEcommerceReports);$("#ecomReportEnd")?.addEventListener('change',renderEcommerceReports);
 $("#refreshEcommerceReports")?.addEventListener('click',loadEcommerceReports);$("#exportEcommerceExcel")?.addEventListener('click',exportEcommerceExcel);
 $("#clearEcomReportFilters")?.addEventListener('click',()=>{$("#ecomReportStore").value='';$("#ecomReportStart").value='';$("#ecomReportEnd").value='';renderEcommerceReports();});
 $("#serviceSelect")?.addEventListener("change",e=>setServiceView(e.target.value));
+document.querySelectorAll("[data-service-tab]").forEach(tab=>tab.addEventListener("click",()=>{const select=$("#serviceSelect");if(select)select.value=tab.dataset.serviceTab;setServiceView(tab.dataset.serviceTab);}));
 $("#homeButton")?.addEventListener("click",()=>{const s=$("#serviceSelect");if(s){s.value="dashboard";setServiceView("dashboard");}window.scrollTo({top:0,behavior:"smooth"});});
 $("#refreshStores")?.addEventListener("click",loadEcommerceStores);
 $("#ecommerceStoreRows")?.addEventListener("click",async e=>{
@@ -548,7 +551,24 @@ async function refreshData() {
   render();
 }
 
-const planLabels={basic:"الأساسية",professional:"الاحترافية",enterprise:"المؤسسات"};
+const planLabels={basic:"الأساسية",professional:"الاحترافية",enterprise:"المؤسسات",ecom_basic:"الأساسية للمتاجر",ecom_professional:"الاحترافية للمتاجر",ecom_enterprise:"المؤسسات للمتاجر"};
+function getPlanLabel(code){
+  if(!code)return "—";
+  const annual=String(code).endsWith("_annual"),base=annual?String(code).slice(0,-7):String(code);
+  return `${planLabels[base]||base}${annual?" – سنوي":" – شهري"}`;
+}
+function addExcelVisualSheet(wb, metrics, title="لوحة الرسوم البيانية"){
+  if(!window.XLSX||!wb||!Array.isArray(metrics))return;
+  const clean=metrics.filter(x=>Number.isFinite(Number(x.value)));
+  const max=Math.max(1,...clean.map(x=>Number(x.value)));
+  const rows=[["المؤشر","القيمة","المخطط البياني"],...clean.map(x=>{
+    const value=Number(x.value),blocks=Math.max(0,Math.min(32,Math.round(value/max*32)));
+    return [x.label,value,"▰".repeat(blocks)+"▱".repeat(32-blocks)];
+  })];
+  const ws=XLSX.utils.aoa_to_sheet([[`لوحة مؤشرات MIQYAS – ${title}`],[],...rows]);
+  ws["!cols"]=[{wch:30},{wch:18},{wch:42}];
+  XLSX.utils.book_append_sheet(wb,ws,"الرسوم البيانية");
+}
 const requestStatusLabels={pending:"بانتظار المراجعة",awaiting_gateway:"بانتظار الدفع الإلكتروني",approved:"معتمد",rejected:"مرفوض",cancelled:"ملغي"};
 function showSubscriptionSetupError(err){
   $("#subscriptionStatus").textContent="يتطلب إعداد قاعدة البيانات";
@@ -629,12 +649,24 @@ function renderSubscription(){
   const active=isCurrentSubscriptionActive();
   $("#subscriptionStatus").textContent=active?(currentSubscription.status==="trial"?"فترة تجريبية":"اشتراك نشط"):"لا يوجد اشتراك نشط";
   $("#subscriptionStatus").classList.toggle("active",!!active);
-  $("#currentPlanName").textContent=active?`باقة ${planLabels[currentSubscription.plan_code]||currentSubscription.plan_code}`:"لا يوجد اشتراك نشط";
+  $("#currentPlanName").textContent=active?`باقة ${getPlanLabel(currentSubscription.plan_code)}`:"لا يوجد اشتراك نشط";
   $("#currentPlanDates").textContent=active?`بدأ في ${new Date(currentSubscription.starts_at).toLocaleDateString("ar-SA-u-ca-gregory")}`:"اختر الباقة المناسبة للبدء";
   $("#subscriptionExpiry").textContent=active&&currentSubscription.ends_at?`ينتهي ${new Date(currentSubscription.ends_at).toLocaleDateString("ar-SA-u-ca-gregory")}`:"—";
 
-  $("#subscriptionPlans").innerHTML=subscriptionPlans.map(p=>`<article class="plan-card ${p.code==="professional"?"featured":""}" data-plan-card="${escapeHtml(p.code)}"><h3>${escapeHtml(p.name)}</h3><strong>${Number(p.price_sar)>0?`${Number(p.price_sar).toLocaleString("ar-SA-u-ca-gregory")} ر.س <small>/ شهرياً</small>`:"حسب الاتفاق"}</strong><p>حتى ${Number(p.branch_limit||0)} ${p.business_type==="ecommerce"?(Number(p.branch_limit)===1?"متجر":"متاجر"):(Number(p.branch_limit)===1?"فرع":"فروع")} · ${Number(p.max_users||0)} مستخدمين</p><small>${escapeHtml(Array.isArray(p.features)?p.features.join(" • "):"")}</small><button type="button" class="outline plan-select-btn" data-select-plan="${escapeHtml(p.code)}">اختيار هذه الباقة</button></article>`).join("");
+  const billingMonths=Number($("#subscriptionBillingPeriod")?.value||1);
+  const monthlyPlans=subscriptionPlans.filter(p=>Number(p.billing_period_months||1)===1&&!String(p.code).endsWith("_annual"));
+  const annualPlans=subscriptionPlans.filter(p=>Number(p.billing_period_months||1)===12||String(p.code).endsWith("_annual"));
+  const visiblePlans=billingMonths===12?annualPlans:monthlyPlans;
+  $("#subscriptionPlans").innerHTML=monthlyPlans.map(monthly=>{
+    const plan=billingMonths===12?annualPlans.find(a=>a.code===`${monthly.code}_annual`):monthly;
+    if(!plan)return "";
+    const annualPrice=Number(plan.price_sar||0),monthlyPrice=Number(monthly.price_sar||0),annualBefore=monthlyPrice*12;
+    return `<article class="plan-card ${monthly.code.includes("professional")?"featured":""}" data-plan-card="${escapeHtml(plan.code)}"><h3>${escapeHtml(monthly.name)}</h3><strong>${annualPrice>0?`${annualPrice.toLocaleString("ar-SA-u-ca-gregory")} ر.س <small>/ ${billingMonths===12?"سنوياً":"شهرياً"}</small>`:"حسب الاتفاق"}</strong>${billingMonths===12?`<p class="annual-saving">وفّر ${(annualBefore-annualPrice).toLocaleString("ar-SA-u-ca-gregory")} ريال سنوياً · خصم 20٪</p><small class="old-price">بدلاً من ${annualBefore.toLocaleString("ar-SA-u-ca-gregory")} ريال</small>`:""}<p>حتى ${Number(plan.branch_limit||0)} ${plan.business_type==="ecommerce"?(Number(plan.branch_limit)===1?"متجر":"متاجر"):(Number(plan.branch_limit)===1?"فرع":"فروع")} · ${Number(plan.max_users||0)} مستخدمين</p><small>${escapeHtml(Array.isArray(plan.features)?plan.features.join(" • "):"")}</small><button type="button" class="outline plan-select-btn" data-select-plan="${escapeHtml(plan.code)}">اختيار هذه الباقة</button></article>`;
+  }).join("");
   const planSelect=$("#subscriptionPlan");
+  if(planSelect){planSelect.innerHTML=visiblePlans.map(p=>`<option value="${escapeHtml(p.code)}">${escapeHtml(p.name)} – ${Number(p.price_sar).toLocaleString("ar-SA-u-ca-gregory")} ريال / ${billingMonths===12?"سنة":"شهر"}</option>`).join("");}
+  const billingSelect=$("#subscriptionBillingPeriod");
+  if(billingSelect&&!billingSelect.dataset.bound){billingSelect.dataset.bound="1";billingSelect.addEventListener("change",()=>{renderSubscription();});}
   if(planSelect && !planSelect.dataset.selectionBound){
     planSelect.dataset.selectionBound="1";
     planSelect.addEventListener("change",()=>highlightSelectedPlan());
@@ -647,7 +679,7 @@ function renderSubscription(){
     });
   }
   highlightSelectedPlan();
-  $("#subscriptionRequestRows").innerHTML=subscriptionRequests.length?subscriptionRequests.map(r=>`<tr><td>${new Date(r.created_at).toLocaleDateString("ar-SA-u-ca-gregory")}</td><td>${planLabels[r.plan_code]||escapeHtml(r.plan_code)}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA-u-ca-gregory")} ر.س</td><td>${r.payment_method==="bank_transfer"?"تحويل بنكي":"إلكتروني"}</td><td>${requestStatusLabels[r.status]||escapeHtml(r.status)}</td></tr>`).join(""):'<tr><td colspan="5" class="muted">لا توجد طلبات بعد</td></tr>';
+  $("#subscriptionRequestRows").innerHTML=subscriptionRequests.length?subscriptionRequests.map(r=>`<tr><td>${new Date(r.created_at).toLocaleDateString("ar-SA-u-ca-gregory")}</td><td>${escapeHtml(getPlanLabel(r.plan_code))}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA-u-ca-gregory")} ر.س</td><td>${r.payment_method==="bank_transfer"?"تحويل بنكي":"إلكتروني"}</td><td>${requestStatusLabels[r.status]||escapeHtml(r.status)}</td></tr>`).join(""):'<tr><td colspan="5" class="muted">لا توجد طلبات بعد</td></tr>';
   $("#platformAdminPanel").classList.toggle("hidden",!isPlatformAdmin);
 }
 $("#subscriptionRequestForm").addEventListener("submit",async e=>{
@@ -687,7 +719,7 @@ async function loadAdminSubscriptionRequests(){
   if(!isPlatformAdmin)return;
   const {data,error}=await supabase.from("subscription_payment_requests").select("id,organization_id,plan_code,amount_sar,payment_method,status,created_at,organizations(name)").eq("status","pending").order("created_at",{ascending:true});
   if(error){$("#adminSubscriptionRows").innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}
-  $("#adminSubscriptionRows").innerHTML=(data||[]).length?data.map(r=>`<tr><td>${escapeHtml(r.organizations?.name||"منشأة")}</td><td>${planLabels[r.plan_code]||r.plan_code}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA-u-ca-gregory")} ر.س</td><td>${escapeHtml(requestStatusLabels[r.status]||r.status)}</td><td><button class="primary" data-approve-sub="${r.id}">اعتماد</button> <button class="outline" data-reject-sub="${r.id}">رفض</button></td></tr>`).join(""):'<tr><td colspan="5">لا توجد طلبات معلقة</td></tr>';
+  $("#adminSubscriptionRows").innerHTML=(data||[]).length?data.map(r=>`<tr><td>${escapeHtml(r.organizations?.name||"منشأة")}</td><td>${getPlanLabel(r.plan_code)}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA-u-ca-gregory")} ر.س</td><td>${escapeHtml(requestStatusLabels[r.status]||r.status)}</td><td><button class="primary" data-approve-sub="${r.id}">اعتماد</button> <button class="outline" data-reject-sub="${r.id}">رفض</button></td></tr>`).join(""):'<tr><td colspan="5">لا توجد طلبات معلقة</td></tr>';
 }
 function startAdminRequestNotifications(){
   if(!isPlatformAdmin || adminRequestsChannel) return;
@@ -695,7 +727,7 @@ function startAdminRequestNotifications(){
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"subscription_payment_requests"},payload=>{
       const request=payload.new||{};
       if(!request.id) return;
-      const plan=planLabels[request.plan_code]||"باقة جديدة";
+      const plan=getPlanLabel(request.plan_code)||"باقة جديدة";
       const amount=Number(request.amount_sar||0).toLocaleString("ar-SA-u-ca-gregory");
       const notice=`وصل طلب اشتراك جديد: ${plan} بقيمة ${amount} ريال.`;
       toast(notice);
@@ -765,7 +797,7 @@ async function loadAdminSubscriptions(){
     await loadAdminInventoryCounts();
     body.innerHTML=adminSubscriptions.length?adminSubscriptions.map(s=>{const c=adminOrgInventory.get(s.organization_id)||{};return `<tr>
       <td>${escapeHtml(s.organizations?.name||"منشأة")}</td>
-      <td>${escapeHtml(s.subscription_plans?.name||planLabels[s.plan_code]||s.plan_code)}</td>
+      <td>${escapeHtml(s.subscription_plans?.name||getPlanLabel(s.plan_code))}</td>
       <td>${escapeHtml(subscriptionStatusLabels[s.status]||s.status)}</td>
       <td>${adminDate(s.starts_at)}</td><td>${adminDate(s.ends_at)}</td>
       <td>${Number(c.branches||0)}</td><td>${Number(c.stores||0)}</td>
@@ -826,6 +858,7 @@ function exportSelectedSubscriberExcel(){
   add('تقييمات الفروع',d.branchFeedback.map(x=>({الفرع:bName.get(x.branch_id),التقييم:x.rating,التعليق:x.comment,التاريخ:x.created_at})));
   add('المتاجر',d.stores.map(x=>({المتجر:x.store_name,المنصة:x.platform,الحالة:x.connection_status,الطلبات:d.orders.filter(o=>o.store_id===x.id).length,التقييمات:d.reviews.filter(r=>r.store_id===x.id).length})));
   add('تقييمات المتاجر',d.reviews.map(x=>({المتجر:sName.get(x.store_id),جودة_المنتج:x.product_quality,التوصيل:x.delivery_rating,التغليف:x.packaging_rating,سهولة_الشراء:x.checkout_rating,خدمة_العملاء:x.support_rating,الرضا_العام:x.overall_rating,التعليق:x.comment,التاريخ:x.created_at})));
+  addExcelVisualSheet(wb,[{label:"الفروع",value:d.branches.length},{label:"المتاجر",value:d.stores.length},{label:"تقييمات الفروع",value:d.branchFeedback.length},{label:"تقييمات المتاجر",value:d.reviews.length},{label:"الطلبات",value:d.orders.length}],"أداء المشترك");
   XLSX.writeFile(wb,`MIQYAS_${String(d.organization.name||'Subscriber').replace(/[^\w\u0600-\u06FF-]+/g,'_')}_Report.xlsx`);
 }
 $('#exportSelectedSubscriberExcel')?.addEventListener('click',exportSelectedSubscriberExcel);
@@ -900,7 +933,7 @@ async function loadAdminSubscriptionAudit(){
   }
   const paymentLabels={bank_transfer:"تحويل بنكي",online:"دفع إلكتروني",cash:"نقدي"};
   const statusLabels={pending:"بانتظار المراجعة",awaiting_gateway:"بانتظار الدفع",paid:"مدفوع",approved:"معتمد",rejected:"مرفوض",cancelled:"ملغي",failed:"فشل الدفع",active:"نشط",paused:"موقوف مؤقتاً",expired:"منتهي",past_due:"متأخر السداد",trial:"تجريبي"};
-  const planName=code=>planLabels[code]||code||"—";
+  const planName=code=>getPlanLabel(code)||"—";
   const requestRows=(requestsRes.data||[]).map(r=>{
     const details=[
       `الباقة: ${planName(r.plan_code)}`,
@@ -946,6 +979,10 @@ function exportAdminRows(rows, sheetName, fileName){
   const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{ملاحظة:"لا توجد بيانات ضمن الفترة المحددة"}]);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,sheetName.slice(0,31));
+  const numericKeys=rows.length?Object.keys(rows[0]).filter(k=>rows.some(r=>typeof r[k]==="number"&&Number.isFinite(r[k]))):[];
+  const metrics=numericKeys.slice(0,8).map(k=>({label:k,value:rows.reduce((sum,r)=>sum+(typeof r[k]==="number"?r[k]:0),0)}));
+  if(!metrics.length)metrics.push({label:"عدد السجلات",value:rows.length});
+  addExcelVisualSheet(wb,metrics,sheetName);
   XLSX.writeFile(wb,fileName);
   message("#adminExportMessage",`تم تجهيز ملف ${fileName}`,false);
 }
@@ -1001,8 +1038,8 @@ async function exportAdminSubscriptionOps(){
   const [a,b]=await Promise.all([q1,q2]);
   if(a.error||b.error){message("#adminExportMessage",(a.error||b.error).message,true);return;}
   const rows=[
-    ...(a.data||[]).map(x=>({"التاريخ":adminDate(x.created_at),"المنشأة":x.organizations?.name||"","نوع العملية":"طلب دفع/اشتراك","الباقة":planLabels[x.plan_code]||x.plan_code,"المبلغ":Number(x.amount_sar||0),"الحالة":requestStatusLabels[x.status]||x.status,"طريقة الدفع":x.payment_method||"","رقم العملية":x.gateway_checkout_id||x.transfer_reference||"","تاريخ المراجعة":adminDate(x.reviewed_at)})),
-    ...(b.data||[]).map(x=>({"التاريخ":adminDate(x.created_at),"المنشأة":x.organizations?.name||"","نوع العملية":"تسجيل اشتراك","الباقة":planLabels[x.plan_code]||x.plan_code,"المبلغ":"","الحالة":subscriptionStatusLabels[x.status]||x.status,"طريقة الدفع":x.payment_method||"","رقم العملية":"","تاريخ المراجعة":""}))
+    ...(a.data||[]).map(x=>({"التاريخ":adminDate(x.created_at),"المنشأة":x.organizations?.name||"","نوع العملية":"طلب دفع/اشتراك","الباقة":getPlanLabel(x.plan_code),"المبلغ":Number(x.amount_sar||0),"الحالة":requestStatusLabels[x.status]||x.status,"طريقة الدفع":x.payment_method||"","رقم العملية":x.gateway_checkout_id||x.transfer_reference||"","تاريخ المراجعة":adminDate(x.reviewed_at)})),
+    ...(b.data||[]).map(x=>({"التاريخ":adminDate(x.created_at),"المنشأة":x.organizations?.name||"","نوع العملية":"تسجيل اشتراك","الباقة":getPlanLabel(x.plan_code),"المبلغ":"","الحالة":subscriptionStatusLabels[x.status]||x.status,"طريقة الدفع":x.payment_method||"","رقم العملية":"","تاريخ المراجعة":""}))
   ].sort((x,y)=>String(y["التاريخ"]).localeCompare(String(x["التاريخ"])));
   exportAdminRows(rows,"عمليات الاشتراكات",`MIQYAS_Subscription_Operations_${adminRangeFileSuffix()}.xlsx`);
 }
@@ -1122,6 +1159,7 @@ function exportPlatformVisitorsExcel(){
   ws2["!cols"]=[{wch:20},{wch:18},{wch:20}];
   XLSX.utils.book_append_sheet(wb,ws1,"ملخص الزوار");
   XLSX.utils.book_append_sheet(wb,ws2,"الزيارات اليومية");
+  addExcelVisualSheet(wb,[{label:"إجمالي الزيارات",value:Number(s.total_visits||0)},{label:"الزوار الفريدون",value:Number(s.unique_visitors||0)},{label:"الزوار العائدون",value:Number(s.returning_visitors||0)}],"زوار المنصة");
   const {start,end}=visitorDateRange();
   XLSX.writeFile(wb,`MIQYAS_Platform_Visitors_${start||"all"}_${end||"today"}.xlsx`);
   message("#visitorReportMessage","تم تجهيز تقرير زوار المنصة Excel.",false);
@@ -1407,6 +1445,7 @@ function exportGoogleMapsBranchExcel(branchId){
   const ws2=XLSX.utils.aoa_to_sheet(comments); ws2["!cols"]=[{wch:25},{wch:15},{wch:22},{wch:28},{wch:80},{wch:55}];
   XLSX.utils.book_append_sheet(wb,ws1,"ملخص الفرع");
   XLSX.utils.book_append_sheet(wb,ws2,"التعليقات المتاحة");
+  addExcelVisualSheet(wb,[{label:"متوسط تقييم Google من 5",value:Number(snapshot.rating||0)},{label:"عدد تقييمات Google",value:Number(snapshot.user_rating_count||0)},{label:"التعليقات المرفقة",value:reviews.length}],"Google Maps");
   const safeName=String(branch.name||"branch").replace(/[\\/:*?"<>|]/g,"-").slice(0,40);
   XLSX.writeFile(wb,`MIQYAS_Google_Maps_${safeName}.xlsx`);
   toast("تم تجهيز تقرير Excel للفرع.");
@@ -1554,6 +1593,7 @@ function exportExcelReport() {
   for(let r=2;r<=branchRows.length;r++){if(branchSheet[`I${r}`])branchSheet[`I${r}`].z="0.0%";if(branchSheet[`J${r}`])branchSheet[`J${r}`].z="0.0%";}
   addSheet(voiceRows,"صوت العميل");
   addSheet(qualityRows,"سجلات الجودة");
+  addExcelVisualSheet(wb,[{label:"عدد الفروع",value:selectedBranches.length},{label:"سجلات الجودة",value:filteredAssessments.length},{label:"تقييمات صوت العميل",value:voiceTotal},{label:"إيجابي",value:positive},{label:"محايد",value:neutral},{label:"سلبي",value:negative},{label:"رضا العملاء %",value:voiceTotal?positive/voiceTotal*100:0},{label:"متوسط الجودة %",value:qualityScores.length?qualityScores.reduce((a,b)=>a+b,0)/qualityScores.length:0}],"الجودة وصوت العميل");
   const safeDate=new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb,`MIQYAS_Report_${safeDate}.xlsx`);
   toast("تم تجهيز تقرير Excel");

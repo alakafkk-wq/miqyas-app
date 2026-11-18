@@ -201,8 +201,11 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <option value="branches">صوت العميل للفروع (QR)</option>
       <option value="ecommerce">تقييم المتاجر الإلكترونية</option>
       <option value="reports">التقارير والتحليلات</option>
-      <option value="subscription">الاشتراك والباقات</option>
+      <option value="subscription">💳 الاشتراكات والباقات</option>
     </select>
+    <div class="service-tab-shortcuts" role="tablist" aria-label="تبويبات الخدمات">
+      <button type="button" class="service-tab" role="tab" aria-selected="false" data-service-tab="subscription">💳 الاشتراكات والباقات</button>
+    </div>
   </section>
   <section class="ecommerce-workspace panel service-page hidden" id="ecommerceService">
     <div class="ecom-welcome">
@@ -270,6 +273,11 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
     <div class="current-subscription" id="currentSubscription">
       <div><small>اشتراك المنشأة الحالي</small><strong id="currentPlanName">لا يوجد اشتراك نشط</strong><span id="currentPlanDates">يمكنك اختيار إحدى الباقات أدناه</span></div>
       <div class="sub-expiry" id="subscriptionExpiry">—</div>
+    </div>
+    <div class="subscription-billing-switch">
+      <label for="subscriptionBillingPeriod">مدة الاشتراك</label>
+      <select id="subscriptionBillingPeriod"><option value="1">شهري – دفع شهري</option><option value="12">سنوي – خصم 20٪</option></select>
+      <span id="subscriptionSavingHint" class="fine">اختر الاشتراك السنوي للاستفادة من خصم 20٪.</span>
     </div>
     <div class="plan-grid" id="subscriptionPlans">
       <article class="plan-card"><h3>الأساسية</h3><strong>99 ر.س <small>/ شهرياً</small></strong><p>فرع واحد · 3 مستخدمين</p></article>

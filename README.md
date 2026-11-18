@@ -38,3 +38,5 @@
 
 
 Update v1.21.5: branch feedback anti-duplicate protection without OTP. See README_BRANCH_FEEDBACK_ANTI_DUPLICATE_AR.txt.
+
+MIQYAS v1.22.0: monthly/annual billing with 20% annual discount and Excel visual summary sheets. See README_V1_22_0_RELEASE_AR.txt and run MIQYAS_V1_22_SUBSCRIPTION_BILLING_AND_EXCEL_CHARTS.sql before enabling annual checkout.
