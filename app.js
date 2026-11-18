@@ -1383,7 +1383,7 @@ function render() {
   $("#branchList").classList.toggle("empty",!selectedBranches.length);
   $("#branchList").innerHTML=selectedBranches.length?selectedBranches.map(b=>{
     const count=filteredFeedback.filter(x=>x.branch_id===b.id).length;
-    return `<article class="branchitem branch-card"><div class="branch-card-main"><div class="branch-card-icon" aria-hidden="true">⌖</div><div class="branch-card-title"><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><span class="count">${count.toLocaleString("ar-SA-u-ca-gregory")} تقييم</span></div><div class="branch-tools branch-card-actions">${validGoogleMapsUrl(b.google_maps_url)&&b.google_maps_url?`<a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح الموقع</a><button class="outline" data-mapqr="${escapeHtml(b.id)}">QR خرائط Google</button><button class="outline" data-google-reviews="${escapeHtml(b.id)}">تحديث تقييمات Google</button>`:""}<button class="primary" data-qr="${escapeHtml(b.id)}">رمز تقييم العملاء</button><button class="danger" type="button" data-delete-branch="${escapeHtml(b.id)}">حذف الفرع</button></div></article>`;
+    return `<article class="branchitem branch-card"><div class="branch-card-main"><div class="branch-card-icon" aria-hidden="true">⌖</div><div class="branch-card-title"><b>${escapeHtml(b.name)}</b><small>${escapeHtml([b.area,b.city].filter(Boolean).join(" · ")||"لم تحدد المنطقة")}</small></div><span class="count">${count.toLocaleString("ar-SA-u-ca-gregory")} تقييم</span></div><div class="branch-tools branch-card-actions"><button class="outline" type="button" data-edit-google-url="${escapeHtml(b.id)}">تعديل رابط Google Maps</button>${validGoogleMapsUrl(b.google_maps_url)&&b.google_maps_url?`<a class="maps-link" href="${escapeHtml(b.google_maps_url)}" target="_blank" rel="noopener noreferrer">فتح الموقع</a><button class="outline" data-mapqr="${escapeHtml(b.id)}">QR خرائط Google</button><button class="outline" data-google-reviews="${escapeHtml(b.id)}">تحديث تقييمات Google</button>`:""}<button class="primary" data-qr="${escapeHtml(b.id)}">رمز تقييم العملاء</button><button class="danger" type="button" data-delete-branch="${escapeHtml(b.id)}">حذف الفرع</button></div></article>`;
   }).join(""):"لا توجد فروع مطابقة للتصفية";
   const latestGoogleSnapshots=new Map();
   googleMapsSnapshots.forEach(s=>{if(!latestGoogleSnapshots.has(s.branch_id))latestGoogleSnapshots.set(s.branch_id,s);});
@@ -1488,6 +1488,28 @@ $("#googleMapsReports").addEventListener("click",e=>{
   if(btn) exportGoogleMapsBranchExcel(btn.dataset.googleExport);
 });
 $("#branchList").addEventListener("click",async e=>{
+  const editMapBtn=e.target.closest("[data-edit-google-url]");
+  if(editMapBtn){
+    const branch=branches.find(b=>b.id===editMapBtn.dataset.editGoogleUrl);
+    if(!branch)return;
+    const entered=prompt(`تعديل رابط Google Maps للفرع: ${branch.name}\nأدخل الرابط الجديد، أو اتركه فارغاً لإزالة الرابط:`,branch.google_maps_url||"");
+    if(entered===null)return;
+    const mapsUrl=entered.trim();
+    if(mapsUrl&&!validGoogleMapsUrl(mapsUrl)){
+      toast("الرابط غير صحيح. استخدم رابط Google Maps يبدأ بـ https://");
+      return;
+    }
+    setBusy(editMapBtn,true,"جارٍ الحفظ...");
+    try{
+      const {error}=await supabase.from("branches").update({google_maps_url:mapsUrl||null}).eq("id",branch.id).eq("organization_id",currentOrg.id);
+      if(error)throw error;
+      toast("تم تحديث رابط Google Maps للفرع.");
+      await refreshData();
+    }catch(err){
+      toast(err.message||"تعذر تحديث رابط Google Maps.");
+    }finally{setBusy(editMapBtn,false);}
+    return;
+  }
   const reviewBtn=e.target.closest("[data-google-reviews]");
   if(reviewBtn){
     const branch=branches.find(b=>b.id===reviewBtn.dataset.googleReviews);
