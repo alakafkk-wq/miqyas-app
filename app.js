@@ -1688,7 +1688,32 @@ renderContactInfo();
   const {data:{session}}=await supabase.auth.getSession();
   if(session){try{await handleSession(session);}catch(e){message("#authMessage",e.message,true);}}
 })();
-if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    try {
+      const registration = await navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" });
+      await registration.update();
+      if (registration.waiting) registration.waiting.postMessage({ type: "SKIP_WAITING" });
+      registration.addEventListener("updatefound", () => {
+        const installing = registration.installing;
+        if (!installing) return;
+        installing.addEventListener("statechange", () => {
+          if (installing.state === "installed" && navigator.serviceWorker.controller) {
+            registration.waiting?.postMessage({ type: "SKIP_WAITING" });
+          }
+        });
+      });
+      let reloadedForWorker = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (reloadedForWorker) return;
+        reloadedForWorker = true;
+        window.location.reload();
+      });
+    } catch (error) {
+      console.warn("MIQYAS service worker update check failed:", error);
+    }
+  });
+}
 
 // Public legal/about pages
 document.addEventListener("click",(event)=>{
