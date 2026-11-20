@@ -108,7 +108,7 @@ function setServiceView(name){
   const ecommerce=getBusinessType()==="ecommerce";
   if(ecommerce && !["ecommerce","subscription"].includes(name)) name="ecommerce";
   if(!ecommerce && name==="ecommerce") name="dashboard";
-  const map={dashboard:["#stats","#subscriptionGate","#serviceStatusPanel"],branches:["#workspaceFeatures"],ecommerce:["#ecommerceService"],reports:["#workspaceFeatures"],subscription:["#subscriptionPanel"]};
+  const map={dashboard:["#stats","#subscriptionGate","#workspaceFeatures"],branches:["#workspaceFeatures"],ecommerce:["#ecommerceService"],reports:["#workspaceFeatures"],subscription:["#subscriptionPanel"]};
   const all=["#stats","#subscriptionGate","#serviceStatusPanel","#workspaceFeatures","#ecommerceService","#subscriptionPanel"];
   all.forEach(sel=>{const el=$(sel);if(el)el.classList.add("hidden");});
   (map[name]||map.dashboard).forEach(sel=>{const el=$(sel);if(el)el.classList.remove("hidden");});
