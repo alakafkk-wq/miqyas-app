@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#086b4b">
+<meta name="description" content="مقياس - منصة صوت العميل وقياس تجربة العملاء">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<title>مقياس MIQYAS | منصة الجودة</title>
+<style>
+.service-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.service-card{border:1px solid #dce7e2;border-radius:14px;padding:16px;background:#fff}
+.service-card h3{margin:8px 0}.service-card p{margin:0;color:#64748b;font-size:.92rem}
+.service-state{display:inline-block;font-size:.78rem;font-weight:700;padding:5px 9px;border-radius:20px;background:#e8f5ee;color:#086b4b}
+.service-soon{background:#f8faf9;opacity:.72}.service-soon .service-state{background:#eef1f0;color:#66736e}
+.plan-card{position:relative}.plan-card.selected{outline:2px solid #086b4b;box-shadow:0 0 0 3px rgba(8,107,75,.10)}
+.plan-select-btn{display:block;width:100%;margin-top:14px;cursor:pointer;position:relative;z-index:1}
+
+.admin-subscription-form{margin-top:18px;padding:16px;border:1px solid #dce7e2;border-radius:14px;background:#f8fbf9}
+.admin-subscription-form label{display:block;margin:10px 0}
+.admin-subscription-form input,.admin-subscription-form select,.admin-subscription-form textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}
+.admin-subscription-actions{display:flex;gap:8px;flex-wrap:wrap}
+button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
+#adminSubscribersRows button{margin:2px;white-space:nowrap}
+@media(max-width:700px){#adminSubscribersRows td{min-width:110px}.admin-subscription-form .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}}
+
+.service-select{width:100%;max-width:520px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font:inherit}
+#serviceNavigation{margin-top:16px}
+#ecommerceService .service-card{min-height:120px}
+#ecommerceService ol{line-height:2}
+.contact-icon-link{display:inline-flex;align-items:center;gap:8px;text-decoration:none}.contact-icon-link svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* Responsive business type selector: keep both choices inside the signup panel. */
+#signupBusinessType{box-sizing:border-box;width:100%;max-width:100%;min-width:0;overflow:hidden}
+#signupBusinessType .business-type-heading{display:block!important;font-weight:700;margin:0 0 8px!important}
+#signupBusinessType .business-type-options{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0!important;width:100%;min-width:0;direction:rtl}
+#signupBusinessType .business-type-option{box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:10px!important;width:100%!important;min-width:0!important;min-height:126px;padding:12px!important;margin:0!important;border:1px solid #cbd5e1;border-radius:14px;background:#fff;cursor:pointer;text-align:center;overflow:hidden}
+#signupBusinessType .business-type-option input[type=radio]{display:block!important;appearance:auto!important;-webkit-appearance:radio!important;width:20px!important;height:20px!important;min-width:20px!important;max-width:20px!important;margin:0!important;padding:0!important;flex:0 0 20px!important}
+#signupBusinessType .business-type-label{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:5px!important;width:100%;min-width:0;font-weight:600;line-height:1.4;overflow-wrap:anywhere;word-break:normal}
+#signupBusinessType .business-type-icon{display:block;font-size:25px;line-height:1.2}
+#signupBusinessType .business-type-option:has(input:checked){border:2px solid #087650;background:#f2faf6;box-shadow:0 0 0 2px rgba(8,118,80,.08)}
+#signupBusinessType .business-type-option:focus-within{outline:2px solid #087650;outline-offset:2px}
+#signupBusinessType .business-type-help{display:block;margin-top:12px;color:#64748b;line-height:1.7}
+@media(max-width:420px){#signupBusinessType{padding:10px!important}#signupBusinessType .business-type-options{gap:8px}#signupBusinessType .business-type-option{min-height:116px;padding:8px!important;font-size:.95rem}}
+
+.admin-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:14px 0}
+.admin-kpi-grid .stat{min-width:0}.admin-export-tools{padding:14px;border:1px solid #dce7e2;border-radius:14px;background:#f8fbf9;margin:16px 0}
+.admin-export-tools .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.admin-export-tools input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}
+.admin-export-tools .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+@media(max-width:600px){.admin-export-tools .two{grid-template-columns:1fr}}
+
+/* Owner user management compact disclosure */
+.owner-members-panel{padding:0!important;overflow:hidden}
+.owner-members-details>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;list-style:none;cursor:pointer;padding:18px 20px;background:#f7fbf8}
+.owner-members-details>summary::-webkit-details-marker{display:none}
+.owner-members-details>summary:after{content:"＋";font-size:1.25rem;color:#087650;font-weight:700}
+.owner-members-details[open]>summary:after{content:"−"}
+.owner-members-details>summary strong{display:block;font-size:1.05rem}
+.owner-members-details>summary small{display:block;color:#718078;margin-top:4px}
+.owner-member-summary-count{background:#eaf6ef;color:#087650;padding:8px 12px;border-radius:22px;white-space:nowrap;font-size:.88rem}
+.owner-members-content{padding:18px 20px 22px}
+.owner-members-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.owner-members-intro p{margin:0;color:#718078}
+.owner-members-content .compact{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:760px){.owner-members-content .compact{grid-template-columns:repeat(2,minmax(0,1fr))}.owner-members-content .compact button,.owner-members-content .compact .message{grid-column:1/-1}}
+.notification-wrap{position:relative}
+.notification-bell{position:relative;border:1px solid #dce7e2;background:#fff;color:#087650;border-radius:50%;width:42px;height:42px;font-size:22px;cursor:pointer}
+.notification-badge{position:absolute;top:-5px;right:-5px;background:#d92d20;color:#fff;border-radius:20px;min-width:18px;height:18px;font-size:11px;line-height:18px}
+.notification-popover{position:absolute;z-index:1000;top:50px;left:0;width:min(340px,calc(100vw - 40px));padding:14px;background:#fff;border:1px solid #dce7e2;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.14)}
+.notification-popover-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e5ece8;padding-bottom:10px;margin-bottom:10px}
+.notification-popover p{margin:8px 0;line-height:1.7}
+
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><img class="logo-img" src="icon.svg" alt="شعار مقياس"><div><b>مقياس <span class="brand-en">MIQYAS</span></b><small>منصة قياس الجودة وتجربة العميل</small></div></div>
+  <div class="top-actions">
+    <span id="connection" class="status">غير متصل</span>
+    <div class="notification-wrap">
+      <button id="notificationBell" class="notification-bell hidden" type="button" aria-label="الإشعارات" aria-expanded="false" title="الإشعارات">♧<span id="notificationBadge" class="notification-badge hidden">0</span></button>
+      <div id="notificationPopover" class="notification-popover hidden" role="dialog" aria-label="الإشعارات">
+        <div class="notification-popover-head"><strong>الإشعارات</strong><button id="closeNotifications" type="button" class="ghost">إغلاق</button></div>
+        <div id="notificationItems"><p class="muted">لا توجد إشعارات جديدة.</p></div>
+      </div>
+    </div>
+    <button id="signOut" class="ghost hidden">تسجيل الخروج</button>
+  </div>
+</header>
+
+<main class="wrap">
+<section id="publicFeedbackView" class="auth-card hidden">
+  <div class="auth-intro"><span class="eyebrow">MIQYAS CUSTOMER VOICE</span><h1>شاركنا رأيك</h1><p id="publicBranchName">رأيك يساعدنا على تحسين الخدمة.</p></div>
+  <form id="publicFeedbackForm">
+    <label for="publicPhone">رقم الجوال</label>
+    <input id="publicPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" required placeholder="05xxxxxxxx" aria-describedby="publicPhoneHelp">
+    <small id="publicPhoneHelp" class="fine">يُستخدم الرقم لمنع تكرار التقييم فقط، ولا يظهر للمنشأة.</small>
+    <label>كيف كانت تجربتك؟</label>
+    <div class="rating-options">
+      <label><input type="radio" name="publicRating" value="positive" required><span>😍 راضٍ</span></label>
+      <label><input type="radio" name="publicRating" value="neutral"><span>😐 محايد</span></label>
+      <label><input type="radio" name="publicRating" value="negative"><span>😞 غير راضٍ</span></label>
+    </div>
+    <label>ملاحظتك (اختياري)<textarea id="publicComment" rows="3" maxlength="500" placeholder="أخبرنا عن تجربتك..."></textarea></label>
+    <button class="primary wide" id="publicFeedbackSubmit">إرسال التقييم</button>
+  </form>
+  <p id="publicFeedbackMessage" class="message" aria-live="polite"></p>
+  <p class="fine">لا تحتاج إلى إنشاء حساب لإرسال رأيك.</p>
+</section>
+<section id="authView" class="auth-card">
+  <div class="auth-intro"><span class="eyebrow">MIQYAS CLOUD</span><h1>مرحباً بك في مقياس</h1><p>سجّل الدخول أو أنشئ حساب منشأتك لبدء متابعة الجودة وأداء الفروع.</p></div>
+  <div class="tabs"><button class="tab active" data-auth="login">تسجيل الدخول</button><button class="tab" data-auth="signup">إنشاء حساب</button></div>
+  <form id="authForm">
+    <div id="signupBusinessType" class="hidden" style="border:1px solid #dce7e2;border-radius:12px;padding:12px;margin:12px 0">
+      <label class="business-type-heading">نوع النشاط</label>
+      <div class="business-type-options" role="radiogroup" aria-label="نوع النشاط">
+        <label class="business-type-option"><input type="radio" name="businessType" value="branches" checked><span class="business-type-label"><span class="business-type-icon" aria-hidden="true">🏢</span><span>فروع</span></span></label>
+        <label class="business-type-option"><input type="radio" name="businessType" value="ecommerce"><span class="business-type-label"><span class="business-type-icon" aria-hidden="true">🛒</span><span>متجر إلكتروني</span></span></label>
+      </div>
+      <small class="business-type-help">يمكنك اختيار نوع النشاط المناسب لحسابك.</small>
+    </div>
+    <label>البريد الإلكتروني<input id="email" type="email" autocomplete="email" required placeholder="name@company.com"></label>
+    <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" minlength="8" required placeholder="8 أحرف على الأقل"></label>
+    <button class="primary wide" id="authSubmit">تسجيل الدخول</button>
+  </form>
+  <div class="auth-divider"><span>أو</span></div>
+  <button type="button" id="googleSignInBtn" class="google-signin-btn">
+    <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.74 7.18l7.73 6C44.43 38.08 46.98 31.9 46.98 24.55z"/><path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.87.93 7.52 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.14 1.44-4.89 2.3-8.18 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    المتابعة باستخدام Google
+  </button>
+  <button type="button" class="text-link" id="forgotPasswordBtn">نسيت كلمة المرور؟</button>
+  <p id="authMessage" class="message" aria-live="polite"></p>
+  <p class="fine">تأكد من استخدام بريد تملكه. عند تفعيل تأكيد البريد، ستحتاج إلى تأكيده قبل أول دخول.</p>
+</section>
+<section id="passwordRecoveryView" class="auth-card hidden">
+  <div class="auth-intro"><span class="eyebrow">MIQYAS ACCOUNT RECOVERY</span><h1>استعادة كلمة المرور</h1><p>أدخل كلمة مرور جديدة لحسابك.</p></div>
+  <form id="passwordRecoveryForm">
+    <label>كلمة المرور الجديدة<input id="newPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="8 أحرف على الأقل"></label>
+    <label>تأكيد كلمة المرور<input id="confirmNewPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="أعد كتابة كلمة المرور"></label>
+    <button class="primary wide" id="saveNewPasswordBtn">حفظ كلمة المرور</button>
+  </form><p id="recoveryMessage" class="message" aria-live="polite"></p>
+</section>
+<section id="orgView" class="auth-card hidden">
+  <span class="eyebrow">خطوة الإعداد الأولى</span><h1>أنشئ مساحة منشأتك</h1>
+  <p class="muted">سيصبح حسابك مالك المنشأة ويمكنك إضافة الفروع والموظفين لاحقاً.</p>
+  <form id="orgForm">
+    <div id="orgBusinessType" class="business-type-picker" style="border:1px solid #dce7e2;border-radius:12px;padding:12px;margin:12px 0">
+      <label class="business-type-heading">نوع النشاط</label>
+      <div class="business-type-options" role="radiogroup" aria-label="نوع النشاط">
+        <label class="business-type-option"><input type="radio" name="orgBusinessType" value="branches" checked><span class="business-type-label"><span class="business-type-icon" aria-hidden="true">🏢</span><span>فروع</span></span></label>
+        <label class="business-type-option"><input type="radio" name="orgBusinessType" value="ecommerce"><span class="business-type-label"><span class="business-type-icon" aria-hidden="true">🛒</span><span>متجر إلكتروني</span></span></label>
+      </div>
+      <small class="business-type-help">اختر نوع النشاط لتجهيز مساحة العمل والباقات المناسبة.</small>
+    </div>
+    <label>اسم المنشأة<input id="orgName" required placeholder="مثال: شركة الضيافة الحديثة"></label>
+    <label>رقم الجوال للتواصل<input id="ownerPhone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" placeholder="05XXXXXXXX أو +9665XXXXXXXX"></label>
+    <small class="fine">رقم الجوال مطلوب للتواصل بشأن حسابك واشتراكك.</small>
+    <label>القطاع<select id="industry"><option value="restaurants">المطاعم والمقاهي</option><option value="retail">التجزئة والمتاجر</option><option value="health">العيادات والمراكز الطبية</option><option value="services">الخدمات والصيانة</option><option value="education">التعليم والتدريب</option><option value="other">قطاع آخر</option></select></label>
+    <button class="primary wide">إنشاء المنشأة</button>
+  </form>
+  <p id="orgMessage" class="message" aria-live="polite"></p>
+</section>
+
+<section id="appView" class="hidden">
+  <div class="apphead"><div><span class="eyebrow">لوحة التحكم</span><h1 id="orgTitle">منشأتي</h1><details class="org-name-editor"><summary>تعديل اسم المنشأة</summary><form id="orgNameEditForm" class="compact"><label for="orgNameEditInput">اسم المنشأة الجديد</label><input id="orgNameEditInput" maxlength="120" required placeholder="أدخل اسم المنشأة"><button class="outline" type="submit">حفظ الاسم</button><p id="orgNameEditMessage" class="message" aria-live="polite"></p></form></details><p class="muted">متابعة مؤشرات الجودة وأداء الفروع</p></div><div class="actions"><button id="homeButton" class="outline" type="button">⌂ الرئيسية</button><button id="addBranchBtn" class="primary">＋ إضافة فرع</button></div></div>
+  <section class="panel hidden owner-members-panel" id="ownerMembersPanel"><details class="owner-members-details"><summary><span><strong>إدارة مستخدمي المنشأة</strong><small>إضافة المستخدمين ومراجعة الصلاحيات</small></span><span class="owner-member-summary-count" id="ownerMemberSummaryCount">إدارة المستخدمين</span></summary><div class="owner-members-content">
+    <div class="owner-members-intro"><p>هذه الخدمة متاحة لمالك المنشأة فقط. تتم الدعوة إلى البريد الإلكتروني المسجل.</p><span class="sub-status" id="ownerMemberUsage">—</span></div>
+    <form id="ownerInviteForm" class="compact">
+      <label>البريد الإلكتروني للمستخدم<input id="ownerInviteEmail" type="email" required maxlength="254" autocomplete="email" placeholder="user@example.com"></label>
+      <label>اسم المستخدم<input id="ownerInviteName" required maxlength="100" placeholder="اسم الموظف"></label>
+      <label>الصلاحية<select id="ownerInviteRole"><option value="user">مستخدم</option><option value="supervisor">مشرف</option><option value="manager">مدير</option></select></label>
+      <button class="primary" id="ownerInviteSubmit" type="submit">إرسال دعوة المستخدم</button>
+      <p id="ownerInviteMessage" class="message" aria-live="polite">سيصل رابط إنشاء كلمة المرور إلى البريد الإلكتروني.</p>
+    </form>
+    <div class="tablewrap"><table><thead><tr><th>المستخدم</th><th>معرّف المستخدم</th><th>الصلاحية</th><th>تاريخ الإضافة</th></tr></thead><tbody id="ownerMemberRows"><tr><td colspan="4">جارٍ تحميل المستخدمين…</td></tr></tbody></table></div>
+  </div></details></section>
+  <div class="stats" id="stats">
+    <article class="stat"><span>الفروع</span><strong id="branchCount">0</strong><small>إجمالي الفروع</small></article>
+    <article class="stat hidden"><span>سجلات الجودة</span><strong id="evalCount">0</strong><small>التقييمات الداخلية وسجلات الجودة</small></article>
+    <article class="stat"><span>تقييمات العملاء</span><strong id="voiceCount">0</strong><small>عدد تقييمات QR المستلمة</small></article>
+    <article class="stat hidden"><span>متوسط الجودة</span><strong id="avgScore">—</strong><small>من 100</small></article>
+    <article class="stat"><span>رضا العملاء</span><strong id="vocScore">—</strong><small>نسبة الإيجابي من VOC</small></article>
+  </div>
+
+  <section class="panel" id="serviceNavigation">
+    <div class="panelhead"><div><h2>الخدمات</h2><p>اختر مساحة العمل من القائمة</p></div></div>
+    <label for="serviceSelect">الخدمة</label>
+    <select id="serviceSelect" class="service-select">
+      <option value="dashboard">لوحة الإحصائيات</option>
+      <option value="branches">صوت العميل للفروع (QR)</option>
+      <option value="ecommerce">تقييم المتاجر الإلكترونية</option>
+      <option value="reports">التقارير والتحليلات</option>
+      <option value="subscription">💳 الاشتراكات والباقات</option>
+    </select>
+    <div class="service-tab-shortcuts" role="tablist" aria-label="تبويبات الخدمات">
+      <button type="button" class="service-tab" role="tab" aria-selected="false" data-service-tab="subscription">💳 الاشتراكات والباقات</button>
+    </div>
+  </section>
+  <section class="ecommerce-workspace panel service-page hidden" id="ecommerceService">
+    <div class="ecom-welcome">
+      <div><span class="eyebrow">MIQYAS · E-COMMERCE</span><h2>إدارة تجربة متجرك</h2><p>تابع الطلبات والتقييمات واربط متاجرك من مكان واحد.</p></div>
+      <div class="ecom-welcome-mark" aria-hidden="true">↗</div>
+    </div>
+    <div class="ecom-journey-strip" aria-label="رحلة التقييم">
+      <span>الطلبات</span><b>←</b><span>التسليم</span><b>←</b><span>دعوة التقييم</span><b>←</b><span>رأي العميل</span>
+    </div>
+    <section class="ecom-dashboard" id="ecommerceReports" aria-labelledby="ecommerceReportsTitle">
+      <div class="ecom-report-head">
+        <div><span class="ecom-section-kicker">لوحة الأداء</span><h3 id="ecommerceReportsTitle">ملخص أداء المتاجر</h3><p class="muted">الأرقام المعروضة مستمدة من السجلات الفعلية في حسابك.</p></div>
+        <button type="button" class="outline" id="refreshEcommerceReports">↻ تحديث البيانات</button>
+      </div>
+      <div class="ecom-filters">
+        <label>المتجر<select id="ecomReportStore"><option value="">جميع المتاجر</option></select></label>
+        <label>من تاريخ<input type="date" id="ecomReportStart"></label>
+        <label>إلى تاريخ<input type="date" id="ecomReportEnd"></label>
+        <button type="button" class="outline" id="clearEcomReportFilters">مسح التصفية</button>
+      </div>
+      <p id="ecomReportMessage" class="message" aria-live="polite">تعرض اللوحة البيانات المسجلة فعلياً في MIQYAS.</p>
+      <div class="ecom-kpis">
+        <article class="ecom-kpi"><span>إجمالي الطلبات</span><strong id="ecomOrdersKpi">0</strong><small>الطلبات المسجلة</small></article>
+        <article class="ecom-kpi"><span>دعوات التقييم</span><strong id="ecomInvitesKpi">0</strong><small>الدعوات المنشأة</small></article>
+        <article class="ecom-kpi"><span>التقييمات المستلمة</span><strong id="ecomReviewsKpi">0</strong><small>آراء العملاء</small></article>
+        <article class="ecom-kpi"><span>متوسط رضا العملاء</span><strong id="ecomSatisfactionKpi">—</strong><small>من إجمالي خمس درجات</small></article>
+        <article class="ecom-kpi"><span>نسبة الاستجابة</span><strong id="ecomResponseKpi">—</strong><small>التقييمات إلى الدعوات</small></article>
+      </div>
+      <div class="ecom-report-grid">
+        <article class="ecom-chart-card"><h4>تقييم عناصر التجربة</h4><div id="ecomQualityBars" class="ecom-bars"><p class="muted">لا توجد تقييمات بعد</p></div></article>
+        <article class="ecom-chart-card"><h4>مقارنة المتاجر</h4><div id="ecomStoreComparison" class="ecom-bars"><p class="muted">لا توجد بيانات للمقارنة بعد</p></div></article>
+      </div>
+      <div class="ecom-report-foot"><span id="ecomReportPeriod">الفترة: كل الفترات</span><button type="button" class="primary" id="exportEcommerceExcel">تصدير تقرير Excel</button></div>
+    </section>
+    <section class="ecom-section-card">
+      <div class="ecom-section-heading"><div><span class="ecom-section-kicker">إدارة الربط</span><h3>متاجري المرتبطة</h3><p>تابع حالة الاتصال بكل منصة.</p></div><button type="button" class="outline" id="refreshStores">تحديث</button></div>
+      <div class="ecom-store-table tablewrap"><table><thead><tr><th>المتجر</th><th>المنصة</th><th>الحالة</th><th>تاريخ الإضافة</th><th>الإجراء</th></tr></thead><tbody id="ecommerceStoreRows"><tr><td colspan="5">لا توجد متاجر مضافة</td></tr></tbody></table></div>
+    </section>
+    <section class="ecom-section-card ecom-add-card">
+      <div class="ecom-section-heading"><div><span class="ecom-section-kicker">ابدأ الربط</span><h3>إضافة متجر جديد</h3><p>أدخل بيانات متجرك لبدء إعداد التكامل.</p></div><div class="ecom-add-icon" aria-hidden="true">＋</div></div>
+      <form id="storeConnectForm" class="compact ecom-add-form">
+        <label>اسم المتجر<input id="storeName" required maxlength="120" placeholder="مثال: متجري الإلكتروني"></label>
+        <label>منصة المتجر<select id="storePlatform" required><option value="salla">سلة</option><option value="zid">زد</option><option value="shopify">Shopify</option><option value="woocommerce">WooCommerce</option><option value="custom">متجر مبرمج / API خاص</option></select></label>
+        <label class="ecom-url-field">رابط المتجر<input id="storeUrl" type="url" required placeholder="https://store.example"></label>
+        <button class="primary" type="submit" id="addStoreBtn">إضافة المتجر</button>
+        <p class="fine ecom-security-note">لا تضع مفاتيح API السرية في هذه الصفحة أو في ملفات JavaScript العامة.</p>
+        <p id="storeMessage" class="message" aria-live="polite"></p>
+      </form>
+    </section>
+    <details class="ecom-help-card">
+      <summary><span><strong>طريقة الربط والتكامل</strong><small>خطوات إعداد Webhook وحماية بيانات المتجر</small></span><b>＋</b></summary>
+      <div class="ecom-help-content">
+        <div class="service-grid">
+          <article class="service-card"><h3>المنصات المدعومة</h3><p>سلة، زد، Shopify، WooCommerce، والمتاجر المبرمجة عبر API أو Webhook بحسب إعداد كل منصة.</p></article>
+          <article class="service-card"><h3>رحلة التقييم</h3><p>طلب مكتمل ← تأكيد التسليم ← انتظار 24 ساعة ← دعوة تقييم ← تقييم العميل.</p></article>
+          <article class="service-card"><h3>معايير القياس</h3><p>جودة المنتج، التوصيل، التغليف، سهولة الشراء، خدمة العملاء، والرضا العام.</p></article>
+        </div>
+        <ol><li>أضف المتجر أعلاه.</li><li>من لوحة المنصة أنشئ Webhook لأحداث الطلبات المكتملة أو المسلّمة.</li><li>وجّه الحدث إلى نقطة الاستقبال المخصصة بعد إعداد التكامل.</li><li>تُرسل دعوة التقييم بعد تأكيد وقت التسليم الفعلي وانقضاء 24 ساعة، مع استبعاد الطلبات الملغاة.</li></ol>
+        <p class="fine">يجب اختبار كل منصة قبل تفعيل الدعوات التلقائية للعملاء.</p>
+      </div>
+    </details>
+  </section>
+  <section class="panel subscription-panel" id="subscriptionPanel">
+    <div class="panelhead"><div><h2>الاشتراك والباقات</h2><p>اختر الباقة المناسبة لمنشأتك وأرسل طلب الاشتراك</p></div><span id="subscriptionStatus" class="sub-status">جارٍ التحقق...</span></div>
+    <div class="current-subscription" id="currentSubscription">
+      <div><small>اشتراك المنشأة الحالي</small><strong id="currentPlanName">لا يوجد اشتراك نشط</strong><span id="currentPlanDates">يمكنك اختيار إحدى الباقات أدناه</span></div>
+      <div class="sub-expiry" id="subscriptionExpiry">—</div>
+    </div>
+    <div class="subscription-billing-switch">
+      <label for="subscriptionBillingPeriod">مدة الاشتراك</label>
+      <select id="subscriptionBillingPeriod"><option value="1">شهري – دفع شهري</option><option value="12">سنوي – خصم 20٪</option></select>
+      <span id="subscriptionSavingHint" class="fine">اختر الاشتراك السنوي للاستفادة من خصم 20٪.</span>
+    </div>
+    <div class="plan-grid" id="subscriptionPlans">
+      <article class="plan-card"><h3>الأساسية</h3><strong>99 ر.س <small>/ شهرياً</small></strong><p>فرع واحد · 3 مستخدمين</p></article>
+      <article class="plan-card featured"><h3>الاحترافية</h3><strong>199 ر.س <small>/ شهرياً</small></strong><p>حتى 5 فروع · 10 مستخدمين</p></article>
+      <article class="plan-card"><h3>المؤسسات</h3><strong>399 ر.س <small>/ شهرياً</small></strong><p>حتى 20 فرعاً · 30 مستخدماً</p></article>
+    </div>
+    <form id="subscriptionRequestForm" class="subscription-form">
+      <div class="subscription-fields">
+        <label>الباقة المطلوبة<select id="subscriptionPlan" required><option value="basic">الأساسية – 99 ريال / شهر</option><option value="professional">الاحترافية – 199 ريال / شهر</option><option value="enterprise">المؤسسات – 399 ريال / شهر</option></select></label>
+        <label>طريقة الدفع<select id="subscriptionPaymentMethod" required><option value="online">الدفع الإلكتروني فقط</option></select></label>
+      </div>
+      <div id="onlinePaymentInstructions" class="bank-instructions">
+        <h3>الدفع الإلكتروني</h3>
+        <p>أكمل اشتراكك بأمان عبر بوابة ميسر (Moyasar). سيتم تحويلك إلى صفحة الدفع لإتمام العملية، ثم تفعيل الاشتراك تلقائياً بعد تأكيد نجاح الدفع.</p>
+      </div>
+      <button class="primary wide" id="submitSubscriptionRequest" type="submit">المتابعة إلى الدفع الإلكتروني</button>
+      <p id="subscriptionMessage" class="message" aria-live="polite"></p>
+      <p class="fine">يتم تفعيل الاشتراك تلقائياً بعد تأكيد بوابة ميسر نجاح عملية الدفع والتحقق من المبلغ.</p>
+    </form>
+    <div class="subscription-history">
+      <h3>طلبات الاشتراك السابقة</h3>
+      <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الباقة</th><th>المبلغ</th><th>طريقة الدفع</th><th>الحالة</th></tr></thead><tbody id="subscriptionRequestRows"><tr><td colspan="5">لا توجد طلبات بعد</td></tr></tbody></table></div>
+    </div>
+    <div id="platformAdminPanel" class="platform-admin hidden">
+      <nav class="admin-tabs" aria-label="أقسام إدارة المنصة" role="tablist">
+        <button type="button" class="admin-tab active" role="tab" aria-selected="true" data-admin-tab="overview">نظرة عامة</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="subscriptions">الاشتراكات والمشتركون</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="branches">الفروع والتقييمات</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="reports">التقارير والتصدير</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="visitors">📊 إحصائيات الزوار</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="organizations">المنشآت</button>
+        <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="logs">سجلات الحركة</button>
+      </nav>
+      <div class="admin-tab-panel" data-admin-panel="subscriptions">
+      <div class="panelhead"><div><h2>إدارة طلبات الاشتراك</h2><p>مراجعة طلبات المنشآت وتفعيل الاشتراكات</p></div><div class="actions"><button type="button" class="outline" id="enableAdminNotifications">تفعيل إشعارات الطلبات</button><button type="button" class="outline" id="refreshSubscriptionRequests">تحديث الطلبات</button></div></div>
+      <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody id="adminSubscriptionRows"><tr><td colspan="5">لا توجد طلبات معلقة</td></tr></tbody></table></div>
+      <hr>
+      <div class="panelhead"><div><h2>إدارة المشتركين</h2><p>عرض الاشتراكات وتعديلها أو إيقافها أو إعادة تفعيلها أو حذف الاشتراك فقط مع الاحتفاظ ببيانات المنشأة.</p></div><button type="button" class="outline" id="refreshAdminSubscriptions">تحديث المشتركين</button></div>
+      <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>الحالة</th><th>بداية الاشتراك</th><th>نهاية الاشتراك</th><th>الفروع</th><th>المتاجر</th><th>الإجراءات</th></tr></thead><tbody id="adminSubscribersRows"><tr><td colspan="8">جارٍ تحميل المشتركين...</td></tr></tbody></table></div>
+      <form id="adminFreeGrantForm" class="compact admin-subscription-form">
+        <h3>منح اشتراك مجاني</h3>
+        <div class="two">
+          <label>المنشأة<select id="adminGrantOrg" required><option value="">اختر المنشأة</option></select></label>
+          <label>الباقة<select id="adminGrantPlan" required><option value="">اختر الباقة</option></select></label>
+        </div>
+        <div class="two">
+          <label>مدة المنحة بالأيام<input id="adminGrantDays" type="number" min="1" max="365" value="30" required></label>
+          <label>سبب المنحة<input id="adminGrantReason" maxlength="500" placeholder="مثال: تجربة خاصة لعميل"></label>
+        </div>
+        <button type="submit" class="primary">منح الاشتراك المجاني</button>
+        <p id="adminGrantMessage" class="message" aria-live="polite"></p>
+      </form>
+      <form id="adminSubscriptionEditForm" class="compact hidden admin-subscription-form">
+        <h3 id="adminSubscriptionEditTitle">تعديل الاشتراك</h3>
+        <input type="hidden" id="adminEditSubscriptionId">
+        <label>الباقة<select id="adminEditPlan" required></select></label>
+        <div class="two">
+          <label>حالة الاشتراك<select id="adminEditStatus"><option value="trial">تجريبي</option><option value="active">نشط</option><option value="paused">موقوف مؤقتاً</option><option value="past_due">متأخر السداد</option><option value="expired">منتهي</option><option value="cancelled">ملغي</option></select></label>
+          <label>تاريخ البداية<input id="adminEditStart" type="date" required></label>
+        </div>
+        <label>تاريخ النهاية<input id="adminEditEnd" type="date"></label>
+        <label>ملاحظات العملية<textarea id="adminEditReason" rows="2" maxlength="500" placeholder="سبب التعديل (اختياري)"></textarea></label>
+        <div class="actions"><button type="submit" class="primary" id="saveAdminSubscription">حفظ التعديلات</button><button type="button" class="outline" id="cancelAdminSubscriptionEdit">إلغاء</button></div>
+        <p id="adminSubscriptionEditMessage" class="message" aria-live="polite"></p>
+      </form>
+      </div>
+      <div class="admin-tab-panel" data-admin-panel="overview">
+      <section class="admin-insights" aria-label="ملخص المنصة">
+        <div class="panelhead"><div><h2>ملخص المنصة والفروع والتقييمات</h2><p>مؤشرات مجمعة لجميع المنشآت المسجلة</p></div><button type="button" class="outline" id="refreshPlatformInsights">تحديث الملخص</button></div>
+        <div class="admin-kpi-grid">
+          <article class="stat"><span>إجمالي المنشآت</span><strong id="platformOrgCount">—</strong></article>
+          <article class="stat"><span>الاشتراكات النشطة</span><strong id="platformActiveCount">—</strong></article>
+          <article class="stat"><span>الاشتراكات التجريبية</span><strong id="platformTrialCount">—</strong></article>
+          <article class="stat"><span>الإيرادات المحصلة</span><strong id="platformRevenue">—</strong><small>من طلبات الدفع المؤكدة فقط</small></article>
+          <article class="stat"><span>عدد الفروع</span><strong id="platformBranchCount">—</strong></article>
+          <article class="stat"><span>عدد المتاجر الإلكترونية</span><strong id="platformStoreCount">—</strong></article>
+          <article class="stat"><span>تقييمات العملاء</span><strong id="platformFeedbackCount">—</strong></article>
+        </div>
+      </section>
+      </div>
+      <div class="admin-tab-panel" data-admin-panel="branches">
+        <section class="admin-insights admin-branch-insights" aria-label="متابعة الفروع والتقييمات">
+        <h3>متابعة الفروع وتقييمات المشتركين</h3>
+        <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الفرع</th><th>المدينة</th><th>عدد التقييمات</th><th>الإيجابي</th><th>المحايد</th><th>السلبي</th><th>آخر تقييم</th></tr></thead><tbody id="platformBranchMonitoringRows"><tr><td colspan="8">جارٍ تحميل المتابعة...</td></tr></tbody></table></div>
+        </section>
+      </div>
+      <div class="admin-tab-panel" data-admin-panel="reports">
+      <section class="admin-export-tools">
+        <h2>تصدير تقارير المنصة إلى Excel</h2>
+        <p>حدد فترة التقرير. يتم استخدام التاريخ الميلادي.</p>
+        <div class="two">
+          <label>من تاريخ<input type="date" id="adminExportStart"></label>
+          <label>إلى تاريخ<input type="date" id="adminExportEnd"></label>
+        </div>
+        <div class="actions">
+          <button type="button" class="outline" id="exportSubscribersExcel">تصدير المشتركين</button>
+          <button type="button" class="outline" id="exportSubscriptionOpsExcel">تصدير عمليات الاشتراكات</button>
+          <button type="button" class="outline" id="exportUserActivityExcel">تصدير حركة المستخدمين</button>
+        </div>
+        <p id="adminExportMessage" class="message" aria-live="polite"></p>
+      </section>
+      </div>
+
+      <div class="admin-tab-panel" data-admin-panel="visitors">
+        <section class="admin-insights" aria-label="إحصائيات زوار منصة مقياس">
+          <div class="panelhead">
+            <div><h2>إحصائيات زوار رابط منصة MIQYAS</h2><p>يُحتسب كل دخول إلى رابط منصة MIQYAS قبل التسجيل أو بعده. لا يشمل روابط تقييم QR.</p></div>
+            <button type="button" class="outline" id="refreshPlatformVisitors">تحديث الإحصائيات</button>
+          </div>
+          <div class="admin-export-tools">
+            <div class="two">
+              <label>من تاريخ<input type="date" id="visitorReportStart"></label>
+              <label>إلى تاريخ<input type="date" id="visitorReportEnd"></label>
+            </div>
+            <div class="admin-kpi-grid">
+              <article class="stat"><span>إجمالي الزيارات</span><strong id="visitorTotalVisits">—</strong></article>
+              <article class="stat"><span>الزوار الفريدون</span><strong id="visitorUniqueCount">—</strong></article>
+              <article class="stat"><span>الزوار العائدون</span><strong id="visitorReturningCount">—</strong></article>
+            </div>
+            <div class="actions">
+              <button type="button" class="primary" id="exportPlatformVisitorsExcel">تصدير تقرير الزوار Excel</button>
+            </div>
+            <p id="visitorReportMessage" class="message" aria-live="polite"></p>
+          </div>
+          <h3>الزيارات حسب اليوم</h3>
+          <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الزيارات</th><th>الزوار الفريدون</th></tr></thead><tbody id="platformVisitorDailyRows"><tr><td colspan="3">جارٍ تحميل الإحصائيات...</td></tr></tbody></table></div>
+        </section>
+      </div>
+      <div class="admin-tab-panel" data-admin-panel="organizations">
+      <div class="subscription-history">
+        <div class="panelhead"><div><h2>إدارة جميع المنشآت</h2><p>حذف نهائي للمنشأة وبياناتها التابعة. حسابات الدخول لا تُحذف تلقائياً.</p></div><button type="button" class="outline" id="refreshAdminOrganizations">تحديث المنشآت</button></div>
+      <div class="tablewrap"><table><thead><tr><th>اسم المنشأة</th><th>النشاط</th><th>تاريخ التسجيل</th><th>الفروع</th><th>المتاجر</th><th>التقييمات</th><th>الإجراء</th></tr></thead><tbody id="adminOrganizationsRows"><tr><td colspan="7">جارٍ تحميل المنشآت...</td></tr></tbody></table></div>
+      <section class="panel" id="adminSubscriberExplorer" style="margin-top:18px">
+        <div class="panelhead"><div><h2>استعراض بيانات المشترك</h2><p>اختر استعراضاً من قائمة المنشآت لعرض الفروع والمتاجر والتقييمات وإصدار تقرير Excel.</p></div></div>
+        <p id="adminExplorerMessage" class="message" aria-live="polite">لم يتم اختيار منشأة بعد.</p>
+        <div class="admin-kpi-grid">
+          <article class="stat"><span>الفروع</span><strong id="explorerBranchCount">—</strong></article>
+          <article class="stat"><span>المتاجر</span><strong id="explorerStoreCount">—</strong></article>
+          <article class="stat"><span>تقييمات الفروع</span><strong id="explorerBranchReviews">—</strong></article>
+          <article class="stat"><span>تقييمات المتاجر</span><strong id="explorerStoreReviews">—</strong></article>
+        </div>
+        <div class="actions" style="margin:12px 0">
+          <button type="button" class="outline" id="exportSelectedSubscriberExcel" disabled>إصدار تقرير المشترك Excel</button>
+        </div>
+        <h3>الفروع وتقييماتها</h3>
+        <div class="tablewrap"><table><thead><tr><th>الفرع</th><th>المدينة</th><th>عدد التقييمات</th><th>آخر تقييم</th></tr></thead><tbody id="explorerBranchRows"><tr><td colspan="4">اختر منشأة للاستعراض</td></tr></tbody></table></div>
+        <h3>المتاجر الإلكترونية وتقييماتها</h3>
+        <div class="tablewrap"><table><thead><tr><th>المتجر</th><th>المنصة</th><th>الحالة</th><th>الطلبات</th><th>التقييمات</th><th>الإجراء</th></tr></thead><tbody id="explorerStoreRows"><tr><td colspan="6">اختر منشأة للاستعراض</td></tr></tbody></table></div>
+        <h3>آخر تقييمات المتاجر</h3>
+        <div class="tablewrap"><table><thead><tr><th>المتجر</th><th>جودة المنتج</th><th>التوصيل</th><th>التغليف</th><th>سهولة الشراء</th><th>خدمة العملاء</th><th>الرضا العام</th><th>التعليق</th><th>التاريخ</th></tr></thead><tbody id="explorerEcomReviewRows"><tr><td colspan="9">اختر منشأة للاستعراض</td></tr></tbody></table></div>
+      </section>
+      </div>
+      <div class="admin-tab-panel" data-admin-panel="logs">
+      <div class="panelhead"><div><h2>سجل حركة المستخدمين</h2><p>متابعة عمليات الإضافة والتعديل والحذف وتسجيل الدخول على مستوى المنصة</p></div><button type="button" class="outline" id="refreshActivityAudit">تحديث السجل</button></div>
+      <div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>المنشأة</th><th>العملية</th><th>الجدول</th><th>التفاصيل</th></tr></thead><tbody id="activityAuditRows"><tr><td colspan="6">نفّذ ملف SQL الخاص بسجل الحركة أولاً</td></tr></tbody></table></div>
+      <h3>سجل عمليات الاشتراكات</h3>
+        <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>المنشأة</th><th>العملية</th><th>التفاصيل</th><th>المنفذ</th></tr></thead><tbody id="adminSubscriptionAuditRows"><tr><td colspan="5">لا توجد عمليات بعد</td></tr></tbody></table></div>
+      </div>
+      </div>
+    </div>
+  </section>
+  <div id="subscriptionGate" class="panel message error hidden" role="alert" style="margin:18px 0;padding:18px"></div>
+  <div id="workspaceFeatures">
+  <div class="columns">
+    <section class="panel branch-management-panel"><div class="panelhead"><div><span class="eyebrow">إدارة المنشأة</span><h2>فروع منشأتك</h2><p>إدارة رموز التقييم وروابط المواقع ومتابعة تقييمات كل فرع</p></div></div><div id="branchList" class="list empty">لا توجد فروع بعد</div></section>
+    <section class="panel" id="googleMapsReportPanel">
+      <div class="panelhead"><div><h2>تقييمات Google Maps</h2><p>اسحب ملخص التقييمات والمراجعات المتاحة لكل فرع من الرابط المسجل</p></div></div>
+      <div id="googleMapsReports" class="list empty">أضف رابط Google Maps للفرع ثم اضغط «تحديث تقييمات Google Maps» من بطاقة الفرع.</div>
+      <p class="muted">يعرض Google Places API حتى 5 مراجعات مختارة للموقع، وليس كامل سجل المراجعات. لاستخدام جميع مراجعات منشأتك يلزم ربط Google Business Profile بصلاحية الإدارة.</p>
+    </section>
+    <section class="panel hidden" id="manualAssessmentPanel"><div class="panelhead"><div><h2>إضافة تقييم</h2><p>سجل صوت العميل</p></div></div>
+      <form id="evalForm" class="compact">
+        <label>الفرع<select id="evalBranch" required></select></label>
+        <label>نوع التقييم<select id="evalType"><option value="voc">صوت العميل VOC</option></select></label>
+        <div class="three"><label>إيجابي<input id="positive" type="number" min="0" value="0" required></label><label>محايد<input id="neutral" type="number" min="0" value="0" required></label><label>سلبي<input id="negative" type="number" min="0" value="0" required></label></div>
+        <label>ملاحظات<textarea id="notes" rows="2" placeholder="ملاحظات اختيارية"></textarea></label>
+        <button class="primary wide" id="saveEval">حفظ التقييم</button>
+      </form>
+    </section>
+  </div>
+  <section class="panel report-panel" id="reportPanel">
+    <div class="panelhead"><div><h2>تحليل النتائج والتقارير</h2><p>تصفية المؤشرات ثم تصدير تقرير Excel</p></div><button id="exportExcel" class="primary">تحميل تقرير Excel</button></div>
+    <div class="report-filters">
+      <label>المنطقة / الحي<select id="filterArea"><option value="">كل المناطق</option></select></label>
+      <label>الفرع<select id="filterBranch"><option value="">كل الفروع</option></select></label>
+      <label>من تاريخ<input id="filterStartDate" type="date"></label>
+      <label>إلى تاريخ<input id="filterEndDate" type="date"></label>
+      <button id="clearFilters" class="outline" type="button">مسح التصفية</button>
+    </div>
+    <div class="sentiment-summary">
+      <div class="sentiment-heading"><h3>توزيع أصوات العملاء</h3><span id="voiceTotalLabel">0 صوت</span></div>
+      <div class="sentiment-bars" id="sentimentChart" role="img" aria-label="رسم يوضح توزيع أصوات العملاء"></div>
+      <div class="sentiment-legend" id="sentimentLegend"></div>
+    </div>
+  </section>
+  <section class="panel history" id="feedbackHistoryPanel"><div class="panelhead"><div><h2>تفاصيل صوت العميل المعتمدة (QR)</h2><p>هذا الجدول وحده يدخل في مؤشرات صوت العميل وتقاريره. يعرض كل مشاركة وتاريخها والفرع والتقييم وملاحظة العميل.</p></div><button id="refresh" class="outline">تحديث</button></div><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الفرع</th><th>المصدر</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>التقييم</th><th>ملاحظة العميل</th></tr></thead><tbody id="feedbackRows"><tr><td colspan="8">لا توجد مشاركات QR</td></tr></tbody></table></div></section>
+  <section class="panel history hidden" id="archivedQualityHistory"><div class="panelhead"><div><h2>سجلات الجودة الداخلية</h2><p>سجلات التقييم اليدوي والجودة محفوظة هنا بشكل مستقل، ولا تدخل في نتيجة صوت العميل عبر QR.</p></div></div><div class="tablewrap"><table><thead><tr><th>التاريخ والوقت</th><th>الفرع</th><th>نوع التقييم</th><th>إيجابي</th><th>محايد</th><th>سلبي</th><th>النتيجة</th><th>الملاحظات</th></tr></thead><tbody id="qualityRows"><tr><td colspan="8">لا توجد سجلات جودة</td></tr></tbody></table></div></section>
+  </div>
+</section>
+</main>
+
+<section class="contact-strip" id="contactStrip" aria-label="التواصل مع مقياس">
+  <div><strong>تواصل مع مقياس</strong><small>يسعدنا استقبال استفساراتكم</small></div>
+  <div class="contact-links">
+    <a id="contactEmailLink" class="outline contact-icon-link hidden" href="#" aria-label="التواصل عبر البريد الإلكتروني" title="البريد الإلكتروني">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5h18v13H3z"/><path d="m3.5 6 8.5 7 8.5-7"/></svg><span>البريد الإلكتروني</span>
+    </a>
+    <a id="contactWhatsAppLink" class="primary contact-icon-link hidden" href="#" target="_blank" rel="noopener noreferrer" aria-label="التواصل عبر واتساب" title="واتساب">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 11.7a8.2 8.2 0 0 1-12.1 7.2L3 20l1.2-4.9a8.2 8.2 0 1 1 16-3.4Z"/><path d="M8.2 8.2c.2-.5.5-.5.8-.5h.5c.2 0 .4.1.5.4l.7 1.7c.1.2.1.4-.1.6l-.5.6c-.2.2-.2.4 0 .6.4.7 1 1.3 1.7 1.7.2.1.4.1.6-.1l.7-.8c.2-.2.4-.2.6-.1l1.6.8c.2.1.3.3.3.5 0 .3-.2 1.1-.7 1.5-.5.4-1.1.6-1.8.5-1-.2-2.2-.8-3.4-1.9-1-.9-1.8-2.1-2-3.1-.2-.9.1-1.6.5-2Z"/></svg><span>واتساب</span>
+    </a>
+    <span id="contactInfoPending" class="fine">أضف بريد التواصل ورقم واتساب الدولي في config.js لإظهار روابط التواصل.</span>
+  </div>
+  <nav class="legal-links" aria-label="روابط قانونية ومعلوماتية">
+    <a href="#aboutDialog" data-open-legal="aboutDialog">نبذة عنا</a>
+    <a href="#privacyDialog" data-open-legal="privacyDialog">سياسة الخصوصية</a>
+  </nav>
+</section>
+
+<dialog id="aboutDialog" class="legal-dialog">
+  <div class="dialog-head"><h2>نبذة عن مقياس MIQYAS</h2><button type="button" class="x" data-close-legal>×</button></div>
+  <div class="legal-content">
+    <p><strong>مقياس MIQYAS</strong> منصة رقمية لقياس جودة الخدمات وتجربة العملاء، تساعد المنشآت على فهم صوت العميل وتحويل الملاحظات والتقييمات إلى فرص عملية للتحسين.</p>
+    <h3>ماذا تقدم المنصة؟</h3>
+    <ul>
+      <li>جمع آراء العملاء عبر رموز QR ونماذج التقييم.</li>
+      <li>متابعة مؤشرات رضا العملاء وتحليل الملاحظات.</li>
+      <li>إدارة الفروع والمتاجر الإلكترونية بحسب نوع الاشتراك.</li>
+      <li>تقارير ولوحات متابعة ومقارنات تساعد الإدارة على اتخاذ القرار.</li>
+      <li>متابعة روابط وتقييمات Google Maps وفق إمكانات واجهات Google والصلاحيات المتاحة.</li>
+    </ul>
+    <p>نهدف إلى تمكين المنشآت من الاستماع إلى عملائها بصورة منظمة، وقياس الأداء، وتحديد فرص التطوير المستمر.</p>
+  </div>
+  <button type="button" class="primary wide" data-close-legal>إغلاق</button>
+</dialog>
+
+<dialog id="privacyDialog" class="legal-dialog">
+  <div class="dialog-head"><h2>سياسة الخصوصية</h2><button type="button" class="x" data-close-legal>×</button></div>
+  <div class="legal-content">
+    <p><strong>آخر تحديث: 6 نوفمبر 2026</strong></p>
+    <p>توضح هذه السياسة كيفية تعامل منصة مقياس MIQYAS مع المعلومات التي تُجمع عند استخدام المنصة. باستخدامك للمنصة، فإنك تقر بالاطلاع على هذه السياسة.</p>
+    <h3>1. المعلومات التي قد نجمعها</h3>
+    <ul>
+      <li>بيانات الحساب والتواصل، مثل البريد الإلكتروني ورقم الجوال واسم المنشأة.</li>
+      <li>بيانات الفروع والمتاجر وروابطها ومعلومات إعدادها.</li>
+      <li>التقييمات والملاحظات التي يرسلها العملاء من خلال نماذج MIQYAS.</li>
+      <li>بيانات الاشتراك والفواتير وحالة الدفع اللازمة لإدارة الخدمة.</li>
+      <li>بيانات الاستخدام التقنية الضرورية لتشغيل المنصة وحمايتها.</li>
+    </ul>
+    <h3>2. كيف نستخدم المعلومات</h3>
+    <p>نستخدم المعلومات لتشغيل الحسابات والاشتراكات، وتقديم التقارير والتحليلات، وتحسين جودة الخدمة، ودعم المستخدمين، وحماية المنصة ومنع إساءة الاستخدام، والوفاء بالالتزامات النظامية.</p>
+    <h3>3. تقييمات Google والخدمات الخارجية</h3>
+    <p>عند إضافة رابط Google Maps أو تفعيل الربط، قد تتم معالجة معرّفات الأماكن وبيانات التقييمات المتاحة عبر واجهات Google الرسمية. ويخضع استخدام هذه البيانات أيضاً لشروط وسياسات Google. لا نطلب كلمة مرور حساب Google الخاص بالعميل. وأي وصول إلى بيانات Google Business Profile يتطلب التفويض والصلاحيات المناسبة.</p>
+    <h3>4. مشاركة المعلومات</h3>
+    <p>لا نبيع البيانات الشخصية. وقد تتم معالجة البيانات لدى مزودي الاستضافة وقواعد البيانات والدفع والخدمات التقنية اللازمة لتشغيل MIQYAS، أو الإفصاح عنها عند وجود التزام نظامي أو لحماية الحقوق والأمن.</p>
+    <h3>5. الحماية والاحتفاظ</h3>
+    <p>نستخدم ضوابط تقنية وتنظيمية مناسبة لحماية البيانات، بما في ذلك صلاحيات الوصول. نحتفظ بالمعلومات للمدة اللازمة لتقديم الخدمة والوفاء بالالتزامات النظامية، ثم نحذفها أو نزيل ما يحدد هويتها متى كان ذلك مناسباً ومسموحاً.</p>
+    <h3>6. حقوق المستخدم</h3>
+    <p>يمكن لصاحب البيانات طلب الاطلاع على بياناته أو تصحيحها أو طلب حذفها، أو الاستفسار عن معالجتها، مع مراعاة المتطلبات النظامية والالتزامات التعاقدية. وقد نحتاج إلى التحقق من الهوية قبل تنفيذ الطلب.</p>
+    <h3>7. ملفات تعريف الارتباط والتقنيات المشابهة</h3>
+    <p>قد تستخدم المنصة التخزين المحلي أو تقنيات مشابهة لحفظ جلسة الدخول والإعدادات الضرورية وتحسين عمل الخدمة.</p>
+    <h3>8. تحديث السياسة</h3>
+    <p>قد نحدّث هذه السياسة عند تطوير الخدمات أو تغير المتطلبات النظامية. وتُنشر النسخة الأحدث في هذه الصفحة مع تاريخ التحديث.</p>
+    <h3>9. التواصل بشأن الخصوصية</h3>
+    <p>للاستفسارات أو طلبات الخصوصية، يرجى استخدام قنوات التواصل المعروضة في صفحة مقياس. ينبغي على إدارة المنصة إضافة بريد مخصص للخصوصية وبيانات الجهة المشغلة قبل الإطلاق التجاري.</p>
+    <p class="fine">هذه صياغة تشغيلية أولية، وينبغي مراجعتها قانونياً وإكمال بيانات الجهة المشغلة ووسائل التواصل وفترات الاحتفاظ قبل اعتمادها نهائياً.</p>
+  </div>
+  <button type="button" class="primary wide" data-close-legal>إغلاق</button>
+</dialog>
+<dialog id="branchDialog"><form id="branchForm"><div class="dialog-head"><h2>إضافة فرع</h2><button type="button" class="x" id="closeBranch">×</button></div>
+<label>اسم الفرع<input id="branchName" required placeholder="اسم الفرع"></label>
+<label>المدينة<input id="branchCity" placeholder="الرياض"></label>
+<label>المنطقة / الحي<input id="branchArea" placeholder="شمال الرياض"></label>
+<label>رابط فرع Google Maps<input id="branchGoogleMaps" type="url" placeholder="https://maps.google.com/..."></label>
+<p class="fine">أضف رابط صفحة الفرع على Google Maps ليظهر رابط مباشر بجانب الفرع. جلب النجوم وعدد المراجعات تلقائياً يتطلب Google Places API.</p>
+<button class="primary wide">حفظ الفرع</button><p id="branchMessage" class="message"></p></form></dialog>
+<dialog id="qrDialog"><div class="dialog-head qr-actions"><h2 id="qrDialogTitle">رمز تقييم الفرع</h2><button type="button" class="x" id="closeQr">×</button></div><div id="qrPrintCard" class="qr-print-card"><div id="qrOrganizationName" class="qr-brand"></div><p id="qrBranchTitle" class="qr-branch-title"></p><h3 id="qrPromoTitle">رأيك يصنع الفرق 💚</h3><p id="qrPromoText" class="qr-promo-text">نسعد بخدمتك، ونطمح دائماً للأفضل. امسح الرمز وشاركنا تجربتك؛ لن يستغرق التقييم سوى دقيقة.</p><div id="qrCanvas" class="qr-canvas"></div><p class="qr-thanks">شكراً لثقتك بنا</p><p id="qrHint" class="fine">اطبع الرمز وضعه في الفرع.</p></div><p id="qrUrlText" class="fine qr-url"></p><button type="button" class="outline wide qr-screen-action" id="copyFeedbackLink">نسخ الرابط</button><button type="button" class="primary wide qr-screen-action" id="printQrCard">طباعة بطاقة التقييم</button></dialog>
+<div id="toast" class="toast" role="status"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script type="module" src="app.js"></script>
+</body></html>

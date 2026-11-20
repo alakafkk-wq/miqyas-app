@@ -1,5 +1,5 @@
 const CACHE = "miqyas-v1-22-4-safari-fix";
-const APP_SHELL = ["./", "./index.html", "./app.js", "./style.css", "./config.js", "./manifest.webmanifest", "./icon.svg"];
+const APP_SHELL = ["./", "./index.html", "./app.html", "./app.js", "./style.css", "./config.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
@@ -28,7 +28,7 @@ self.addEventListener("fetch", event => {
   if (url.origin !== self.location.origin) return;
 
   const isNavigation = request.mode === "navigate";
-  const isCritical = isNavigation || /\/(index\.html|app\.js|style\.css|config\.js)$/.test(url.pathname);
+  const isCritical = isNavigation || /\/(index\.html|app\.html|app\.js|style\.css|config\.js)$/.test(url.pathname);
 
   if (isCritical) {
     event.respondWith((async () => {
