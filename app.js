@@ -244,6 +244,76 @@ function validGoogleMapsUrl(value){
   }catch(e){return false;}
 }
 
+async function initPublicEcommerceReview(){
+  const params=new URLSearchParams(location.search);
+  const token=params.get("ecommerce-review");
+  if(!token)return false;
+  ["#authView","#orgView","#appView","#passwordRecoveryView"].forEach(selector=>document.querySelector(selector)?.classList.add("hidden"));
+  document.body.insertAdjacentHTML("afterbegin",`
+    <main style="max-width:680px;margin:24px auto;padding:24px;font-family:system-ui,-apple-system,Arial,sans-serif;color:#173d39;direction:rtl">
+      <section style="background:#fff;border:1px solid #e3ece9;border-radius:22px;padding:24px;box-shadow:0 12px 36px rgba(20,60,55,.08)">
+        <div style="font-size:12px;letter-spacing:2px;color:#159d88;font-weight:700">MIQYAS · CUSTOMER EXPERIENCE</div>
+        <h1 style="font-size:26px;margin:12px 0 4px">شاركنا تجربتك</h1>
+        <p id="ecomPublicIntro" style="color:#64736f;margin:0 0 22px">نقدّر وقتك، ويساعدنا رأيك على تحسين الخدمة.</p>
+        <form id="ecomPublicReviewForm">
+          <div id="ecomPublicQuestions"></div>
+          <label style="display:block;font-weight:600;margin:20px 0 8px" for="ecomPublicComment">تعليق إضافي (اختياري)</label>
+          <textarea id="ecomPublicComment" maxlength="1500" rows="4" style="width:100%;box-sizing:border-box;border:1px solid #ccd9d5;border-radius:12px;padding:12px;font:inherit"></textarea>
+          <button id="ecomPublicSubmit" type="submit" style="width:100%;margin-top:18px;border:0;border-radius:12px;padding:14px;background:#159d88;color:white;font:inherit;font-weight:700">إرسال التقييم</button>
+          <p id="ecomPublicMessage" role="status" style="margin:14px 0 0;color:#64736f"></p>
+        </form>
+      </section>
+      <p style="text-align:center;color:#899591;font-size:12px;margin-top:18px">Powered by MIQYAS</p>
+    </main>`;
+  const questions=[
+    ["product_quality","جودة المنتج"],
+    ["delivery_rating","سرعة وجودة التوصيل"],
+    ["packaging_rating","جودة التغليف"],
+    ["checkout_rating","سهولة إتمام الطلب والدفع"],
+    ["support_rating","خدمة العملاء"],
+    ["overall_rating","تقييمك العام للتجربة"]
+  ];
+  const host=document.querySelector("#ecomPublicQuestions");
+  host.innerHTML=questions.map(([key,label])=>`
+    <fieldset style="border:0;border-bottom:1px solid #edf1ef;padding:14px 0;margin:0">
+      <legend style="font-weight:650;padding:0 0 10px">${label}</legend>
+      <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px">
+        ${[1,2,3,4,5].map(n=>`<label style="text-align:center;border:1px solid #dce6e2;border-radius:10px;padding:9px 2px;font-size:13px"><input required type="radio" name="${key}" value="${n}" style="display:block;margin:0 auto 5px"><span>${n} ★</span></label>`).join("")}
+      </div>
+    </fieldset>`).join("");
+  const endpoint=`${String(cfg.SUPABASE_URL||"").replace(/\/+$/g,"")}/functions/v1/ecommerce-public-review?token=${encodeURIComponent(token)}`;
+  const headers={"apikey":cfg.SUPABASE_PUBLISHABLE_KEY||"","Content-Type":"application/json"};
+  const msg=document.querySelector("#ecomPublicMessage");
+  try{
+    const response=await fetch(endpoint,{method:"GET",headers});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||"رابط التقييم غير متاح.");
+    document.querySelector("#ecomPublicIntro").textContent=`يسعدنا معرفة رأيك في تجربتك مع ${data.store_name||"المتجر"}.`;
+  }catch(error){
+    document.querySelector("#ecomPublicReviewForm").classList.add("hidden");
+    msg.textContent=error.message||"تعذر تحميل رابط التقييم.";
+    msg.style.color="#b42318";
+    return true;
+  }
+  document.querySelector("#ecomPublicReviewForm").addEventListener("submit",async event=>{
+    event.preventDefault();
+    const button=document.querySelector("#ecomPublicSubmit");
+    button.disabled=true;button.textContent="جارٍ إرسال تقييمك...";
+    const payload={token,comment:document.querySelector("#ecomPublicComment").value.trim()};
+    for(const [key] of questions)payload[key]=Number(document.querySelector(`input[name="${key}"]:checked`)?.value||0);
+    try{
+      const response=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload)});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.error||"تعذر إرسال التقييم.");
+      document.querySelector("#ecomPublicReviewForm").innerHTML='<div style="text-align:center;padding:28px 8px"><div style="font-size:42px">✓</div><h2>شكراً لك!</h2><p>تم استلام تقييمك بنجاح.</p></div>';
+    }catch(error){
+      msg.textContent=error.message||"تعذر إرسال التقييم. حاول مرة أخرى.";
+      msg.style.color="#b42318";button.disabled=false;button.textContent="إرسال التقييم";
+    }
+  });
+  return true;
+}
+
 async function initPublicFeedback(){
   const token=new URLSearchParams(location.search).get("feedback");
   if(!token) return false;
@@ -1684,6 +1754,7 @@ renderContactInfo();
   if(!cfg.SUPABASE_URL||!cfg.SUPABASE_PUBLISHABLE_KEY||cfg.SUPABASE_PUBLISHABLE_KEY.includes("PASTE_")){
     message("#authMessage","أكمل إعداد config.js بإضافة Publishable Key الخاص بمشروعك.",true);return;
   }
+  if(await initPublicEcommerceReview()) return;
   if(await initPublicFeedback()) return;
   const {data:{session}}=await supabase.auth.getSession();
   if(session){try{await handleSession(session);}catch(e){message("#authMessage",e.message,true);}}
