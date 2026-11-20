@@ -601,7 +601,7 @@ async function writeExcelWithCharts(wb,filename){
   if(!window.JSZip){XLSX.writeFile(wb,filename);toast("تم تصدير البيانات؛ تعذر إرفاق المخططات.");return;}
   const sheetIndex=wb.SheetNames.indexOf("الرسوم البيانية")+1, sheet=wb.Sheets["الرسوم البيانية"];
   const ref=sheet["!ref"]||"A1:B2", last=Number((ref.match(/:(?:[A-Z]+)([0-9]+)$/)||[])[1]||2), count=Math.max(1,last-2);
-  const cats="\u0027الرسوم البيانية\u0027!$A$3:$A$"+last, vals="\u0027الرسوم البيانية\u0027!$B$3:$B$"+last;
+  const cats="\u0027الرسوم البيانية\u0027!$A$4:$A$"+last, vals="\u0027الرسوم البيانية\u0027!$B$4:$B$"+last;
   const zip=await JSZip.loadAsync(XLSX.write(wb,{bookType:"xlsx",type:"array"}));
   const path="xl/worksheets/sheet"+sheetIndex+".xml";let sx=await zip.file(path).async("string");
   if(!sx.includes("xmlns:r="))sx=sx.replace("<worksheet","<worksheet xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"");
@@ -667,10 +667,14 @@ async function loadSubscriptionData(){
 function highlightSelectedPlan(){
   const selected=$("#subscriptionPlan")?.value;
   document.querySelectorAll("[data-plan-card]").forEach(card=>{
-    const active=card.dataset.planCard===selected;
+    const buttons=[...card.querySelectorAll("[data-select-plan]")];
+    const active=buttons.some(button=>button.dataset.selectPlan===selected);
     card.classList.toggle("selected",active);
-    const button=card.querySelector("[data-select-plan]");
-    if(button){button.textContent=active?"تم اختيار هذه الباقة":"اختيار هذه الباقة";button.setAttribute("aria-pressed",String(active));}
+    buttons.forEach(button=>{
+      const chosen=button.dataset.selectPlan===selected;
+      button.textContent=chosen?"تم اختيار هذه المدة":(button.dataset.selectPlan.endsWith("_annual")?"اختيار السنوي":"اختيار الشهري");
+      button.setAttribute("aria-pressed",String(chosen));
+    });
   });
 }
 function isCurrentSubscriptionActive(){
