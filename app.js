@@ -167,7 +167,7 @@ async function loadEcommerceReports(){
     renderEcommerceReports();if(msg)msg.textContent='تم تحديث التقارير من البيانات المسجلة فعلياً. الأرقام صفر عند عدم وجود سجلات.';
   }catch(err){if(msg){msg.textContent=`تعذر تحميل التقارير: ${err.message||'خطأ غير معروف'}`;msg.className='message error';}}
 }
-function exportEcommerceExcel(){
+async function exportEcommerceExcel(){
   if(!window.XLSX){toast('مكتبة Excel غير متاحة حالياً');return;}
   const start=$("#ecomReportStart").value,end=$("#ecomReportEnd").value,storeId=$("#ecomReportStore").value;
   const filter=a=>a.filter(x=>(!storeId||x.store_id===storeId)&&reportDateOk(x.created_at||x.sent_at,start,end));
@@ -180,7 +180,7 @@ function exportEcommerceExcel(){
   add('الطلبات',[['المتجر','رقم داخلي','الحالة','تاريخ الإنشاء','تاريخ التسليم'],...orders.map(x=>[storeName(x.store_id),x.id,x.order_status,x.created_at||'',x.delivered_at||''])]);
   add('دعوات التقييم',[['المتجر','الحالة','تاريخ الإنشاء','تاريخ الإرسال'],...invites.map(x=>[storeName(x.store_id),x.invite_status,x.created_at||'',x.sent_at||''])]);
   addExcelVisualSheet(wb,[{label:"إجمالي الطلبات",value:orders.length},{label:"دعوات التقييم",value:invites.length},{label:"التقييمات المستلمة",value:reviews.length},{label:"متوسط الرضا من 5",value:reviews.length?reviews.reduce((a,x)=>a+Number(x.overall_rating||0),0)/reviews.length:0},{label:"نسبة الاستجابة %",value:invites.length?reviews.length/invites.length*100:0}],"أداء المتاجر الإلكترونية");
-  XLSX.writeFile(wb,`MIQYAS_Ecommerce_Report_${new Date().toISOString().slice(0,10)}.xlsx`);toast('تم تجهيز تقرير Excel');
+  await writeExcelWithCharts(wb,`MIQYAS_Ecommerce_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 $("#ecomReportStore")?.addEventListener('change',renderEcommerceReports);$("#ecomReportStart")?.addEventListener('change',renderEcommerceReports);$("#ecomReportEnd")?.addEventListener('change',renderEcommerceReports);
 $("#refreshEcommerceReports")?.addEventListener('click',loadEcommerceReports);$("#exportEcommerceExcel")?.addEventListener('click',exportEcommerceExcel);
@@ -593,14 +593,30 @@ function getPlanLabel(code){
 function addExcelVisualSheet(wb, metrics, title="لوحة الرسوم البيانية"){
   if(!window.XLSX||!wb||!Array.isArray(metrics))return;
   const clean=metrics.filter(x=>Number.isFinite(Number(x.value)));
-  const max=Math.max(1,...clean.map(x=>Number(x.value)));
-  const rows=[["المؤشر","القيمة","المخطط البياني"],...clean.map(x=>{
-    const value=Number(x.value),blocks=Math.max(0,Math.min(32,Math.round(value/max*32)));
-    return [x.label,value,"▰".repeat(blocks)+"▱".repeat(32-blocks)];
-  })];
-  const ws=XLSX.utils.aoa_to_sheet([[`لوحة مؤشرات MIQYAS – ${title}`],[],...rows]);
-  ws["!cols"]=[{wch:30},{wch:18},{wch:42}];
-  XLSX.utils.book_append_sheet(wb,ws,"الرسوم البيانية");
+  const rows=[["المؤشر","القيمة"],...clean.map(x=>[x.label,Number(x.value)])];
+  const ws=XLSX.utils.aoa_to_sheet([["لوحة مؤشرات MIQYAS – "+title],[],...rows]);
+  ws["!cols"]=[{wch:30},{wch:18}];XLSX.utils.book_append_sheet(wb,ws,"الرسوم البيانية");
+}
+async function writeExcelWithCharts(wb,filename){
+  if(!window.JSZip){XLSX.writeFile(wb,filename);toast("تم تصدير البيانات؛ تعذر إرفاق المخططات.");return;}
+  const sheetIndex=wb.SheetNames.indexOf("الرسوم البيانية")+1, sheet=wb.Sheets["الرسوم البيانية"];
+  const ref=sheet["!ref"]||"A1:B2", last=Number((ref.match(/:(?:[A-Z]+)([0-9]+)$/)||[])[1]||2), count=Math.max(1,last-2);
+  const cats="\u0027الرسوم البيانية\u0027!$A$3:$A$"+last, vals="\u0027الرسوم البيانية\u0027!$B$3:$B$"+last;
+  const zip=await JSZip.loadAsync(XLSX.write(wb,{bookType:"xlsx",type:"array"}));
+  const path="xl/worksheets/sheet"+sheetIndex+".xml";let sx=await zip.file(path).async("string");
+  if(!sx.includes("xmlns:r="))sx=sx.replace("<worksheet","<worksheet xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"");
+  sx=sx.replace("</worksheet>","<drawing r:id=\"rId1\"/></worksheet>");zip.file(path,sx);
+  zip.file("xl/worksheets/_rels/sheet"+sheetIndex+".xml.rels","<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing\" Target=\"../drawings/drawing1.xml\"/></Relationships>");
+  function frame(id,rid,c1,c2){return "<xdr:twoCellAnchor><xdr:from><xdr:col>"+c1+"</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>1</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>"+c2+"</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>19</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr><xdr:cNvPr id=\""+id+"\" name=\"MIQYAS chart "+id+"\"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\""+rid+"\"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>";}
+  zip.file("xl/drawings/drawing1.xml","<?xml version=\"1.0\" encoding=\"UTF-8\"?><xdr:wsDr xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">"+frame(2,"rId1",0,8)+frame(3,"rId2",8,16)+"</xdr:wsDr>");
+  zip.file("xl/drawings/_rels/drawing1.xml.rels","<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart\" Target=\"../charts/chart1.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart\" Target=\"../charts/chart2.xml\"/></Relationships>");
+  const ns="http://schemas.openxmlformats.org/drawingml/2006/chart",base="<?xml version=\"1.0\" encoding=\"UTF-8\"?><c:chartSpace xmlns:c=\""+ns+"\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><c:lang val=\"ar-SA\"/><c:chart><c:plotArea><c:layout/>";
+  const ser="<c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:cat><c:strRef><c:f>"+cats+"</c:f></c:strRef></c:cat><c:val><c:numRef><c:f>"+vals+"</c:f></c:numRef></c:val></c:ser>";
+  const bar=base+"<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>"+ser+"<c:axId val=\"48650112\"/><c:axId val=\"48672768\"/></c:barChart><c:catAx><c:axId val=\"48650112\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:axPos val=\"b\"/><c:crossAx val=\"48672768\"/><c:crosses val=\"autoZero\"/></c:catAx><c:valAx><c:axId val=\"48672768\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:axPos val=\"l\"/><c:crossAx val=\"48650112\"/><c:crosses val=\"autoZero\"/></c:valAx></c:plotArea><c:legend><c:legendPos val=\"b\"/></c:legend></c:chart></c:chartSpace>";
+  const pie=base+"<c:pieChart><c:varyColors val=\"1\"/>"+ser+"<c:dLbls><c:showPercent val=\"1\"/><c:showCatName val=\"1\"/></c:dLbls></c:pieChart></c:plotArea><c:legend><c:legendPos val=\"r\"/></c:legend></c:chart></c:chartSpace>";
+  zip.file("xl/charts/chart1.xml",bar);zip.file("xl/charts/chart2.xml",pie);
+  let ct=await zip.file("[Content_Types].xml").async("string");ct=ct.replace("</Types>","<Override PartName=\"/xl/drawings/drawing1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/><Override PartName=\"/xl/charts/chart1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/><Override PartName=\"/xl/charts/chart2.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/></Types>");zip.file("[Content_Types].xml",ct);
+  const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);toast("تم تصدير ملف Excel مع مخططات قابلة للتحرير.");
 }
 const requestStatusLabels={pending:"بانتظار المراجعة",awaiting_gateway:"بانتظار الدفع الإلكتروني",approved:"معتمد",rejected:"مرفوض",cancelled:"ملغي"};
 function showSubscriptionSetupError(err){
@@ -682,37 +698,20 @@ function renderSubscription(){
   const active=isCurrentSubscriptionActive();
   $("#subscriptionStatus").textContent=active?(currentSubscription.status==="trial"?"فترة تجريبية":"اشتراك نشط"):"لا يوجد اشتراك نشط";
   $("#subscriptionStatus").classList.toggle("active",!!active);
-  $("#currentPlanName").textContent=active?`باقة ${getPlanLabel(currentSubscription.plan_code)}`:"لا يوجد اشتراك نشط";
-  $("#currentPlanDates").textContent=active?`بدأ في ${new Date(currentSubscription.starts_at).toLocaleDateString("ar-SA-u-ca-gregory")}`:"اختر الباقة المناسبة للبدء";
-  $("#subscriptionExpiry").textContent=active&&currentSubscription.ends_at?`ينتهي ${new Date(currentSubscription.ends_at).toLocaleDateString("ar-SA-u-ca-gregory")}`:"—";
-
-  const billingMonths=Number($("#subscriptionBillingPeriod")?.value||1);
-  const monthlyPlans=subscriptionPlans.filter(p=>Number(p.billing_period_months||1)===1&&!String(p.code).endsWith("_annual"));
-  const annualPlans=subscriptionPlans.filter(p=>Number(p.billing_period_months||1)===12||String(p.code).endsWith("_annual"));
-  const visiblePlans=billingMonths===12?annualPlans:monthlyPlans;
-  $("#subscriptionPlans").innerHTML=monthlyPlans.map(monthly=>{
-    const plan=billingMonths===12?annualPlans.find(a=>a.code===`${monthly.code}_annual`):monthly;
-    if(!plan)return "";
-    const annualPrice=Number(plan.price_sar||0),monthlyPrice=Number(monthly.price_sar||0),annualBefore=monthlyPrice*12;
-    return `<article class="plan-card ${monthly.code.includes("professional")?"featured":""}" data-plan-card="${escapeHtml(plan.code)}"><h3>${escapeHtml(monthly.name)}</h3><strong>${annualPrice>0?`${annualPrice.toLocaleString("ar-SA-u-ca-gregory")} ر.س <small>/ ${billingMonths===12?"سنوياً":"شهرياً"}</small>`:"حسب الاتفاق"}</strong>${billingMonths===12?`<p class="annual-saving">وفّر ${(annualBefore-annualPrice).toLocaleString("ar-SA-u-ca-gregory")} ريال سنوياً · خصم 20٪</p><small class="old-price">بدلاً من ${annualBefore.toLocaleString("ar-SA-u-ca-gregory")} ريال</small>`:""}<p>حتى ${Number(plan.branch_limit||0)} ${plan.business_type==="ecommerce"?(Number(plan.branch_limit)===1?"متجر":"متاجر"):(Number(plan.branch_limit)===1?"فرع":"فروع")} · ${Number(plan.max_users||0)} مستخدمين</p><small>${escapeHtml(Array.isArray(plan.features)?plan.features.join(" • "):"")}</small><button type="button" class="outline plan-select-btn" data-select-plan="${escapeHtml(plan.code)}">اختيار هذه الباقة</button></article>`;
+  $("#currentPlanName").textContent=active?"باقة "+getPlanLabel(currentSubscription.plan_code):"لا يوجد اشتراك نشط";
+  $("#currentPlanDates").textContent=active?"بدأ في "+new Date(currentSubscription.starts_at).toLocaleDateString("ar-SA-u-ca-gregory"):"اختر الباقة المناسبة للبدء";
+  $("#subscriptionExpiry").textContent=active&&currentSubscription.ends_at?"ينتهي "+new Date(currentSubscription.ends_at).toLocaleDateString("ar-SA-u-ca-gregory"):"—";
+  const monthly=subscriptionPlans.filter(p=>Number(p.billing_period_months||1)===1&&!String(p.code).endsWith("_annual"));
+  const annual=subscriptionPlans.filter(p=>Number(p.billing_period_months||1)===12||String(p.code).endsWith("_annual"));
+  $("#subscriptionPlans").innerHTML=monthly.map(p=>{const y=annual.find(x=>x.code===p.code+"_annual"),mp=Number(p.price_sar||0),yp=Number(y?.price_sar||0),unit=p.business_type==="ecommerce"?(Number(p.branch_limit)===1?"متجر":"متاجر"):(Number(p.branch_limit)===1?"فرع":"فروع");
+    return '<article class="plan-card '+(p.code.includes("professional")?"featured":"")+'" data-plan-card="'+escapeHtml(p.code)+'"><h3>'+escapeHtml(p.name.replace(/\s*–\s*سنوي$/,""))+'</h3><p>حتى '+Number(p.branch_limit||0)+" "+unit+" · "+Number(p.max_users||0)+' مستخدمين</p><div class="subscription-plan-pair"><div class="subscription-price-choice"><small>شهري</small><strong>'+mp.toLocaleString("ar-SA-u-ca-gregory")+' ر.س</strong><small>تجديد كل شهر</small><button type="button" class="outline" data-select-plan="'+escapeHtml(p.code)+'">اختيار الشهري</button></div>'+(y?'<div class="subscription-price-choice annual"><small>سنوي</small><strong>'+yp.toLocaleString("ar-SA-u-ca-gregory")+' ر.س</strong><small>بدلاً من '+(mp*12).toLocaleString("ar-SA-u-ca-gregory")+' ر.س</small><small class="saving">خصم 20٪ · وفّر '+(mp*12-yp).toLocaleString("ar-SA-u-ca-gregory")+' ر.س</small><button type="button" class="primary" data-select-plan="'+escapeHtml(y.code)+'">اختيار السنوي</button></div>':"")+'</div><small>'+escapeHtml(Array.isArray(p.features)?p.features.join(" • "):"")+'</small></article>';
   }).join("");
-  const planSelect=$("#subscriptionPlan");
-  if(planSelect){planSelect.innerHTML=visiblePlans.map(p=>`<option value="${escapeHtml(p.code)}">${escapeHtml(p.name)} – ${Number(p.price_sar).toLocaleString("ar-SA-u-ca-gregory")} ريال / ${billingMonths===12?"سنة":"شهر"}</option>`).join("");}
-  const billingSelect=$("#subscriptionBillingPeriod");
-  if(billingSelect&&!billingSelect.dataset.bound){billingSelect.dataset.bound="1";billingSelect.addEventListener("change",()=>{renderSubscription();});}
-  if(planSelect && !planSelect.dataset.selectionBound){
-    planSelect.dataset.selectionBound="1";
-    planSelect.addEventListener("change",()=>highlightSelectedPlan());
-    $("#subscriptionPlans").addEventListener("click",e=>{
-      const button=e.target.closest("[data-select-plan]");
-      if(!button)return;
-      planSelect.value=button.dataset.selectPlan;
-      planSelect.dispatchEvent(new Event("change",{bubbles:true}));
-      $("#subscriptionRequestForm").scrollIntoView({behavior:"smooth",block:"center"});
-    });
-  }
+  const allPlans=[...monthly,...annual],planSelect=$("#subscriptionPlan");
+  if(planSelect)planSelect.innerHTML=allPlans.map(p=>'<option value="'+escapeHtml(p.code)+'">'+escapeHtml(p.name)+" – "+Number(p.price_sar).toLocaleString("ar-SA-u-ca-gregory")+" ريال / "+(Number(p.billing_period_months||1)===12?"سنة":"شهر")+"</option>").join("");
+  const billing=$("#subscriptionBillingPeriod");if(billing)billing.parentElement?.classList.add("hidden");
+  if(planSelect&&!planSelect.dataset.selectionBound){planSelect.dataset.selectionBound="1";planSelect.addEventListener("change",highlightSelectedPlan);$("#subscriptionPlans").addEventListener("click",e=>{const b=e.target.closest("[data-select-plan]");if(!b)return;planSelect.value=b.dataset.selectPlan;planSelect.dispatchEvent(new Event("change",{bubbles:true}));highlightSelectedPlan();$("#subscriptionRequestForm").scrollIntoView({behavior:"smooth",block:"center"});});}
   highlightSelectedPlan();
-  $("#subscriptionRequestRows").innerHTML=subscriptionRequests.length?subscriptionRequests.map(r=>`<tr><td>${new Date(r.created_at).toLocaleDateString("ar-SA-u-ca-gregory")}</td><td>${escapeHtml(getPlanLabel(r.plan_code))}</td><td>${Number(r.amount_sar).toLocaleString("ar-SA-u-ca-gregory")} ر.س</td><td>${r.payment_method==="bank_transfer"?"تحويل بنكي":"إلكتروني"}</td><td>${requestStatusLabels[r.status]||escapeHtml(r.status)}</td></tr>`).join(""):'<tr><td colspan="5" class="muted">لا توجد طلبات بعد</td></tr>';
+  $("#subscriptionRequestRows").innerHTML=subscriptionRequests.length?subscriptionRequests.map(r=>'<tr><td>'+new Date(r.created_at).toLocaleDateString("ar-SA-u-ca-gregory")+'</td><td>'+escapeHtml(getPlanLabel(r.plan_code))+'</td><td>'+Number(r.amount_sar).toLocaleString("ar-SA-u-ca-gregory")+' ر.س</td><td>'+(r.payment_method==="bank_transfer"?"تحويل بنكي":"إلكتروني")+'</td><td>'+(requestStatusLabels[r.status]||escapeHtml(r.status))+'</td></tr>').join(""):'<tr><td colspan="5" class="muted">لا توجد طلبات بعد</td></tr>';
   $("#platformAdminPanel").classList.toggle("hidden",!isPlatformAdmin);
 }
 $("#subscriptionRequestForm").addEventListener("submit",async e=>{
@@ -1591,7 +1590,7 @@ $("#evalForm").addEventListener("submit",async e=>{
   finally{setBusy(btn,false);}
 });
 
-function exportExcelReport() {
+async function exportExcelReport() {
   if(!isPlatformAdmin&&!subscriptionAccessActive){toast("تحميل التقارير يتطلب اشتراكاً فعالاً.");return;}
   if(!window.XLSX){toast("تعذر تحميل أداة Excel. تحقق من الاتصال بالإنترنت ثم أعد المحاولة.");return;}
   const {selectedBranches,filteredAssessments,filteredFeedback}=getFilteredData();
@@ -1650,7 +1649,7 @@ function exportExcelReport() {
   addSheet(qualityRows,"سجلات الجودة");
   addExcelVisualSheet(wb,[{label:"عدد الفروع",value:selectedBranches.length},{label:"سجلات الجودة",value:filteredAssessments.length},{label:"تقييمات صوت العميل",value:voiceTotal},{label:"إيجابي",value:positive},{label:"محايد",value:neutral},{label:"سلبي",value:negative},{label:"رضا العملاء %",value:voiceTotal?positive/voiceTotal*100:0},{label:"متوسط الجودة %",value:qualityScores.length?qualityScores.reduce((a,b)=>a+b,0)/qualityScores.length:0}],"الجودة وصوت العميل");
   const safeDate=new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb,`MIQYAS_Report_${safeDate}.xlsx`);
+  await writeExcelWithCharts(wb,`MIQYAS_Report_${safeDate}.xlsx`);
   toast("تم تجهيز تقرير Excel");
 }
 $("#filterArea").addEventListener("change",()=>{
