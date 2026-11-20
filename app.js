@@ -1732,3 +1732,8 @@ document.querySelectorAll(".legal-dialog").forEach(dialog=>{
     if(event.target===dialog) dialog.close();
   });
 });
+
+// Honor the public landing page's explicit create-account action.
+if (new URLSearchParams(window.location.search).get('signup') === '1') {
+  document.querySelector('[data-auth="signup"]')?.click();
+}
