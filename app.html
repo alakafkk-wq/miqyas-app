@@ -73,6 +73,29 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 .notification-popover-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e5ece8;padding-bottom:10px;margin-bottom:10px}
 .notification-popover p{margin:8px 0;line-height:1.7}
 
+
+/* MIQYAS paired monthly/annual pricing and collapsible request history */
+.subscription-plan-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:14px 0}
+.subscription-price-choice{border:1px solid var(--line);border-radius:13px;padding:12px;background:#f8fbf9;min-width:0}
+.subscription-price-choice.annual{background:#eff8f2;border-color:#c6e2d0}
+.subscription-price-choice small{display:block;color:var(--muted);font-size:12px}
+.subscription-price-choice strong{display:block;color:var(--green);font-size:22px;margin:4px 0}
+.subscription-price-choice .saving{color:var(--green);font-weight:700;font-size:11px}
+.subscription-price-choice button{width:100%;margin-top:8px;padding:8px 9px;font-size:12px}
+.subscription-history{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:16px;background:#fff}
+.subscription-history>summary{list-style:none;cursor:pointer;padding:15px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:700;color:var(--green);background:#f6faf7}
+.subscription-history>summary::-webkit-details-marker{display:none}
+.subscription-history>summary:after{content:"＋";font-size:20px}
+.subscription-history[open]>summary:after{content:"−"}
+.subscription-history .tablewrap{padding:0 14px 14px}
+.admin-requests-details{border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden;margin:12px 0 18px}
+.admin-requests-details>summary{list-style:none;cursor:pointer;padding:16px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f6faf7;font-weight:700;color:var(--green)}
+.admin-requests-details>summary::-webkit-details-marker{display:none}
+.admin-requests-details>summary:after{content:"＋";font-size:20px}
+.admin-requests-details[open]>summary:after{content:"−"}
+.admin-requests-content{padding:14px}
+@media(max-width:520px){.subscription-plan-pair{gap:7px}.subscription-price-choice{padding:9px}.subscription-price-choice strong{font-size:18px}.subscription-price-choice button{font-size:11px;padding:8px 4px}}
+
 </style>
 </head>
 <body>
@@ -289,10 +312,10 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <p id="subscriptionMessage" class="message" aria-live="polite"></p>
       <p class="fine">يتم تفعيل الاشتراك تلقائياً بعد تأكيد بوابة ميسر نجاح عملية الدفع والتحقق من المبلغ.</p>
     </form>
-    <div class="subscription-history">
-      <h3>طلبات الاشتراك السابقة</h3>
+    <details class="subscription-history">
+      <summary><span>سجل طلبات الاشتراك السابقة</span><span class="fine">عرض السجل وإخفاؤه</span></summary>
       <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الباقة</th><th>المبلغ</th><th>طريقة الدفع</th><th>الحالة</th></tr></thead><tbody id="subscriptionRequestRows"><tr><td colspan="5">لا توجد طلبات بعد</td></tr></tbody></table></div>
-    </div>
+    </details>
     <div id="platformAdminPanel" class="platform-admin hidden">
       <nav class="admin-tabs" aria-label="أقسام إدارة المنصة" role="tablist">
         <button type="button" class="admin-tab active" role="tab" aria-selected="true" data-admin-tab="overview">نظرة عامة</button>
@@ -304,8 +327,13 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
         <button type="button" class="admin-tab" role="tab" aria-selected="false" data-admin-tab="logs">سجلات الحركة</button>
       </nav>
       <div class="admin-tab-panel" data-admin-panel="subscriptions">
-      <div class="panelhead"><div><h2>إدارة طلبات الاشتراك</h2><p>مراجعة طلبات المنشآت وتفعيل الاشتراكات</p></div><div class="actions"><button type="button" class="outline" id="enableAdminNotifications">تفعيل إشعارات الطلبات</button><button type="button" class="outline" id="refreshSubscriptionRequests">تحديث الطلبات</button></div></div>
-      <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody id="adminSubscriptionRows"><tr><td colspan="5">لا توجد طلبات معلقة</td></tr></tbody></table></div>
+      <details class="admin-requests-details">
+        <summary><span>سجل طلبات الاشتراك الواردة</span><span class="fine">مراجعة الطلبات المعلقة واعتمادها أو رفضها</span></summary>
+        <div class="admin-requests-content">
+          <div class="panelhead"><div><h2>طلبات الاشتراك</h2><p>مراجعة طلبات المنشآت وتفعيل الاشتراكات</p></div><div class="actions"><button type="button" class="outline" id="enableAdminNotifications">تفعيل إشعارات الطلبات</button><button type="button" class="outline" id="refreshSubscriptionRequests">تحديث الطلبات</button></div></div>
+          <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody id="adminSubscriptionRows"><tr><td colspan="5">لا توجد طلبات معلقة</td></tr></tbody></table></div>
+        </div>
+      </details>
       <hr>
       <div class="panelhead"><div><h2>إدارة المشتركين</h2><p>عرض الاشتراكات وتعديلها أو إيقافها أو إعادة تفعيلها أو حذف الاشتراك فقط مع الاحتفاظ ببيانات المنشأة.</p></div><button type="button" class="outline" id="refreshAdminSubscriptions">تحديث المشتركين</button></div>
       <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>الحالة</th><th>بداية الاشتراك</th><th>نهاية الاشتراك</th><th>الفروع</th><th>المتاجر</th><th>الإجراءات</th></tr></thead><tbody id="adminSubscribersRows"><tr><td colspan="8">جارٍ تحميل المشتركين...</td></tr></tbody></table></div>
@@ -549,6 +577,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 <div id="toast" class="toast" role="status"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="config.js"></script>
 <script type="module" src="app.js"></script>
 </body></html>
