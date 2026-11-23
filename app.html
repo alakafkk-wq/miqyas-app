@@ -8,6 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
+<script src="https://www.ksamerchant.geidea.net/hpp/geideaCheckout.min.js"></script>
 <title>مقياس MIQYAS | منصة الجودة</title>
 <style>
 .service-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
@@ -306,15 +307,19 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       </div>
       <div id="onlinePaymentInstructions" class="bank-instructions">
         <h3>الدفع الإلكتروني</h3>
-        <p>أكمل اشتراكك بأمان عبر بوابة جيديا (Geidea). سيتم فتح صفحة الدفع الآمنة لإتمام العملية، ثم تحديث الاشتراك بعد التحقق من تأكيد الدفع من البوابة.</p>
+        <p>أكمل اشتراكك بأمان عبر بوابة Geidea. سيتم تأكيد الدفع من البوابة قبل تفعيل الاشتراك تلقائياً.</p>
       </div>
       <button class="primary wide" id="submitSubscriptionRequest" type="submit">المتابعة إلى الدفع الإلكتروني</button>
       <p id="subscriptionMessage" class="message" aria-live="polite"></p>
-      <p class="fine">يتم تفعيل الاشتراك تلقائياً بعد تأكيد بوابة ميسر نجاح عملية الدفع والتحقق من المبلغ.</p>
+      <p class="fine">يتم تفعيل الاشتراك بعد التحقق من تأكيد Geidea ومطابقة المبلغ والعملة ومرجع الطلب.</p>
     </form>
     <details class="subscription-history">
       <summary><span>سجل طلبات الاشتراك السابقة</span><span class="fine">عرض السجل وإخفاؤه</span></summary>
       <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الباقة</th><th>المبلغ</th><th>طريقة الدفع</th><th>الحالة</th></tr></thead><tbody id="subscriptionRequestRows"><tr><td colspan="5">لا توجد طلبات بعد</td></tr></tbody></table></div>
+    </details>
+    <details class="subscription-history">
+      <summary><span>فواتير الاشتراك</span><span class="fine">عرض الفواتير السابقة</span></summary>
+      <div class="tablewrap"><table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الباقة</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody id="subscriptionInvoiceRows"><tr><td colspan="5">لا توجد فواتير بعد</td></tr></tbody></table></div>
     </details>
     <div id="platformAdminPanel" class="platform-admin hidden">
       <nav class="admin-tabs" aria-label="أقسام إدارة المنصة" role="tablist">
@@ -578,7 +583,6 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://www.ksamerchant.geidea.net/hpp/geideaCheckout.min.js"></script>
 <script src="config.js"></script>
 <script type="module" src="app.js"></script>
 </body></html>

@@ -618,7 +618,7 @@ async function writeExcelWithCharts(wb,filename){
   let ct=await zip.file("[Content_Types].xml").async("string");ct=ct.replace("</Types>","<Override PartName=\"/xl/drawings/drawing1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/><Override PartName=\"/xl/charts/chart1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/><Override PartName=\"/xl/charts/chart2.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/></Types>");zip.file("[Content_Types].xml",ct);
   const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);toast("تم تصدير ملف Excel مع مخططات قابلة للتحرير.");
 }
-const requestStatusLabels={pending:"بانتظار المراجعة",awaiting_gateway:"بانتظار الدفع الإلكتروني",approved:"معتمد",rejected:"مرفوض",cancelled:"ملغي"};
+const requestStatusLabels={pending:"بانتظار المراجعة",awaiting_gateway:"بانتظار الدفع الإلكتروني",paid:"مدفوع",approved:"معتمد",rejected:"مرفوض",cancelled:"ملغي",failed:"فشل الدفع"};
 function showSubscriptionSetupError(err){
   $("#subscriptionStatus").textContent="يتطلب إعداد قاعدة البيانات";
   $("#currentPlanName").textContent="لم يتم إعداد الاشتراكات بعد";
@@ -628,11 +628,12 @@ function showSubscriptionSetupError(err){
 }
 async function loadSubscriptionData(){
   try{
-    const [plansRes,subRes,reqRes,adminRes]=await Promise.all([
+    const [plansRes,subRes,reqRes,adminRes,invoicesRes]=await Promise.all([
       supabase.from("subscription_plans").select("code,name,price_sar,billing_period_months,branch_limit,max_users,features,business_type").eq("is_active",true).order("price_sar"),
       supabase.from("organization_subscriptions").select("id,plan_code,status,starts_at,ends_at,payment_method").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(1),
       supabase.from("subscription_payment_requests").select("id,plan_code,amount_sar,payment_method,status,transfer_reference,created_at").eq("organization_id",currentOrg.id).order("created_at",{ascending:false}).limit(20),
-      supabase.rpc("is_platform_admin")
+      supabase.rpc("is_platform_admin"),
+      supabase.from("subscription_invoices").select("id,invoice_number,plan_code,amount_sar,currency,status,issued_at").eq("organization_id",currentOrg.id).order("issued_at",{ascending:false}).limit(30)
     ]);
     if(plansRes.error) throw plansRes.error;
     if(subRes.error) throw subRes.error;
@@ -641,6 +642,11 @@ async function loadSubscriptionData(){
     subscriptionPlans=(plansRes.data||[]).filter(p=>(p.business_type||"branches")===(currentOrg.business_type||getBusinessType()));
     currentSubscription=subRes.data?.[0]||null;
     subscriptionRequests=reqRes.data||[];
+    const invoiceBody=$("#subscriptionInvoiceRows");
+    if(invoiceBody){
+      const invoices=invoicesRes.error?[]:(invoicesRes.data||[]);
+      invoiceBody.innerHTML=invoices.length?invoices.map(i=>'<tr><td>'+escapeHtml(i.invoice_number||"—")+'</td><td>'+new Date(i.issued_at).toLocaleDateString("ar-SA-u-ca-gregory")+'</td><td>'+escapeHtml(getPlanLabel(i.plan_code))+'</td><td>'+Number(i.amount_sar||0).toLocaleString("ar-SA-u-ca-gregory")+' '+escapeHtml(i.currency||"SAR")+'</td><td>'+(i.status==="paid"?"مدفوعة":escapeHtml(i.status||"—"))+'</td></tr>').join(""):'<tr><td colspan="5">'+(invoicesRes.error?"سيظهر سجل الفواتير بعد تفعيل تحديث قاعدة البيانات.":"لا توجد فواتير بعد")+'</td></tr>';
+    }
     isPlatformAdmin=adminRes.data===true;
     subscriptionAccessError=false;
     subscriptionAccessActive=isPlatformAdmin||isCurrentSubscriptionActive();
@@ -731,10 +737,9 @@ $("#subscriptionRequestForm").addEventListener("submit",async e=>{
     return;
   }
   const originalText=submitButton?.textContent||"المتابعة إلى الدفع الإلكتروني";
-  if(submitButton){submitButton.disabled=true;submitButton.textContent="جارٍ تجهيز فاتورة الدفع...";}
-  message("#subscriptionMessage","جارٍ تجهيز جلسة الدفع الآمنة عبر جيديا...",false);
+  if(submitButton){submitButton.disabled=true;submitButton.textContent="جارٍ تجهيز جلسة الدفع...";}
+  message("#subscriptionMessage","جارٍ تجهيز الدفع الآمن عبر Geidea...",false);
   try{
-    if(typeof window.GeideaCheckout!=="function") throw new Error("تعذر تحميل صفحة دفع جيديا. حدّث الصفحة وحاول مرة أخرى.");
     const {data,error}=await supabase.functions.invoke("miqyas-geidea",{
       body:{
         action:"create_session",
@@ -743,21 +748,26 @@ $("#subscriptionRequestForm").addEventListener("submit",async e=>{
       }
     });
     if(error) throw error;
-    if(!data?.session_id) throw new Error(data?.error||data?.message||"لم يتم استلام رقم جلسة الدفع من جيديا.");
-    const payment = new window.GeideaCheckout(
-      (result)=>{
-        console.info("Geidea checkout success callback received",result);
-        message("#subscriptionMessage","وصلت نتيجة الدفع من جيديا. جارٍ تحديث حالة الاشتراك بعد التحقق من إشعار البوابة.",false);
-      },
-      (result)=>{
-        console.warn("Geidea checkout error callback",result);
-        message("#subscriptionMessage",result?.detailedResponseMessage||result?.responseMessage||"تعذر إتمام الدفع. يمكنك المحاولة مجدداً.",true);
-      },
-      (result)=>{
-        console.info("Geidea checkout cancelled",result);
-        message("#subscriptionMessage","تم إلغاء عملية الدفع أو انتهت مهلة الجلسة. يمكنك المحاولة مجدداً.",true);
-      }
-    );
+    if(!data?.session_id) throw new Error(data?.error||data?.message||"لم يتم استلام جلسة الدفع من Geidea.");
+    if(typeof window.GeideaCheckout!=="function") throw new Error("تعذر تحميل مكتبة الدفع Geidea. حدّث الصفحة وحاول مجدداً.");
+
+    const onSuccess=(result)=>{
+      console.info("Geidea checkout returned success response",result);
+      message("#subscriptionMessage","تمت العودة من بوابة الدفع. جارٍ التحقق من تأكيد Geidea وتحديث الاشتراك والفاتورة؛ قد يستغرق ذلك لحظات.",false);
+      if(submitButton){submitButton.disabled=false;submitButton.textContent=originalText;}
+      setTimeout(()=>loadSubscriptionData().catch(err=>console.warn("Subscription refresh after Geidea:",err)),2500);
+    };
+    const onError=(result)=>{
+      console.error("Geidea checkout error",result);
+      message("#subscriptionMessage",result?.detailedResponseMessage||result?.detailResponseMessage||result?.responseMessage||"لم تكتمل عملية الدفع. لم يتم تفعيل الاشتراك.",true);
+      if(submitButton){submitButton.disabled=false;submitButton.textContent=originalText;}
+    };
+    const onCancel=(result)=>{
+      console.info("Geidea checkout cancelled",result);
+      message("#subscriptionMessage","تم إلغاء عملية الدفع. يمكنك المحاولة لاحقاً دون إنشاء اشتراك نشط.",true);
+      if(submitButton){submitButton.disabled=false;submitButton.textContent=originalText;}
+    };
+    const payment=new window.GeideaCheckout(onSuccess,onError,onCancel);
     payment.startPayment(data.session_id);
   }catch(err){
     console.error("MIQYAS Geidea checkout error:",err);
