@@ -732,21 +732,36 @@ $("#subscriptionRequestForm").addEventListener("submit",async e=>{
   }
   const originalText=submitButton?.textContent||"المتابعة إلى الدفع الإلكتروني";
   if(submitButton){submitButton.disabled=true;submitButton.textContent="جارٍ تجهيز فاتورة الدفع...";}
-  message("#subscriptionMessage","جارٍ تحويلك إلى بوابة ميسر الآمنة لإتمام الدفع.",false);
+  message("#subscriptionMessage","جارٍ تجهيز جلسة الدفع الآمنة عبر جيديا...",false);
   try{
-    const {data,error}=await supabase.functions.invoke("miqyas-moyasar",{
+    if(typeof window.GeideaCheckout!=="function") throw new Error("تعذر تحميل صفحة دفع جيديا. حدّث الصفحة وحاول مرة أخرى.");
+    const {data,error}=await supabase.functions.invoke("miqyas-geidea",{
       body:{
-        action:"create_invoice",
+        action:"create_session",
         organization_id:currentOrg.id,
         plan_code:planCode
       }
     });
     if(error) throw error;
-    if(!data?.checkout_url) throw new Error(data?.error||data?.message||"لم يتم استلام رابط الدفع من بوابة ميسر.");
-    window.location.assign(data.checkout_url);
+    if(!data?.session_id) throw new Error(data?.error||data?.message||"لم يتم استلام رقم جلسة الدفع من جيديا.");
+    const payment = new window.GeideaCheckout(
+      (result)=>{
+        console.info("Geidea checkout success callback received",result);
+        message("#subscriptionMessage","وصلت نتيجة الدفع من جيديا. جارٍ تحديث حالة الاشتراك بعد التحقق من إشعار البوابة.",false);
+      },
+      (result)=>{
+        console.warn("Geidea checkout error callback",result);
+        message("#subscriptionMessage",result?.detailedResponseMessage||result?.responseMessage||"تعذر إتمام الدفع. يمكنك المحاولة مجدداً.",true);
+      },
+      (result)=>{
+        console.info("Geidea checkout cancelled",result);
+        message("#subscriptionMessage","تم إلغاء عملية الدفع أو انتهت مهلة الجلسة. يمكنك المحاولة مجدداً.",true);
+      }
+    );
+    payment.startPayment(data.session_id);
   }catch(err){
-    console.error("MIQYAS Moyasar checkout error:",err);
-    message("#subscriptionMessage",err?.message||"تعذر إنشاء فاتورة الدفع. حاول مرة أخرى أو تواصل مع إدارة مقياس.",true);
+    console.error("MIQYAS Geidea checkout error:",err);
+    message("#subscriptionMessage",err?.message||"تعذر إنشاء جلسة الدفع. حاول مرة أخرى أو تواصل مع إدارة مقياس.",true);
     if(submitButton){submitButton.disabled=false;submitButton.textContent=originalText;}
   }
 });
