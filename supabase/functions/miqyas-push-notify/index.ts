@@ -30,41 +30,75 @@ Deno.serve(async (req) => {
   const eventType = String(body.type || body.eventType || "INSERT").toUpperCase();
   if (eventType !== "INSERT") return json({ ok: true, skipped: "unsupported event" });
 
+  const isTest = String(record.plan_code || "") === "اختبار";
   const plan = String(record.plan_code || "اشتراك");
   const amount = Number(record.amount_sar || 0);
-  const message = `وصل طلب اشتراك جديد: ${plan} بقيمة ${amount.toLocaleString("ar-SA-u-ca-gregory")} ريال.`;
   const payload = JSON.stringify({
-    title: "طلب اشتراك جديد في مقياس",
-    body: message,
-    tag: `miqyas-sub-${String(record.id || crypto.randomUUID())}`,
+    title: isTest ? "اختبار إشعارات MIQYAS" : "طلب اشتراك جديد في مقياس",
+    body: isTest
+      ? "هذا إشعار تجريبي للتأكد من وصول التنبيهات إلى جهازك."
+      : "وصل طلب اشتراك جديد: " + plan + " بقيمة " + amount.toLocaleString("ar-SA-u-ca-gregory") + " ريال.",
+    tag: "miqyas-" + (isTest ? "test" : "sub") + "-" + String(record.id || crypto.randomUUID()),
     url: "./",
   });
 
   webpush.setVapidDetails(subject, publicKey, privateKey);
-  const endpoint = `${supabaseUrl}/rest/v1/miqyas_push_subscriptions?select=id,endpoint,subscription`;
+  const endpoint = supabaseUrl + "/rest/v1/miqyas_push_subscriptions?select=id,endpoint,subscription";
   const response = await fetch(endpoint, {
-    headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+    headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey },
   });
-  if (!response.ok) return json({ error: "Could not load push subscriptions" }, 502);
-  const subscriptions = await response.json() as Array<{ id: string; endpoint: string; subscription: Record<string, unknown> }>;
+  if (!response.ok) {
+    console.error("MIQYAS push: subscription query failed", { status: response.status });
+    return json({ error: "Could not load push subscriptions" }, 502);
+  }
+  const subscriptions = await response.json() as Array<{
+    id: string;
+    endpoint: string;
+    subscription: Record<string, unknown>;
+  }>;
 
-  const results = await Promise.allSettled(subscriptions.map(async (item) => {
+  const results = await Promise.all(subscriptions.map(async (item) => {
     try {
       await webpush.sendNotification(item.subscription as any, payload);
-      return "sent";
+      console.log("MIQYAS push delivered", { subscriptionId: item.id });
+      return { subscriptionId: item.id, status: "sent" as const };
     } catch (error) {
-      const statusCode = (error as { statusCode?: number }).statusCode;
+      const pushError = error as { statusCode?: number; message?: string };
+      const statusCode = Number(pushError.statusCode || 0) || null;
+      const message = String(pushError.message || "Unknown push error").slice(0, 240);
+      let removed = false;
+
       if (statusCode === 404 || statusCode === 410) {
-        await fetch(`${supabaseUrl}/rest/v1/miqyas_push_subscriptions?id=eq.${item.id}`, {
-          method: "DELETE",
-          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
-        });
+        const deleteResponse = await fetch(
+          supabaseUrl + "/rest/v1/miqyas_push_subscriptions?id=eq." + encodeURIComponent(item.id),
+          {
+            method: "DELETE",
+            headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey },
+          },
+        );
+        removed = deleteResponse.ok;
       }
-      throw error;
+
+      console.error("MIQYAS push delivery failed", {
+        subscriptionId: item.id,
+        statusCode,
+        message,
+        staleSubscriptionRemoved: removed,
+      });
+
+      return {
+        subscriptionId: item.id,
+        status: "failed" as const,
+        statusCode,
+        error: message,
+        staleSubscriptionRemoved: removed,
+      };
     }
   }));
-  const sent = results.filter((r) => r.status === "fulfilled").length;
-  return json({ ok: true, sent, failed: results.length - sent });
+
+  const sent = results.filter((item) => item.status === "sent").length;
+  const failed = results.length - sent;
+  return json({ ok: true, total: results.length, sent, failed, results });
 });
 
 function json(value: unknown, status = 200) {
