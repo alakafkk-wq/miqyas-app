@@ -46,11 +46,11 @@ Deno.serve(async (req) => {
     headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
   });
   if (!response.ok) return json({ error: "Could not load push subscriptions" }, 502);
-  const subscriptions = await response.json() as Array<{ id: string; endpoint: string; subscription: webpush.PushSubscription }>;
+  const subscriptions = await response.json() as Array<{ id: string; endpoint: string; subscription: Record<string, unknown> }>;
 
   const results = await Promise.allSettled(subscriptions.map(async (item) => {
     try {
-      await webpush.sendNotification(item.subscription, payload);
+      await webpush.sendNotification(item.subscription as any, payload);
       return "sent";
     } catch (error) {
       const statusCode = (error as { statusCode?: number }).statusCode;
