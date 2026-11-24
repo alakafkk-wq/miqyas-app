@@ -1,0 +1,3 @@
+# MIQYAS Supabase Edge Function configuration
+[functions.miqyas-push-notify]
+verify_jwt = false
