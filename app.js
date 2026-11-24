@@ -702,21 +702,40 @@ function highlightSelectedPlan(){
     });
   });
 }
-function isCurrentSubscriptionActive(){
-  if(!currentSubscription||!["active","trial"].includes(currentSubscription.status)) return false;
+function getCurrentSubscriptionState(){
+  if(!currentSubscription) return {active:false,trial:false};
+  const status=String(currentSubscription.status||"").trim().toLowerCase();
+  const trial=["trial","trialing"].includes(status);
+  const enabled=trial||status==="active";
   const now=Date.now();
   const starts=currentSubscription.starts_at?new Date(currentSubscription.starts_at).getTime():0;
   const ends=currentSubscription.ends_at?new Date(currentSubscription.ends_at).getTime():Infinity;
-  return starts<=now && ends>now;
+  const datesValid=Number.isFinite(starts)&&!Number.isNaN(ends);
+  const active=enabled&&datesValid&&starts<=now&&ends>now;
+  return {active,trial:active&&trial,status,starts,ends};
+}
+function isCurrentSubscriptionActive(){
+  return getCurrentSubscriptionState().active;
 }
 function applySubscriptionGate(){
-  const allowed=!!(isPlatformAdmin||subscriptionAccessActive);
+  // Recompute from the loaded subscription record instead of relying on a possibly stale cached flag.
+  const state=getCurrentSubscriptionState();
+  subscriptionAccessActive=!!(isPlatformAdmin||state.active);
+  const allowed=!!(isPlatformAdmin||state.active);
   const gate=$("#subscriptionGate");
   if(gate){
     gate.classList.toggle("hidden",allowed);
     gate.textContent=subscriptionAccessError
       ?"تعذر التحقق من حالة الاشتراك. تم إيقاف الخدمات المدفوعة مؤقتاً لحماية بياناتك. حدّث الصفحة أو تواصل مع إدارة مقياس."
       :"منشأتك غير مشتركة حالياً أو أن الاشتراك منتهي/موقوف. اختر باقة وأرسل طلب الاشتراك، وستُفتح الفروع والتقارير بعد اعتماد الاشتراك من إدارة مقياس.";
+  if(state.active&&state.trial){
+    gate.textContent="اشتراكك التجريبي فعال حتى "+new Date(currentSubscription.ends_at).toLocaleDateString("ar-SA-u-ca-gregory")+". جميع الخدمات المتاحة ضمن الفترة التجريبية مفعّلة.";
+    gate.classList.remove("error");
+    gate.classList.add("success");
+  }else{
+    gate.classList.remove("success");
+    gate.classList.add("error");
+  }
   }
   const add=$("#addBranchBtn");
   if(add){add.disabled=!allowed;add.title=allowed?"إضافة فرع":"يتطلب اشتراكاً فعالاً";}
@@ -725,7 +744,8 @@ function applySubscriptionGate(){
 }
 function renderSubscription(){
   const active=isCurrentSubscriptionActive();
-  $("#subscriptionStatus").textContent=active?(currentSubscription.status==="trial"?"فترة تجريبية":"اشتراك نشط"):"لا يوجد اشتراك نشط";
+  const state=getCurrentSubscriptionState();
+  $("#subscriptionStatus").textContent=active?(state.trial?"فترة تجريبية فعالة":"اشتراك نشط"):"لا يوجد اشتراك نشط";
   $("#subscriptionStatus").classList.toggle("active",!!active);
   $("#currentPlanName").textContent=active?"باقة "+getPlanLabel(currentSubscription.plan_code):"لا يوجد اشتراك نشط";
   $("#currentPlanDates").textContent=active?"بدأ في "+new Date(currentSubscription.starts_at).toLocaleDateString("ar-SA-u-ca-gregory"):"اختر الباقة المناسبة للبدء";
