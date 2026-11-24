@@ -3,7 +3,7 @@ window.MIQYAS_CONFIG = {
   SUPABASE_URL: "https://vvrjfztkduecjqjftqrd.supabase.co",
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_jgZtII2tQw3IWdEn0kG_DQ_l5m61PI1",
   // المفتاح العام فقط؛ المفتاح الخاص محفوظ في Supabase Secrets.
-  VAPID_PUBLIC_KEY: "BNoDxeBxhXoE8TFlCbXC70ZIlSja_iRG8qM7DeoXmvzXgO0DQKIcBYXM3_oxyMBItrY7fg988xrNGkSfLxyBl50",
+  VAPID_PUBLIC_KEY: "BH5TLRoKIoi8p34JAT9PCvcYv7teRooHBLm5a-uxYwN1Tvhj06QGFeM1kvNbl5fI4_P6PFCrdsHs3PcKuPvw3RA",
   // بيانات التواصل: اكتب البريد ورقم واتساب الدولي بدون علامة +
   CONTACT_EMAIL: "",
   WHATSAPP_NUMBER: ""
