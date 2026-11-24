@@ -744,11 +744,15 @@ $("#subscriptionRequestForm").addEventListener("submit",async e=>{
       body:{
         action:"create_session",
         organization_id:currentOrg.id,
-        plan_code:planCode
+        plan_code:planCode,
+        coupon_code:$("#subscriptionCouponCode")?.value.trim().toUpperCase() || ""
       }
     });
     if(error) throw error;
     if(!data?.session_id) throw new Error(data?.error||data?.message||"لم يتم استلام جلسة الدفع من Geidea.");
+    if(data.coupon_applied){
+      message("#subscriptionMessage",`تم تطبيق كود ${data.coupon_code}. السعر قبل الخصم ${Number(data.original_amount).toFixed(2)} ريال، وبعد الخصم ${Number(data.amount).toFixed(2)} ريال.`,false);
+    }
     if(typeof window.GeideaCheckout!=="function") throw new Error("تعذر تحميل مكتبة الدفع Geidea. حدّث الصفحة وحاول مجدداً.");
 
     const onSuccess=(result)=>{
