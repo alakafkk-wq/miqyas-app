@@ -189,7 +189,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
 </section>
 
 <section id="appView" class="hidden">
-  <div class="apphead"><div><span class="eyebrow">لوحة التحكم</span><h1 id="orgTitle">منشأتي</h1><details class="org-name-editor"><summary>تعديل اسم المنشأة</summary><form id="orgNameEditForm" class="compact"><label for="orgNameEditInput">اسم المنشأة الجديد</label><input id="orgNameEditInput" maxlength="120" required placeholder="أدخل اسم المنشأة"><button class="outline" type="submit">حفظ الاسم</button><p id="orgNameEditMessage" class="message" aria-live="polite"></p></form></details><p class="muted">متابعة مؤشرات الجودة وأداء الفروع</p></div><div class="actions"><button id="homeButton" class="outline" type="button">⌂ الرئيسية</button><button id="addBranchBtn" class="primary">＋ إضافة فرع</button></div></div>
+  <div class="apphead"><div><span class="eyebrow">لوحة التحكم</span><h1 id="orgTitle">منشأتي</h1><details class="org-name-editor"><summary>تعديل اسم المنشأة</summary><form id="orgNameEditForm" class="compact"><label for="orgNameEditInput">اسم المنشأة الجديد</label><input id="orgNameEditInput" maxlength="120" required placeholder="أدخل اسم المنشأة"><button class="outline" type="submit">حفظ الاسم</button><p id="orgNameEditMessage" class="message" aria-live="polite"></p></form></details><p class="muted">متابعة مؤشرات الجودة وأداء الفروع</p></div><div class="actions"><button id="enableAdminNotifications" class="outline hidden" type="button">تفعيل إشعارات المدير</button><button id="homeButton" class="outline" type="button">⌂ الرئيسية</button><button id="addBranchBtn" class="primary">＋ إضافة فرع</button></div></div>
   <section class="panel hidden owner-members-panel" id="ownerMembersPanel"><details class="owner-members-details"><summary><span><strong>إدارة مستخدمي المنشأة</strong><small>إضافة المستخدمين ومراجعة الصلاحيات</small></span><span class="owner-member-summary-count" id="ownerMemberSummaryCount">إدارة المستخدمين</span></summary><div class="owner-members-content">
     <div class="owner-members-intro"><p>هذه الخدمة متاحة لمالك المنشأة فقط. تتم الدعوة إلى البريد الإلكتروني المسجل.</p><span class="sub-status" id="ownerMemberUsage">—</span></div>
     <form id="ownerInviteForm" class="compact">
@@ -335,7 +335,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
       <details class="admin-requests-details">
         <summary><span>سجل طلبات الاشتراك الواردة</span><span class="fine">مراجعة الطلبات المعلقة واعتمادها أو رفضها</span></summary>
         <div class="admin-requests-content">
-          <div class="panelhead"><div><h2>طلبات الاشتراك</h2><p>مراجعة طلبات المنشآت وتفعيل الاشتراكات</p></div><div class="actions"><button type="button" class="outline" id="enableAdminNotifications">تفعيل إشعارات الطلبات</button><button type="button" class="outline" id="refreshSubscriptionRequests">تحديث الطلبات</button></div></div>
+          <div class="panelhead"><div><h2>طلبات الاشتراك</h2><p>مراجعة طلبات المنشآت وتفعيل الاشتراكات</p></div><div class="actions"><button type="button" class="outline" id="refreshSubscriptionRequests">تحديث الطلبات</button></div></div>
           <div class="tablewrap"><table><thead><tr><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody id="adminSubscriptionRows"><tr><td colspan="5">لا توجد طلبات معلقة</td></tr></tbody></table></div>
         </div>
       </details>
