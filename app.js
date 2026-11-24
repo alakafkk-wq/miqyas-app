@@ -34,9 +34,23 @@ let currentUserLimit = null;
 
 // Header notifications: compact accessible popover. The existing realtime admin request
 // channel remains the source of live events; this UI does not invent notifications.
+const miqyasNotifications=[];
+function renderMiqyasNotifications(){
+  const box=$("#notificationItems"),badge=$("#notificationBadge");
+  if(!box||!badge)return;
+  if(!miqyasNotifications.length) box.innerHTML='<p class="muted">لا توجد إشعارات جديدة.</p>';
+  else box.innerHTML=miqyasNotifications.slice(0,20).map(n=>'<article class="notification-item"><strong>'+escapeHtml(n.title)+'</strong><p>'+escapeHtml(n.body)+'</p><small>'+escapeHtml(n.time)+'</small></article>').join("");
+  const unread=miqyasNotifications.filter(n=>!n.read).length;
+  badge.textContent=String(unread);
+  badge.classList.toggle("hidden",unread===0);
+}
+function addMiqyasNotification(title,body){
+  miqyasNotifications.unshift({title,body,time:new Date().toLocaleString("ar-SA-u-ca-gregory"),read:false});
+  miqyasNotifications.splice(20);
+  renderMiqyasNotifications();
+}
 function setNotificationNotice(text){
-  const box=$("#notificationItems");
-  if(box) box.innerHTML=`<p>${escapeHtml(text)}</p>`;
+  addMiqyasNotification("تنبيه من مقياس",text);
 }
 $("#notificationBell")?.addEventListener("click",()=>{
   const pop=$("#notificationPopover"), bell=$("#notificationBell");
@@ -667,6 +681,7 @@ async function loadSubscriptionData(){
       invoiceBody.innerHTML=subscriptionInvoices.length?subscriptionInvoices.map(i=>'<tr><td>'+escapeHtml(i.invoice_number||"—")+'</td><td>'+new Date(i.issued_at).toLocaleDateString("ar-SA-u-ca-gregory")+'</td><td>'+escapeHtml(getPlanLabel(i.plan_code))+'</td><td>'+Number(i.amount_sar||0).toLocaleString("ar-SA-u-ca-gregory")+' '+escapeHtml(i.currency||"SAR")+'</td><td>'+(i.status==="paid"?"مدفوعة":escapeHtml(i.status||"—"))+'</td><td><button type="button" class="btn btn-secondary invoice-open-btn" data-invoice-id="'+escapeHtml(i.id)+'">عرض / طباعة</button></td></tr>').join(""):'<tr><td colspan="6">'+(invoicesRes.error?"سيظهر سجل الفواتير بعد تفعيل تحديث قاعدة البيانات.":"لا توجد فواتير بعد")+'</td></tr>';
     }
     isPlatformAdmin=adminRes.data===true;
+    $("#enableAdminNotifications")?.classList.toggle("hidden",!isPlatformAdmin);
     subscriptionAccessError=false;
     subscriptionAccessActive=isPlatformAdmin||isCurrentSubscriptionActive();
     renderSubscription();
@@ -702,21 +717,40 @@ function highlightSelectedPlan(){
     });
   });
 }
-function isCurrentSubscriptionActive(){
-  if(!currentSubscription||!["active","trial"].includes(currentSubscription.status)) return false;
+function getCurrentSubscriptionState(){
+  if(!currentSubscription) return {active:false,trial:false};
+  const status=String(currentSubscription.status||"").trim().toLowerCase();
+  const trial=["trial","trialing"].includes(status);
+  const enabled=trial||status==="active";
   const now=Date.now();
   const starts=currentSubscription.starts_at?new Date(currentSubscription.starts_at).getTime():0;
   const ends=currentSubscription.ends_at?new Date(currentSubscription.ends_at).getTime():Infinity;
-  return starts<=now && ends>now;
+  const datesValid=Number.isFinite(starts)&&!Number.isNaN(ends);
+  const active=enabled&&datesValid&&starts<=now&&ends>now;
+  return {active,trial:active&&trial,status,starts,ends};
+}
+function isCurrentSubscriptionActive(){
+  return getCurrentSubscriptionState().active;
 }
 function applySubscriptionGate(){
-  const allowed=!!(isPlatformAdmin||subscriptionAccessActive);
+  // Recompute from the loaded subscription record instead of relying on a possibly stale cached flag.
+  const state=getCurrentSubscriptionState();
+  subscriptionAccessActive=!!(isPlatformAdmin||state.active);
+  const allowed=!!(isPlatformAdmin||state.active);
   const gate=$("#subscriptionGate");
   if(gate){
     gate.classList.toggle("hidden",allowed);
     gate.textContent=subscriptionAccessError
       ?"تعذر التحقق من حالة الاشتراك. تم إيقاف الخدمات المدفوعة مؤقتاً لحماية بياناتك. حدّث الصفحة أو تواصل مع إدارة مقياس."
       :"منشأتك غير مشتركة حالياً أو أن الاشتراك منتهي/موقوف. اختر باقة وأرسل طلب الاشتراك، وستُفتح الفروع والتقارير بعد اعتماد الاشتراك من إدارة مقياس.";
+  if(state.active&&state.trial){
+    gate.textContent="اشتراكك التجريبي فعال حتى "+new Date(currentSubscription.ends_at).toLocaleDateString("ar-SA-u-ca-gregory")+". جميع الخدمات المتاحة ضمن الفترة التجريبية مفعّلة.";
+    gate.classList.remove("error");
+    gate.classList.add("success");
+  }else{
+    gate.classList.remove("success");
+    gate.classList.add("error");
+  }
   }
   const add=$("#addBranchBtn");
   if(add){add.disabled=!allowed;add.title=allowed?"إضافة فرع":"يتطلب اشتراكاً فعالاً";}
@@ -725,7 +759,8 @@ function applySubscriptionGate(){
 }
 function renderSubscription(){
   const active=isCurrentSubscriptionActive();
-  $("#subscriptionStatus").textContent=active?(currentSubscription.status==="trial"?"فترة تجريبية":"اشتراك نشط"):"لا يوجد اشتراك نشط";
+  const state=getCurrentSubscriptionState();
+  $("#subscriptionStatus").textContent=active?(state.trial?"فترة تجريبية فعالة":"اشتراك نشط"):"لا يوجد اشتراك نشط";
   $("#subscriptionStatus").classList.toggle("active",!!active);
   $("#currentPlanName").textContent=active?"باقة "+getPlanLabel(currentSubscription.plan_code):"لا يوجد اشتراك نشط";
   $("#currentPlanDates").textContent=active?"بدأ في "+new Date(currentSubscription.starts_at).toLocaleDateString("ar-SA-u-ca-gregory"):"اختر الباقة المناسبة للبدء";
@@ -803,6 +838,7 @@ async function loadAdminSubscriptionRequests(){
 }
 function startAdminRequestNotifications(){
   if(!isPlatformAdmin || adminRequestsChannel) return;
+  $("#notificationBell")?.classList.remove("hidden");
   adminRequestsChannel=supabase.channel("miqyas-admin-subscription-requests")
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"subscription_payment_requests"},payload=>{
       const request=payload.new||{};
@@ -811,6 +847,7 @@ function startAdminRequestNotifications(){
       const amount=Number(request.amount_sar||0).toLocaleString("ar-SA-u-ca-gregory");
       const notice=`وصل طلب اشتراك جديد: ${plan} بقيمة ${amount} ريال.`;
       toast(notice);
+      addMiqyasNotification("طلب اشتراك جديد",notice);
       if("Notification" in window && Notification.permission==="granted"){
         try{if("serviceWorker" in navigator){navigator.serviceWorker.ready.then(reg=>reg.showNotification("طلب اشتراك جديد في مقياس",{body:notice,icon:"./icon.svg",badge:"./icon.svg",tag:`miqyas-sub-${request.id}`,data:{url:"./"}})).catch(()=>{});}else new Notification("طلب اشتراك جديد في مقياس",{body:notice,icon:"./icon.svg",tag:`miqyas-sub-${request.id}`});}catch(e){}
       }
