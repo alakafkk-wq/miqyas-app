@@ -34,9 +34,23 @@ let currentUserLimit = null;
 
 // Header notifications: compact accessible popover. The existing realtime admin request
 // channel remains the source of live events; this UI does not invent notifications.
+const miqyasNotifications=[];
+function renderMiqyasNotifications(){
+  const box=$("#notificationItems"),badge=$("#notificationBadge");
+  if(!box||!badge)return;
+  if(!miqyasNotifications.length) box.innerHTML='<p class="muted">لا توجد إشعارات جديدة.</p>';
+  else box.innerHTML=miqyasNotifications.slice(0,20).map(n=>'<article class="notification-item"><strong>'+escapeHtml(n.title)+'</strong><p>'+escapeHtml(n.body)+'</p><small>'+escapeHtml(n.time)+'</small></article>').join("");
+  const unread=miqyasNotifications.filter(n=>!n.read).length;
+  badge.textContent=String(unread);
+  badge.classList.toggle("hidden",unread===0);
+}
+function addMiqyasNotification(title,body){
+  miqyasNotifications.unshift({title,body,time:new Date().toLocaleString("ar-SA-u-ca-gregory"),read:false});
+  miqyasNotifications.splice(20);
+  renderMiqyasNotifications();
+}
 function setNotificationNotice(text){
-  const box=$("#notificationItems");
-  if(box) box.innerHTML=`<p>${escapeHtml(text)}</p>`;
+  addMiqyasNotification("تنبيه من مقياس",text);
 }
 $("#notificationBell")?.addEventListener("click",()=>{
   const pop=$("#notificationPopover"), bell=$("#notificationBell");
@@ -823,6 +837,7 @@ async function loadAdminSubscriptionRequests(){
 }
 function startAdminRequestNotifications(){
   if(!isPlatformAdmin || adminRequestsChannel) return;
+  $("#notificationBell")?.classList.remove("hidden");
   adminRequestsChannel=supabase.channel("miqyas-admin-subscription-requests")
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"subscription_payment_requests"},payload=>{
       const request=payload.new||{};
@@ -831,6 +846,7 @@ function startAdminRequestNotifications(){
       const amount=Number(request.amount_sar||0).toLocaleString("ar-SA-u-ca-gregory");
       const notice=`وصل طلب اشتراك جديد: ${plan} بقيمة ${amount} ريال.`;
       toast(notice);
+      addMiqyasNotification("طلب اشتراك جديد",notice);
       if("Notification" in window && Notification.permission==="granted"){
         try{if("serviceWorker" in navigator){navigator.serviceWorker.ready.then(reg=>reg.showNotification("طلب اشتراك جديد في مقياس",{body:notice,icon:"./icon.svg",badge:"./icon.svg",tag:`miqyas-sub-${request.id}`,data:{url:"./"}})).catch(()=>{});}else new Notification("طلب اشتراك جديد في مقياس",{body:notice,icon:"./icon.svg",tag:`miqyas-sub-${request.id}`});}catch(e){}
       }
