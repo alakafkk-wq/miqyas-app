@@ -305,6 +305,10 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
         <label>الباقة المطلوبة<select id="subscriptionPlan" required><option value="basic">الأساسية – 99 ريال / شهر</option><option value="professional">الاحترافية – 199 ريال / شهر</option><option value="enterprise">المؤسسات – 399 ريال / شهر</option></select></label>
         <label>طريقة الدفع<select id="subscriptionPaymentMethod" required><option value="online">الدفع الإلكتروني فقط</option></select></label>
       </div>
+      <div class="subscription-fields">
+        <label>كود الخصم (اختياري)<input id="subscriptionCouponCode" type="text" maxlength="32" autocomplete="off" placeholder="أدخل كود الخصم إن وجد"></label>
+      </div>
+      <p class="fine">كود TEST90 مخصص للاختبار ومحدود بثلاث عمليات دفع ناجحة.</p>
       <div id="onlinePaymentInstructions" class="bank-instructions">
         <h3>الدفع الإلكتروني</h3>
         <p>أكمل اشتراكك بأمان عبر بوابة Geidea. سيتم تأكيد الدفع من البوابة قبل تفعيل الاشتراك تلقائياً.</p>
@@ -319,7 +323,7 @@ button[data-admin-sub-action="delete"]{border-color:#b91c1c;color:#b91c1c}
     </details>
     <details class="subscription-history">
       <summary><span>فواتير الاشتراك</span><span class="fine">عرض الفواتير السابقة</span></summary>
-      <div class="tablewrap"><table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الباقة</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody id="subscriptionInvoiceRows"><tr><td colspan="5">لا توجد فواتير بعد</td></tr></tbody></table></div>
+      <div class="tablewrap"><table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الباقة</th><th>المبلغ</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody id="subscriptionInvoiceRows"><tr><td colspan="6">لا توجد فواتير بعد</td></tr></tbody></table></div>
     </details>
     <div id="platformAdminPanel" class="platform-admin hidden">
       <nav class="admin-tabs" aria-label="أقسام إدارة المنصة" role="tablist">

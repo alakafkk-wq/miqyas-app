@@ -18,6 +18,7 @@ let activeQrPurpose = "feedback";
 let subscriptionPlans = [];
 let currentSubscription = null;
 let subscriptionRequests = [];
+let subscriptionInvoices = [];
 let adminSubscriptions = [];
 let adminOrgInventory = new Map();
 let activeExplorerOrg = null;
@@ -626,6 +627,24 @@ function showSubscriptionSetupError(err){
   $("#subscriptionMessage").textContent=err?.message||"ميزة الاشتراكات غير مفعلة بعد.";
   $("#subscriptionMessage").className="message error";
 }
+function openSubscriptionInvoice(invoiceId){
+  const invoice=subscriptionInvoices.find(item=>item.id===invoiceId);
+  if(!invoice){toast("تعذر العثور على الفاتورة. حدّث الصفحة وحاول مجدداً.");return;}
+  const popup=window.open("","_blank");
+  if(!popup){toast("اسمح بفتح النوافذ المنبثقة لعرض الفاتورة.");return;}
+  const date=new Date(invoice.issued_at).toLocaleDateString("ar-SA-u-ca-gregory");
+  const amount=Number(invoice.amount_sar||0).toLocaleString("ar-SA-u-ca-gregory",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const orgName=currentOrg?.name||currentOrg?.organization_name||"—";
+  popup.document.open();
+  popup.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>فاتورة ${escapeHtml(invoice.invoice_number||"MIQYAS")}</title><style>
+  body{font-family:Arial,Tahoma,sans-serif;color:#172b25;margin:0;padding:28px;background:#f4f7f5}.invoice{max-width:760px;margin:20px auto;background:#fff;padding:34px;border:1px solid #dce8e1;border-radius:16px}.top{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #087a55;padding-bottom:20px}.brand{font-size:28px;font-weight:700;color:#087a55}.muted{color:#718078}.tag{background:#e8f5ef;color:#087a55;padding:8px 14px;border-radius:20px;height:max-content}.meta{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:28px 0}.meta div{background:#f6faf7;padding:14px;border-radius:10px}.label{display:block;color:#718078;font-size:13px;margin-bottom:7px}.value{font-weight:700}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{text-align:right;padding:16px 10px;border-bottom:1px solid #e4ece7}th{background:#f2f7f4}.total{text-align:left;font-size:24px;font-weight:700;color:#087a55;margin-top:25px}.foot{margin-top:36px;padding-top:18px;border-top:1px solid #e4ece7;color:#718078;font-size:13px}.actions{text-align:center;margin:20px}.actions button{background:#087a55;color:white;border:0;border-radius:10px;padding:13px 24px;font-size:16px}@media print{body{background:#fff;padding:0}.invoice{border:0;margin:0;max-width:none}.actions{display:none}}</style></head><body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div><main class="invoice"><div class="top"><div><div class="brand">MIQYAS | مقياس</div><div class="muted">منصة قياس الجودة وتجربة العميل</div></div><div class="tag">فاتورة مدفوعة</div></div><h2>فاتورة اشتراك</h2><div class="meta"><div><span class="label">رقم الفاتورة</span><span class="value">${escapeHtml(invoice.invoice_number||"—")}</span></div><div><span class="label">تاريخ الإصدار</span><span class="value">${escapeHtml(date)}</span></div><div><span class="label">المنشأة</span><span class="value">${escapeHtml(orgName)}</span></div><div><span class="label">حالة الفاتورة</span><span class="value">مدفوعة</span></div></div><table><thead><tr><th>الوصف</th><th>الباقة</th><th>المبلغ</th></tr></thead><tbody><tr><td>اشتراك منصة مقياس</td><td>${escapeHtml(getPlanLabel(invoice.plan_code))}</td><td>${escapeHtml(amount)} ${escapeHtml(invoice.currency||"SAR")}</td></tr></tbody></table><div class="total">الإجمالي: ${escapeHtml(amount)} ${escapeHtml(invoice.currency||"SAR")}</div><div class="foot">تم إصدار هذه الفاتورة إلكترونياً من منصة MIQYAS. لا تتضمن هذه النسخة بيانات ضريبية غير مسجلة في النظام.</div></main></body></html>`);
+  popup.document.close();
+}
+document.addEventListener("click",event=>{
+  const button=event.target.closest(".invoice-open-btn");
+  if(button) openSubscriptionInvoice(button.dataset.invoiceId);
+});
+
 async function loadSubscriptionData(){
   try{
     const [plansRes,subRes,reqRes,adminRes,invoicesRes]=await Promise.all([
@@ -643,9 +662,9 @@ async function loadSubscriptionData(){
     currentSubscription=subRes.data?.[0]||null;
     subscriptionRequests=reqRes.data||[];
     const invoiceBody=$("#subscriptionInvoiceRows");
+    subscriptionInvoices=invoicesRes.error?[]:(invoicesRes.data||[]);
     if(invoiceBody){
-      const invoices=invoicesRes.error?[]:(invoicesRes.data||[]);
-      invoiceBody.innerHTML=invoices.length?invoices.map(i=>'<tr><td>'+escapeHtml(i.invoice_number||"—")+'</td><td>'+new Date(i.issued_at).toLocaleDateString("ar-SA-u-ca-gregory")+'</td><td>'+escapeHtml(getPlanLabel(i.plan_code))+'</td><td>'+Number(i.amount_sar||0).toLocaleString("ar-SA-u-ca-gregory")+' '+escapeHtml(i.currency||"SAR")+'</td><td>'+(i.status==="paid"?"مدفوعة":escapeHtml(i.status||"—"))+'</td></tr>').join(""):'<tr><td colspan="5">'+(invoicesRes.error?"سيظهر سجل الفواتير بعد تفعيل تحديث قاعدة البيانات.":"لا توجد فواتير بعد")+'</td></tr>';
+      invoiceBody.innerHTML=subscriptionInvoices.length?subscriptionInvoices.map(i=>'<tr><td>'+escapeHtml(i.invoice_number||"—")+'</td><td>'+new Date(i.issued_at).toLocaleDateString("ar-SA-u-ca-gregory")+'</td><td>'+escapeHtml(getPlanLabel(i.plan_code))+'</td><td>'+Number(i.amount_sar||0).toLocaleString("ar-SA-u-ca-gregory")+' '+escapeHtml(i.currency||"SAR")+'</td><td>'+(i.status==="paid"?"مدفوعة":escapeHtml(i.status||"—"))+'</td><td><button type="button" class="btn btn-secondary invoice-open-btn" data-invoice-id="'+escapeHtml(i.id)+'">عرض / PDF</button></td></tr>').join(""):'<tr><td colspan="6">'+(invoicesRes.error?"سيظهر سجل الفواتير بعد تفعيل تحديث قاعدة البيانات.":"لا توجد فواتير بعد")+'</td></tr>';
     }
     isPlatformAdmin=adminRes.data===true;
     subscriptionAccessError=false;
@@ -744,11 +763,15 @@ $("#subscriptionRequestForm").addEventListener("submit",async e=>{
       body:{
         action:"create_session",
         organization_id:currentOrg.id,
-        plan_code:planCode
+        plan_code:planCode,
+        coupon_code:$("#subscriptionCouponCode")?.value.trim().toUpperCase() || ""
       }
     });
     if(error) throw error;
     if(!data?.session_id) throw new Error(data?.error||data?.message||"لم يتم استلام جلسة الدفع من Geidea.");
+    if(data.coupon_applied){
+      message("#subscriptionMessage",`تم تطبيق كود ${data.coupon_code}. السعر قبل الخصم ${Number(data.original_amount).toFixed(2)} ريال، وبعد الخصم ${Number(data.amount).toFixed(2)} ريال.`,false);
+    }
     if(typeof window.GeideaCheckout!=="function") throw new Error("تعذر تحميل مكتبة الدفع Geidea. حدّث الصفحة وحاول مجدداً.");
 
     const onSuccess=(result)=>{
