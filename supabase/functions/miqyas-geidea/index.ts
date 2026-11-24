@@ -19,7 +19,7 @@ function cleanCredential(value: string | undefined) {
 async function createSignature(publicKey: string, amount: string, currency: string, reference: string, password: string, timestamp: string) {
   const data = `${publicKey}${amount}${currency}${reference}${timestamp}`;
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const digest = new Uint8Array(await crypto.subtle.sign("sign", key, new TextEncoder().encode(data)));
+  const digest = new Uint8Array(await crypto.subtle.sign({ name: "HMAC" }, key, new TextEncoder().encode(data)));
   return toBase64(digest);
 }
 
