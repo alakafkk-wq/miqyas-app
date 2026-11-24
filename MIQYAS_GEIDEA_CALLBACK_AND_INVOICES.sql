@@ -5,6 +5,32 @@
 begin;
 
 alter table public.subscription_payment_requests
+  add column if not exists coupon_code text,
+  add column if not exists original_amount_sar numeric(10,2);
+
+create table if not exists public.subscription_coupons (
+  code text primary key,
+  discount_percent numeric(5,2) not null check (discount_percent > 0 and discount_percent <= 100),
+  max_redemptions integer not null check (max_redemptions > 0),
+  redemption_count integer not null default 0 check (redemption_count >= 0),
+  is_active boolean not null default true,
+  expires_at timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table public.subscription_coupons enable row level security;
+drop policy if exists "platform admins manage subscription coupons" on public.subscription_coupons;
+create policy "platform admins manage subscription coupons"
+  on public.subscription_coupons for all to authenticated
+  using (public.is_platform_admin()) with check (public.is_platform_admin());
+
+insert into public.subscription_coupons(code,discount_percent,max_redemptions,redemption_count,is_active)
+values ('TEST90',90,3,0,true)
+on conflict (code) do update set
+  discount_percent=excluded.discount_percent,
+  max_redemptions=excluded.max_redemptions,
+  is_active=excluded.is_active;
+
+alter table public.subscription_payment_requests
   add column if not exists gateway_order_id text,
   add column if not exists paid_at timestamptz,
   add column if not exists gateway_status text;
@@ -96,6 +122,19 @@ begin
       (organization_id, plan_code, status, starts_at, ends_at, payment_method)
     values (v_req.organization_id, v_req.plan_code, 'active', now(),
             now() + make_interval(months => v_period), 'online');
+  end if;
+
+  -- Count coupon use only after verified payment; repeated callbacks exit above.
+  if v_req.coupon_code is not null then
+    update public.subscription_coupons
+    set redemption_count = redemption_count + 1
+    where code = v_req.coupon_code
+      and is_active = true
+      and redemption_count < max_redemptions
+      and (expires_at is null or expires_at > now());
+    if not found then
+      raise exception 'Coupon is no longer available';
+    end if;
   end if;
 
   update public.subscription_payment_requests
