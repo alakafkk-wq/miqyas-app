@@ -681,6 +681,7 @@ async function loadSubscriptionData(){
       invoiceBody.innerHTML=subscriptionInvoices.length?subscriptionInvoices.map(i=>'<tr><td>'+escapeHtml(i.invoice_number||"—")+'</td><td>'+new Date(i.issued_at).toLocaleDateString("ar-SA-u-ca-gregory")+'</td><td>'+escapeHtml(getPlanLabel(i.plan_code))+'</td><td>'+Number(i.amount_sar||0).toLocaleString("ar-SA-u-ca-gregory")+' '+escapeHtml(i.currency||"SAR")+'</td><td>'+(i.status==="paid"?"مدفوعة":escapeHtml(i.status||"—"))+'</td><td><button type="button" class="btn btn-secondary invoice-open-btn" data-invoice-id="'+escapeHtml(i.id)+'">عرض / طباعة</button></td></tr>').join(""):'<tr><td colspan="6">'+(invoicesRes.error?"سيظهر سجل الفواتير بعد تفعيل تحديث قاعدة البيانات.":"لا توجد فواتير بعد")+'</td></tr>';
     }
     isPlatformAdmin=adminRes.data===true;
+    $("#enableAdminNotifications")?.classList.toggle("hidden",!isPlatformAdmin);
     subscriptionAccessError=false;
     subscriptionAccessActive=isPlatformAdmin||isCurrentSubscriptionActive();
     renderSubscription();
