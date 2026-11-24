@@ -1,4 +1,4 @@
-import webpush from "npm:web-push";
+import * as webpush from "npm:web-push";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
